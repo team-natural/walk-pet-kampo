@@ -4,435 +4,739 @@ title: 状態遷移仕様
 phase: 3
 status: draft-ai
 owner: Tech Lead
-last-updated: 2026-08-18
+last-updated: 2026-09-15
 related-docs:
-  - PRD-01: ドメインモデル（状態を持つエンティティ）
-  - DEV-05: バックエンド実装（状態遷移関数の実装パターン）
+  - PRD-01: ドメインモデル（状態を持つエンティティ、§7）
+  - DEV-01: 技術スタック決定書・アーキテクチャ原則（状態遷移関数の実装パターン §4、GOV-01 D-006〜D-010）
+  - DEV-05: バックエンド実装ガイド
   - DEV-07: DB 物理設計
+  - DEV-10: 統合・外部 API 仕様（Stripe / Stripe Connect の状態整合）
 ---
 
-# 09-state-machine-spec.md — 状態遷移仕様テンプレート
+# 09-state-machine-spec.md — 状態遷移仕様
 
 ## このセクションの目的
 
 状態を持つエンティティの **状態一覧 / 遷移マトリクス / トリガー / 不正遷移時の挙動** を体系的に定義する。Service 層に集約する状態遷移関数の実装パターンも提供（DEV-01 §4「状態遷移の集約」参照）。
 
+本プロジェクトは二者間マーケットプレイス（お散歩参加者 Walker × 保護団体 Organization、運営 Platform の 3 者構造 — GOV-01 D-006）であり、状態を持つエンティティ数・遷移の複雑さは本テンプレート標準（パターン A）より大きい。実装パターン自体（Service 層への単一 TypeScript 遷移関数への集約）はテンプレート標準を踏襲し、対象エンティティのみ本プロジェクト固有のものに置き換える。
+
 ## 0-H. ハイブリッド編集ガイド（要点）
 
 - 推奨モード: Hybrid（AI 整理 + Tech Lead レビュー）
-- 人間確認必須: 遷移パスの妥当性、不正遷移時の挙動、監査ログ要件
+- 人間確認必須: 遷移パスの妥当性、不正遷移時の挙動、監査ログ要件、キャンセル・返金条件（GOV-02 TBD-10〜13）
 
 ---
 
 ## 1. 状態遷移を持つエンティティ一覧
 
-PRD-01 §7 と整合させる。本テンプレート（パターン A）は単一運営・少数ロールが前提のため、Organization / Subscription / Invitation / Membership / Payment のようなマルチテナント SaaS 課金系のエンティティは存在しない（00_README §0-1・§2-2、PRD-01 §1）。標準エンティティ（Inquiry / Member）と、採用時のみ追加するオプションエンティティ（Post / AiJob / Order）を対象とする。参照実装は **Inquiry**（`apps/admin/src/lib/server/services/inquiries.ts`）。
+PRD-01 §7 と完全に一致させる。標準テンプレートが前提とする単一運営・少数ロールの Member/AiJob/Order は本プロジェクトには存在しない（PRD-01 §1-0）。テンプレート標準の Post も不採用のため状態遷移を持たない（GOV-01 D-014）。記事型コンテンツの状態遷移は News（§2-13）のみが持つ。
 
-<!-- TEMPLATE: PRD-01 §7 の状態一覧と対応 -->
-<!-- SAMPLE START: フォーマット例 — 実際のエンティティに置き換えてください -->
-| エンティティ | 状態数 | 主な遷移トリガー |
-| --- | --- | --- |
-| Inquiry | 3 | 対応開始・対応完了・差し戻し（管理者操作、PRD-01 §7）。**参照実装** |
-| Member | 2 | 利用停止・復帰（管理者操作、PRD-01 §7） |
-| Post（ブログを D1 で持つ場合のみ。DEV-07 §3-2） | 3 | 公開操作・非公開化・アーカイブ（管理者操作、PRD-01 §7） |
-| [プロダクト固有エンティティ] | [N] | [遷移トリガー] |
-| AiJob（AI 機能採用時のみ） | 4 | 非同期ジョブの実行（キュー投入・処理開始・完了・失敗） |
-| Order（軽量 EC 採用時のみ。PRD-03 FG-05） | 4 | Stripe Webhook（決済成功等）・管理者操作（発送・提供完了等） |
-<!-- SAMPLE END -->
+| エンティティ | 状態数 | 主な遷移トリガー | 配置 |
+| --- | --- | --- | --- |
+| Organization | 8 | 運営（admin）の審査、団体（org_admin）の申請・退会 | `apps/public`（審査系トリガーのみ `apps/admin` から D1 を更新 — §3-4）|
+| OrganizationMember | 3 | 招待受諾、org_admin による停止・解除 | `apps/public` |
+| Invitation | 3 | 招待発行・受諾・期限切れバッチ | `apps/public` |
+| WalkerProfile | 6 | メール・電話確認、規約同意、admin の利用制限・停止操作 | `apps/public` |
+| Dog（adoptionStatus）| 6 | 団体スタッフ（org_admin/org_staff）による里親募集状況の更新 | `apps/public` |
+| WalkSlot | 8 | 団体スタッフの公開操作、予約充足、天候・犬の体調による中止 | `apps/public` |
+| Reservation | 12 | Walker / 団体 / 運営の操作、Stripe Webhook、WalkSlot の中止連動 | `apps/public` |
+| Payment | 7 | Stripe Webhook（決済成功・失敗・返金）| `apps/public` |
+| Payout | 7 | Cron Triggers による月次集計、admin の振込確定操作、Stripe Connect Transfer | `apps/admin`（審査系と同じ D1 直接更新パターン。org_admin 向け参照専用クエリのみ `apps/public`）|
+| Incident | 5 | 団体スタッフの報告・対応更新、admin の完了処理 | `apps/public` |
+| AdoptionInquiry | 7 | Walker の相談送信、団体スタッフの対応更新 | `apps/public` |
+| Inquiry | 5 | 運営（admin）の対応更新 | `apps/admin` |
+| News | 3 | 運営（admin）の公開・掲載終了操作、`published_until` 到達時の日次バッチ | `apps/admin` |
 
 ---
 
 ## 2. エンティティ別の状態遷移定義
 
-### 2-1. Inquiry（参照実装）
+### 2-1. Organization
 
-<!-- SAMPLE START: フォーマット例 — 実際の内容に置き換えてください -->
 #### 2-1-1. 状態一覧
 
-PRD-01 §7 / DEV-07 §4-3（`inquiries.status`）と一致させる。
+PRD-01 §7 / DEV-07（`organizations.status`、案件着手時に確定）と一致させる。
 
 | 状態 | 説明 |
 | --- | --- |
-| `new` | 新規受信・未対応 |
-| `in_progress` | 対応中 |
-| `resolved` | 対応完了 |
+| `pending_review` | 登録申請を受け付けた直後 |
+| `under_review` | 運営が審査中 |
+| `needs_more_info` | 追加確認依頼中 |
+| `approved` | 承認済・稼働中。WalkSlot の公開が可能 |
+| `rejected` | 否認（終端状態）|
+| `suspended` | 一時的な掲載停止 |
+| `deactivated` | 長期活動停止 |
+| `withdrawn` | 団体からの退会（終端状態）|
 
 #### 2-1-2. 遷移マトリクス
 
-| 遷移元 → 遷移先 | new | in_progress | resolved |
-| --- | :---: | :---: | :---: |
-| new | — | ✓ | ✗ |
-| in_progress | ✓ | — | ✓ |
-| resolved | ✗ | ✓ | — |
+| 遷移元 → 遷移先 | pending_review | under_review | needs_more_info | approved | rejected | suspended | deactivated | withdrawn |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| pending_review | — | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| under_review | ✗ | — | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ |
+| needs_more_info | ✗ | ✓ | — | ✗ | ✗ | ✗ | ✗ | ✗ |
+| approved | ✗ | ✗ | ✗ | — | ✗ | ✓ | ✓ | ✓ |
+| rejected | ✗ | ✗ | ✗ | ✗ | — | ✗ | ✗ | ✗ |
+| suspended | ✗ | ✗ | ✗ | ✓ | ✗ | — | ✓ | ✓ |
+| deactivated | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | — | ✓ |
+| withdrawn | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | — |
 
-> 終端状態を持たない（`Confirmed` — 参照実装で確定）。誤って対応完了にした場合の復帰手段が無いと
-> 運用が詰まるため、`resolved → in_progress` と `in_progress → new` を許可する。`new` への差し戻しは
-> 担当を手放す操作であり、`handled_by` が NULL に戻る（§2-1-4）。
+> `rejected` / `withdrawn` は終端状態。再申請する場合は新規 Organization レコードを作成する。
 
 #### 2-1-3. 遷移トリガー
 
 | 遷移 | トリガー | 実行者 |
 | --- | --- | --- |
-| new → in_progress | 対応開始（`POST /api/v1/inquiries/{id}/start`） | editor 以上 |
-| in_progress → resolved | 対応完了（`POST /api/v1/inquiries/{id}/resolve`） | editor 以上 |
-| in_progress → new | 差し戻し・担当解除（`POST /api/v1/inquiries/{id}/reopen`） | editor 以上 |
-| resolved → in_progress | 再オープン（`POST /api/v1/inquiries/{id}/start`） | editor 以上 |
+| pending_review → under_review | 審査担当のアサイン | admin |
+| under_review → needs_more_info | 追加書類・情報の依頼 | admin |
+| under_review → approved / rejected | 審査結果確定 | admin |
+| needs_more_info → under_review | 団体が追加情報を提出 | org_admin |
+| approved → suspended | 規約違反・安全上の懸念等の運営判断 | admin |
+| approved → deactivated | 長期休止の申請・運営判断 | org_admin または admin |
+| approved/suspended/deactivated → withdrawn | 団体退会申請 | org_admin |
+| suspended/deactivated → approved | 是正確認後の掲載再開 | admin |
 
 #### 2-1-4. 遷移時の副作用
 
 | 遷移 | 副作用 |
 | --- | --- |
-| → in_progress | 操作者を `handled_by` に記録する（DEV-07 §4-3）。引き受けた者が担当になる |
-| → new | `handled_by` を NULL に戻す（担当を手放す） |
-| → resolved | `handled_by` は維持する。利用者への完了連絡を行うかは案件次第（**Open** — メール送信基盤が必要。PRD-03 FG-06 の受信時通知とは別の関心事） |
+| → approved | 団体アカウント有効化通知（Resend）、WalkSlot の公開が可能に |
+| → needs_more_info / rejected | 理由を添えて団体へ通知 |
+| → suspended / deactivated | 公開中の WalkSlot を強制的に `unpublished` へ連鎖遷移（§2-6）。予約済み Reservation の扱いは admin が個別判断 |
+| → withdrawn | 未実施の予約・未振込の Payout がないか事前確認（OPS-01 相当のチェック）|
 
-#### 2-1-5. Mermaid
+#### 2-1-5. 実行者に関する注記
 
-```mermaid
-stateDiagram-v2
-    [*] --> new
-    new --> in_progress: 対応開始
-    in_progress --> new: 差し戻し
-    in_progress --> resolved: 対応完了
-    resolved --> in_progress: 再オープン
-```
-<!-- SAMPLE END -->
+`under_review → approved/rejected` 等の審査系遷移は admin（`apps/admin` の AdminUser）が操作する。Organization テーブル自体は `apps/public` のドメインだが、D1 は `apps/public`/`apps/admin` の両 Worker が共有する同一インスタンスのため（CLAUDE.md「D1/R2/KV バインディングルール」）、審査系の `transitionOrganization()` は `apps/admin/src/lib/server/services/organizations.ts` に置き、団体自身の操作（`needs_more_info → under_review` の再提出、`withdrawn` への退会）に対応する遷移は `apps/public/src/lib/server/services/organizations.ts` に置く（実装例は §3-4）。1 テーブルに対して 2 つの Service ファイルが存在する点は例外的な配置であり、DEV-05 のレイヤー構成（DEV-01 §5-3）を更新する際に明記する。
 
-### 2-2. Post（ブログを D1 で持つ場合のみ）
+---
 
-<!-- SAMPLE START: フォーマット例 — 実際の内容に置き換えてください -->
+### 2-2. OrganizationMember
+
 #### 2-2-1. 状態一覧
-
-PRD-01 §7 / DEV-07 §4-2（`posts.status`）と一致させる。
 
 | 状態 | 説明 |
 | --- | --- |
-| `draft` | 下書き（非公開） |
-| `published` | 公開中 |
-| `archived` | 公開終了（アーカイブ） |
+| `invited` | 招待送信済・未受諾 |
+| `active` | 所属中・利用可能 |
+| `suspended` | 利用停止 |
 
 #### 2-2-2. 遷移マトリクス
 
-| 遷移元 → 遷移先 | draft | published | archived |
+| 遷移元 → 遷移先 | invited | active | suspended |
 | --- | :---: | :---: | :---: |
-| draft | — | ✓ | ✗ |
-| published | ✓ | — | ✓ |
-| archived | ✗ | ✓ | — |
+| invited | — | ✓ | ✗ |
+| active | ✗ | — | ✓ |
+| suspended | ✗ | ✓ | — |
 
-> `draft → archived` の直接遷移は無し（一度公開してからアーカイブする運用を想定）。`archived → published`（再公開）は許可する。§3-2 の `TRANSITIONS` 定義と一致させること。
+#### 2-2-3. 遷移トリガー・副作用
 
-#### 2-2-3. 遷移トリガー
+| 遷移 | トリガー | 実行者 | 副作用 |
+| --- | --- | --- | --- |
+| invited → active | 招待受諾（Invitation の `accepted` と同一トランザクション — §2-3）| OrganizationMember 本人 | セッション確立 |
+| active → suspended | 規約違反等の団体側判断 | org_admin | 該当ユーザーのセッションを全失効 |
+| suspended → active | 是正確認後の復帰 | org_admin | — |
 
-| 遷移 | トリガー | 実行者 |
-| --- | --- | --- |
-| draft → published | 記事編集画面で「公開」操作 | admin / editor（DEV-02 §2-3 ※1 の判断に依存） |
-| published → draft | 「非公開化」操作（unpublish） | admin（editor まで許可するかは案件次第） |
-| published → archived | 「アーカイブ」操作 | admin |
-| archived → published | 「再公開」操作（republish） | admin |
+> 退会は状態遷移ではなく `left_at` の記録で扱う（旧仕様を踏襲）。
 
-#### 2-2-4. 遷移時の副作用
+---
 
-| 遷移 | 副作用 |
-| --- | --- |
-| → published | `published_at` を記録（DEV-07 §4-2）。公開側の一覧・サイトマップに反映 |
-| → draft（unpublish） | 公開側から非表示化 |
-| → archived | 公開側から除外（データ自体は保持。保管方針は DEV-07 §10） |
+### 2-3. Invitation
 
-#### 2-2-5. Mermaid
-
-```mermaid
-stateDiagram-v2
-    [*] --> draft
-    draft --> published: publish
-    published --> draft: unpublish
-    published --> archived: archive
-    archived --> published: republish
-```
-<!-- SAMPLE END -->
-
-### 2-3. [プロダクト固有エンティティ]
-
-<!-- SAMPLE START: フォーマット例 — 実際のエンティティに置き換えてください -->
 #### 2-3-1. 状態一覧
 
 | 状態 | 説明 |
 | --- | --- |
-| `[状態名]` | [説明] |
-| `[状態名]` | [説明] |
+| `pending` | 発行済・未受諾 |
+| `accepted` | 受諾済（終端状態）|
+| `expired` | 期限切れ（終端状態、発行から 7 日）|
 
 #### 2-3-2. 遷移マトリクス
 
-| 遷移元 → 遷移先 | [状態 A] | [状態 B] | [状態 C] |
-| --- | :---: | :---: | :---: |
-| [状態 A] | — | ✓ | ✗ |
-| [状態 B] | ✓ | — | ✓ |
-| [状態 C] | ✗ | ✗ | — |
+| 遷移元 → 遷移先 | accepted | expired |
+| --- | :---: | :---: |
+| pending | ✓ | ✓ |
 
-#### 2-3-3. 遷移トリガー
+#### 2-3-3. 遷移トリガー・副作用
 
-| 遷移 | トリガー | 権限 |
-| --- | --- | --- |
-| [状態 A] → [状態 B] | [ユーザー操作 / Webhook / バッチ] | [権限] |
-<!-- SAMPLE END -->
+| 遷移 | トリガー | 実行者 | 副作用 |
+| --- | --- | --- | --- |
+| pending → accepted | 招待リンクからの受諾操作 | 招待された本人（受諾時点で OrganizationMember レコードを作成）| OrganizationMember を `active` で作成（§2-2）|
+| pending → expired | 発行から 7 日経過 | system（Cron Triggers 日次バッチ）| 招待リンクを無効化、再招待は新規 Invitation を発行 |
 
-### 2-4. AiJob（AI 機能採用時のみ）
+---
 
-<!-- SAMPLE START: フォーマット例 — 採用時に実際の内容を確認してください -->
+### 2-4. WalkerProfile
+
 #### 2-4-1. 状態一覧
-
-DEV-07 §3-4 / §6（`ai_jobs.status`）と一致させる。
 
 | 状態 | 説明 |
 | --- | --- |
-| `queued` | キュー投入済、実行待ち |
-| `processing` | 実行中 |
-| `completed` | 完了 |
-| `failed` | 失敗（リトライ上限到達） |
+| `provisional` | 仮登録（Walker アカウント作成直後）|
+| `pending_verification` | メール・電話確認待ち |
+| `active` | 利用可能（予約可能）|
+| `restricted` | 利用制限（一部機能制限）|
+| `suspended` | 利用停止 |
+| `withdrawn` | 退会（終端状態）|
 
 #### 2-4-2. 遷移マトリクス
 
-| 遷移元 → 遷移先 | queued | processing | completed | failed |
-| --- | :---: | :---: | :---: | :---: |
-| queued | — | ✓ | ✗ | ✓ |
-| processing | ✓ | — | ✓ | ✓ |
-| completed | ✗ | ✗ | — | ✗ |
-| failed | ✗ | ✗ | ✗ | — |
+| 遷移元 → 遷移先 | provisional | pending_verification | active | restricted | suspended | withdrawn |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
+| provisional | — | ✓ | ✗ | ✗ | ✗ | ✓ |
+| pending_verification | ✗ | — | ✓ | ✗ | ✗ | ✓ |
+| active | ✗ | ✗ | — | ✓ | ✓ | ✓ |
+| restricted | ✗ | ✗ | ✓ | — | ✓ | ✓ |
+| suspended | ✗ | ✗ | ✓ | ✗ | — | ✓ |
 
-> `processing → queued` はリトライ時の戻し。
-<!-- SAMPLE END -->
-
-### 2-5. Order（軽量 EC 採用時のみ — PRD-03 FG-05）
-
-Order は FG-05（軽量注文・決済）採用時のみの **オプション例**。採用しない場合は本節を削除する。DEV-07 §7-1（`orders.status`）と一致させる。ゲストチェックアウトと Member への任意紐付け（FG-07 採用時、`orders.member_id`）の両方を前提とし、複雑な承認フロー・在庫同期は対象外（00_README §2-2、PRD-01 §1-1・§1-3）。
-
-<!-- SAMPLE START: フォーマット例 — 実際の内容に置き換えてください -->
-#### 2-5-1. 状態一覧
-
-| 状態 | 説明 |
-| --- | --- |
-| `pending` | 注文受付・決済処理待ち |
-| `paid` | 決済完了（`stripe_payment_intent_id` 確定） |
-| `fulfilled` | 発送・提供完了 |
-| `cancelled` | 取消（決済失敗・利用者キャンセル・返金等） |
-
-#### 2-5-2. 遷移マトリクス
-
-| 遷移元 → 遷移先 | pending | paid | fulfilled | cancelled |
-| --- | :---: | :---: | :---: | :---: |
-| pending | — | ✓ | ✗ | ✓ |
-| paid | ✗ | — | ✓ | ✓ |
-| fulfilled | ✗ | ✗ | — | ✗ |
-| cancelled | ✗ | ✗ | ✗ | — |
-
-> `fulfilled` / `cancelled` は終端状態。返金は Stripe 側の操作として記録し、本テーブルの `status` は `cancelled` に遷移させる運用を想定する（返金専用の状態は持たず、シンプルな 4 状態に留める — DEV-07 §7-1）。再決済は新規 Order レコードを作成する。
-
-#### 2-5-3. 遷移トリガー（Stripe Webhook ベース）
+#### 2-4-3. 遷移トリガー
 
 | 遷移 | トリガー | 実行者 |
 | --- | --- | --- |
-| pending → paid | Stripe Webhook（`checkout.session.completed` 等） | system |
-| pending → cancelled | Stripe Webhook（決済失敗）、または利用者の離脱タイムアウト | system |
-| paid → fulfilled | 管理画面での発送・提供完了操作（FG-04 と連動） | admin |
-| paid → cancelled | 管理画面での取消操作（返金処理と合わせて実施） | admin |
+| provisional → pending_verification | Walker アカウント登録完了 | system |
+| pending_verification → active | メール確認 + 電話確認 + 利用規約同意の全完了 | system |
+| active → restricted | 無断キャンセル多発等の軽微な違反（基準は GOV-02 TBD-13 — 未確定）| admin |
+| active/restricted → suspended | 規約違反・事故関与等の重大な違反 | admin |
+| suspended/restricted → active | 是正確認後の解除 | admin |
+| any → withdrawn | 退会申請 | WalkerProfile 本人 |
 
-#### 2-5-4. 遷移時の副作用
+#### 2-4-4. 副作用
 
 | 遷移 | 副作用 |
 | --- | --- |
-| → paid | 注文確認メール送信（利用者宛、F-05-04）。`stripe_event_logs` へ Webhook イベントを記録（DEV-07 §7-3、冪等性確保） |
-| → fulfilled | 発送・提供完了メールの送信有無は案件次第（**Open** — 案件実装時に確定） |
-| → cancelled | 取消連絡メールの送信有無は案件次第（**Open** — 案件実装時に確定） |
+| → active | 予約機能が解禁される（PRD-01 §1-2 のデータ駆動な利用資格判定）|
+| → suspended / withdrawn | 未実施の Reservation の扱いは admin が個別判断 |
 
-#### 2-5-5. Mermaid
+---
 
-```mermaid
-stateDiagram-v2
-    [*] --> pending
-    pending --> paid: 決済成功
-    pending --> cancelled: 決済失敗 / 離脱
-    paid --> fulfilled: 発送・提供完了
-    paid --> cancelled: 取消（返金）
-```
-<!-- SAMPLE END -->
+### 2-5. Dog（adoptionStatus）
 
-### 2-6. Member（標準同梱 — PRD-03 FG-07）
+#### 2-5-1. 状態一覧
 
-Member は FG-07 採用時のみの **オプション例**。採用しない場合は本節を削除する。DEV-07 §4-6（`members.status`）と一致させる。ロール階層を持たない単一種別のため、遷移は有効／利用停止の 2 状態のみ（PRD-01 §1-2・§7）。
+DEV-07 の `dogs.adoption_status` と一致させる。お散歩参加可否を表す `walkEligible` とは独立したフラグ（PRD-01 §3-2）。
 
-<!-- SAMPLE START: フォーマット例 — 実際の内容に置き換えてください -->
+| 状態 | 説明 |
+| --- | --- |
+| `not_listed` | 里親募集前 |
+| `listed` | 里親募集中 |
+| `in_consultation` | 相談中 |
+| `in_trial` | トライアル中 |
+| `adopted` | 譲渡決定（終端状態）|
+| `listing_closed` | 募集終了（終端状態）|
+
+#### 2-5-2. 遷移マトリクス
+
+| 遷移元 → 遷移先 | not_listed | listed | in_consultation | in_trial | adopted | listing_closed |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
+| not_listed | — | ✓ | ✗ | ✗ | ✗ | ✗ |
+| listed | ✗ | — | ✓ | ✗ | ✗ | ✓ |
+| in_consultation | ✗ | ✓ | — | ✓ | ✗ | ✓ |
+| in_trial | ✗ | ✓ | ✗ | — | ✓ | ✓ |
+
+#### 2-5-3. 遷移トリガー
+
+| 遷移 | トリガー | 実行者 |
+| --- | --- | --- |
+| not_listed → listed | 団体が里親募集を開始 | org_admin / org_staff |
+| listed → in_consultation | AdoptionInquiry の対応開始と連動（Service 層で自動遷移 — §2-11）| system |
+| in_consultation → in_trial | トライアル開始の団体判断 | org_admin / org_staff |
+| in_trial → adopted | 譲渡確定 | org_admin / org_staff |
+| any → listing_closed | 募集終了の団体判断 | org_admin / org_staff |
+
+#### 2-5-4. 副作用
+
+| 遷移 | 副作用 |
+| --- | --- |
+| → adopted / listing_closed | `walkEligible` の見直しを団体スタッフへ促す通知（お散歩参加可否は別フラグのため自動変更しない）|
+
+---
+
+### 2-6. WalkSlot
+
 #### 2-6-1. 状態一覧
 
 | 状態 | 説明 |
 | --- | --- |
-| `active` | 有効（ログイン可） |
-| `suspended` | 利用停止（ログイン不可。既存セッションも失効させる） |
+| `draft` | 下書き |
+| `scheduled` | 公開予定 |
+| `open` | 募集中 |
+| `full` | 定員到達 |
+| `closed` | 受付終了 |
+| `cancelled` | 開催中止 |
+| `completed` | 実施完了 |
+| `unpublished` | 非公開 |
 
 #### 2-6-2. 遷移マトリクス
 
-| 遷移元 → 遷移先 | active | suspended |
-| --- | :---: | :---: |
-| active | — | ✓ |
-| suspended | ✓ | — |
+| 遷移元 → 遷移先 | draft | scheduled | open | full | closed | cancelled | completed | unpublished |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| draft | — | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ | ✓ |
+| scheduled | ✗ | — | ✓ | ✗ | ✗ | ✓ | ✗ | ✓ |
+| open | ✗ | ✗ | — | ✓ | ✓ | ✓ | ✗ | ✓ |
+| full | ✗ | ✗ | ✓ | — | ✓ | ✓ | ✗ | ✓ |
+| closed | ✗ | ✗ | ✗ | ✗ | — | ✓ | ✓ | ✗ |
+| unpublished | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | — |
 
 #### 2-6-3. 遷移トリガー
 
 | 遷移 | トリガー | 実行者 |
 | --- | --- | --- |
-| active → suspended | 規約違反・退会申請等による利用停止操作 | admin |
-| suspended → active | 停止解除操作 | admin |
+| draft/scheduled → open | 受付開始日時到達 or 手動公開 | system（Cron Triggers）/ org_staff |
+| open → full | `reserved_count` が `capacity` に到達 | system |
+| full → open | キャンセル発生による空き復活 | system |
+| open/full → closed | 受付終了日時到達 | system（Cron Triggers）|
+| closed → completed | 開催日時経過 + WalkRecord 登録（実施済み記録）| org_staff |
+| open/full/scheduled → cancelled | 開催中止（天候・団体都合等）| org_admin / org_staff |
 
 #### 2-6-4. 遷移時の副作用
 
 | 遷移 | 副作用 |
 | --- | --- |
-| → suspended | `member_sessions` の該当行を全削除してログイン中のセッションを即時失効させる（DEV-02 §1-2、DEV-07 §4-7） |
-| → active | 副作用なし（再ログインで新規セッションが発行される） |
+| → cancelled | 予約済み Reservation を `cancelled_weather` または `cancelled_by_organization` へ連鎖遷移し、Payment の全額返金判定を起動（§2-7・§2-8）|
+| → completed | 参加者へお散歩記録公開の通知（Resend）|
+| ← Organization の suspended/deactivated | Organization 側の遷移（§2-1-4）から `unpublished` へ連鎖遷移（admin/org_admin の操作起点ではなく Organization 側の Service から呼ばれる）|
 
-<!-- SAMPLE END -->
+---
+
+### 2-7. Reservation
+
+#### 2-7-1. 状態一覧（PRD-01 §7 準拠）
+
+| 状態 | 説明 |
+| --- | --- |
+| `processing` | 予約手続き中 |
+| `awaiting_payment` | 決済待ち |
+| `confirmed` | 予約確定 |
+| `organization_reviewing` | 団体確認中 |
+| `scheduled` | 実施予定 |
+| `completed` | 実施完了 |
+| `cancelled_by_walker` | 参加者キャンセル |
+| `cancelled_by_organization` | 団体キャンセル |
+| `cancelled_by_platform` | 運営キャンセル |
+| `no_show` | 無断キャンセル |
+| `cancelled_weather` | 天候による中止 |
+| `cancelled_dog_condition` | 犬の体調による中止 |
+
+#### 2-7-2. 遷移マトリクス（`completed` / `cancelled_*` / `no_show` はすべて終端状態）
+
+| 遷移元 → 遷移先 | awaiting_payment | confirmed | organization_reviewing | scheduled | completed | cancelled_by_walker | cancelled_by_organization | cancelled_by_platform | no_show | cancelled_weather | cancelled_dog_condition |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| processing | ✓ | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| awaiting_payment | — | ✓ | ✗ | ✗ | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| confirmed | ✗ | — | ✓ | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ |
+| organization_reviewing | ✗ | ✗ | — | ✓ | ✗ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ |
+| scheduled | ✗ | ✗ | ✗ | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+
+#### 2-7-3. 遷移トリガー
+
+| 遷移 | トリガー | 実行者 |
+| --- | --- | --- |
+| processing → awaiting_payment | 予約内容確定・決済画面遷移 | Walker |
+| awaiting_payment → confirmed | Stripe 決済成功 Webhook（`payment_intent.succeeded`）| system |
+| confirmed → organization_reviewing | 団体側の予約者確認フロー（任意）| system（自動）または org_staff |
+| confirmed/organization_reviewing → scheduled | 開催日時が近づいた時点でのリマインド対象化 | system（Cron Triggers バッチ）|
+| scheduled → completed | WalkRecord 登録（実施済み）| org_staff |
+| confirmed/organization_reviewing/scheduled → cancelled_by_walker | 参加者都合キャンセル | Walker |
+| confirmed/organization_reviewing/scheduled → cancelled_by_organization | 団体都合キャンセル | org_admin / org_staff |
+| confirmed/organization_reviewing/scheduled → cancelled_by_platform | 運営判断によるキャンセル代行 | admin |
+| scheduled → no_show | 当日不参加を団体スタッフが記録 | org_staff |
+| confirmed/organization_reviewing/scheduled → cancelled_weather / cancelled_dog_condition | WalkSlot の中止に連動（§2-6-4）| system |
+
+#### 2-7-4. 副作用
+
+| 遷移 | 副作用 |
+| --- | --- |
+| → confirmed | 予約完了通知（Walker・団体双方、Resend）、WalkSlot.reserved_count 加算 |
+| → cancelled_* | WalkSlot.reserved_count 減算、キャンセル条件に応じた Payment 返金判定（GOV-02 TBD-10〜12、未確定）|
+| → no_show | 無断キャンセル履歴に記録（WalkerProfile の利用制限判断の材料 — §2-4、GOV-02 TBD-13）|
+| → completed | Payout の還元対象集計にカウント（§2-9）|
+
+---
+
+### 2-8. Payment
+
+#### 2-8-1. 状態一覧
+
+Stripe の Payment Intent / Charge の状態と整合させる（DEV-10 §2）。
+
+| 状態 | 説明 |
+| --- | --- |
+| `unpaid` | 未決済 |
+| `processing` | 決済処理中 |
+| `paid` | 決済済み |
+| `failed` | 決済失敗（終端状態）|
+| `refund_processing` | 返金処理中 |
+| `refunded` | 返金済み（終端状態）|
+| `partially_refunded` | 一部返金（終端状態）|
+
+#### 2-8-2. 遷移マトリクス
+
+| 遷移元 → 遷移先 | processing | paid | failed | refund_processing | refunded | partially_refunded |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
+| unpaid | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| processing | — | ✓ | ✓ | ✗ | ✗ | ✗ |
+| paid | ✗ | — | ✗ | ✓ | ✗ | ✗ |
+| refund_processing | ✗ | ✗ | ✗ | — | ✓ | ✓ |
+
+> 再決済は新規 Payment レコードを作成する。
+
+#### 2-8-3. 遷移トリガー（Stripe Webhook ベース、DEV-10 §2 参照）
+
+| 遷移 | トリガー |
+| --- | --- |
+| unpaid → processing | Checkout Session 開始 |
+| processing → paid | `payment_intent.succeeded` |
+| processing → failed | `payment_intent.payment_failed` |
+| paid → refund_processing | Reservation のキャンセルによる返金判定（全額/一部、GOV-02 TBD-10〜12）|
+| refund_processing → refunded / partially_refunded | `charge.refunded` |
+
+> Webhook 受信エンドポイントは `apps/public/src/pages/api/v1/payments/webhook.ts`（Payment/Reservation のデータ保有元が `apps/public` のため — GOV-01 D-007）。冪等性確保のパターン自体（`stripe_event_logs` への記録）は DEV-10 §2-4 のサンプルコードに従う。DEV-10 §2 の現行サンプルは軽量 EC（Order）採用時の記述であり、本プロジェクトでは Order の代わりに Reservation/Payment を対象に読み替える。
+
+---
+
+### 2-9. Payout
+
+#### 2-9-1. 状態一覧
+
+Stripe Connect の Transfer 状態と整合させる（DEV-10 §2）。
+
+| 状態 | 説明 |
+| --- | --- |
+| `uncollected` | 未集計 |
+| `aggregating` | 集計中 |
+| `confirmed` | 確定 |
+| `scheduled` | 振込予定 |
+| `paid` | 振込済み（終端状態）|
+| `on_hold` | 保留 |
+| `failed` | 組戻し・エラー |
+
+#### 2-9-2. 遷移マトリクス
+
+| 遷移元 → 遷移先 | aggregating | confirmed | scheduled | paid | on_hold | failed |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: |
+| uncollected | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| aggregating | ✗ | ✓ | ✗ | ✗ | ✓ | ✗ |
+| confirmed | ✗ | ✗ | ✓ | ✗ | ✓ | ✗ |
+| scheduled | ✗ | ✗ | ✗ | ✓ | ✓ | ✓ |
+| on_hold | ✗ | ✓ | ✗ | ✗ | — | ✗ |
+| failed | ✗ | ✗ | ✓ | ✗ | ✗ | — |
+
+#### 2-9-3. 遷移トリガー
+
+| 遷移 | トリガー | 実行者 |
+| --- | --- | --- |
+| uncollected → aggregating | 月次集計バッチ起動 | system（Cron Triggers、GOV-01 D-010）|
+| aggregating → confirmed | 集計完了・調整額確定 | admin |
+| aggregating/confirmed → on_hold | Organization の状態異常（suspended 等）や金額異常の検知 | admin |
+| confirmed → scheduled | 振込予定日の確定 | admin |
+| scheduled → paid | Stripe Connect Transfer 成功 | system |
+| scheduled/on_hold → failed | Transfer 失敗（Connected Account 未設定等）| system |
+| on_hold → confirmed / failed → scheduled | 問題解消後の再開 | admin |
+
+> 月次集計バッチは Cloudflare Cron Triggers（`apps/admin` の Scheduled Worker、GOV-01 D-010）が起動する。Payout の集計・確定・Transfer 実行は admin 専用の運営操作であるため、`apps/admin/src/lib/server/services/payouts.ts` にロジックを置き、共有 D1（`payments`/`reservations`/`payouts`）へ直接アクセスする（Organization の審査系遷移 §2-1-5 と同じパターン。`apps/admin` の API Route → `apps/public` 側の Service を直接 import することはできないため — DEV-01 §5「apps/public と apps/admin は互いの source を import できない」— D1 バインディング経由でアクセスする。詳細は DEV-05 §7-2）。org_admin 向けの参照専用クエリ（振込履歴確認、PRD-04 ADM-15/16）のみ `apps/public` 側に置く。
+
+---
+
+### 2-10. Incident
+
+#### 2-10-1. 状態一覧
+
+| 状態 | 説明 |
+| --- | --- |
+| `reported` | 報告受付 |
+| `investigating` | 調査中 |
+| `in_progress` | 対応中 |
+| `resolved` | 解決 |
+| `closed` | クローズ（終端状態）|
+
+#### 2-10-2. 遷移とトリガー
+
+`reported → investigating → in_progress → resolved → closed` が基本の一直線遷移。重大事故（`severity` = P0/P1）は `reported` から直接 `in_progress` へ遷移可（調査ステップを省略）。トリガーは団体スタッフ（org_admin/org_staff）・運営（admin）の対応更新操作。
+
+#### 2-10-3. 副作用
+
+| 遷移 | 副作用 |
+| --- | --- |
+| → reported（P0/P1）| 運営へ即時通知（Resend、`ctx.waitUntil()`）|
+| → closed | 関連 Reservation・Payment への影響（返金判定等）を最終確認 |
+
+---
+
+### 2-11. AdoptionInquiry
+
+#### 2-11-1. 状態一覧
+
+| 状態 | 説明 |
+| --- | --- |
+| `received` | 受付 |
+| `organization_reviewing` | 団体確認中 |
+| `contacted` | 連絡済み |
+| `interview_scheduled` | 面談予定 |
+| `transferred_to_organization_process` | 団体手続きへ移行（終端状態。以降は各団体の譲渡手続きに従う — PRD-01 §1-0）|
+| `closed` | 相談終了（終端状態）|
+| `withdrawn` | 取下げ（終端状態）|
+
+#### 2-11-2. 遷移とトリガー
+
+基本フローは `received → organization_reviewing → contacted → interview_scheduled → transferred_to_organization_process`。各状態から `closed` / `withdrawn` へも遷移可。トリガーは団体スタッフ（org_admin/org_staff）の対応更新、または Walker 本人の取下げ操作。
+
+#### 2-11-3. 副作用
+
+| 遷移 | 副作用 |
+| --- | --- |
+| received → organization_reviewing | 対象 Dog の `adoptionStatus` を `listed → in_consultation` へ自動遷移（§2-5-3、system が Service 内から呼び出す）|
+
+---
+
+### 2-12. Inquiry
+
+#### 2-12-1. 状態一覧
+
+PRD-01 §7 / DEV-07（`inquiries.status`）と一致させる。テンプレート標準の `new/in_progress/resolved` の 3 状態ではなく、旧仕様を踏襲した 5 状態を採用する。
+
+| 状態 | 説明 |
+| --- | --- |
+| `unhandled` | 未対応 |
+| `in_progress` | 対応中 |
+| `on_hold` | 保留 |
+| `resolved` | 対応完了（終端状態）|
+| `no_action_needed` | 対応不要（終端状態）|
+
+#### 2-12-2. 遷移マトリクス
+
+| 遷移元 → 遷移先 | in_progress | on_hold | resolved | no_action_needed |
+| --- | :---: | :---: | :---: | :---: |
+| unhandled | ✓ | ✗ | ✗ | ✓ |
+| in_progress | ✗ | ✓ | ✓ | ✓ |
+| on_hold | ✓ | — | ✓ | ✓ |
+
+#### 2-12-3. 遷移トリガー
+
+| 遷移 | トリガー | 実行者 |
+| --- | --- | --- |
+| unhandled → in_progress | 対応担当者をアサイン | admin |
+| unhandled → no_action_needed | 対応不要と判断 | admin |
+| in_progress → on_hold | 一時保留（先方回答待ち等）| admin |
+| on_hold → in_progress | 保留解除 | admin |
+| in_progress/on_hold → resolved / no_action_needed | 対応完了・対応不要の確定 | admin |
+
+> Inquiry は運営（`apps/admin` の AdminUser）が対応するプラットフォーム横断のお問い合わせであり、`apps/admin/src/lib/server/services/inquiries.ts` に実装する（本プロジェクトの参照実装そのもの — DEV-05 §1）。
+
+---
+
+### 2-13. News
+
+お知らせ（DEV-07 §5-21）。運営（`apps/admin` の AdminUser）のみが遷移させる。
+
+| 状態 | 説明 |
+| --- | --- |
+| `draft` | 下書き（非公開）|
+| `published` | 公開中（`audience` の範囲に配信）|
+| `unpublished` | 掲載終了 |
+
+| 遷移元 → 遷移先 | draft | published | unpublished |
+| --- | :---: | :---: | :---: |
+| draft | — | ✓ | ✗ |
+| published | ✓ | — | ✓ |
+| unpublished | ✗ | ✓ | — |
+
+| 遷移 | トリガー | 実行者 |
+| --- | --- | --- |
+| draft → published | 公開操作（`published_at` を記録）| admin |
+| published → draft | 公開の取り消し（誤公開の巻き戻し）| admin |
+| published → unpublished | 掲載終了。`published_until` 到達時は日次バッチでも遷移する（Cron Triggers — GOV-01 D-010）| admin / バッチ |
+| unpublished → published | 再掲載 | admin |
+
+> `published_until` による自動 `unpublished` 化はバッチが実行者になる唯一の遷移。`activity_log.causer_type` はこの場合 `System` を記録する（§3-4）。
+
+参照実装: `apps/admin/src/lib/server/services/inquiries.ts`（§3-2 の実装パターンの元になった参照実装 — DEV-05 §1）。
 
 ---
 
 ## 3. Service 層での状態遷移関数実装パターン
 
-状態遷移は DEV-01 §4「状態遷移の集約」の原則に従い、エンティティごとに単一の遷移関数へ集約する（PHP のクラスベース StateMachine ではなく、Service 層の関数としてまとめる）。
+状態遷移は DEV-01 §4「状態遷移の集約」の原則に従い、エンティティごとに単一の遷移関数へ集約する（Service 層の関数としてまとめる）。本プロジェクトは 3 系統のアカウント（AdminUser / OrganizationMember / Walker、GOV-01 D-004・D-007）が横断的に遷移を起こすため、`actor` の表現をテンプレート標準（`actorId: number` 固定）から拡張する。
 
 ### 3-1. 設計方針
 
 | 項目 | 方針 |
 | --- | --- |
-| 配置 | `apps/admin/src/lib/server/services/<entity>.ts` に `transition<Entity>(...)` 関数としてエクスポート |
+| 配置 | 本書対象のエンティティのうち Organization/OrganizationMember/WalkerProfile/Dog/WalkSlot/Reservation/Payment/Incident/AdoptionInquiry/Invitation は `apps/public/src/lib/server/services/<entity>.ts` に `transition<Entity>(...)` 関数としてエクスポートする（GOV-01 D-007。テンプレート標準の「`apps/public` は D1 アクセスを持たない」前提からの逸脱）。Payout は例外的に `apps/admin/src/lib/server/services/payouts.ts` に置く（下記「例外配置」参照）。Inquiry / Post は従来どおり `apps/admin/src/lib/server/services/<entity>.ts` |
+| 例外配置 | ①admin が主体となる Organization の審査系遷移（`under_review → approved/rejected` 等）は `apps/admin/src/lib/server/services/organizations.ts` に置く（詳細は §2-1-5）。②Payout は集計・確定・Stripe Connect Transfer 実行のすべてを `apps/admin/src/lib/server/services/payouts.ts` に置く（GOV-01 D-010、詳細は §2-9）。いずれも D1 は両 Worker が共有する同一インスタンスのため、`apps/admin` から対象テーブルへ直接書き込むことは可能（`apps/public` の source を import するわけではない — DEV-01 §5 のレイヤー境界に抵触しない） |
 | 責務 | 遷移可否の判定、遷移実行（D1 更新）、副作用の呼び出し |
-| 状態の保管 | D1 の `status` 等 `TEXT` カラム。TypeScript 側は文字列リテラルのユニオン型（例 `InquiryStatus`）で表現し、Service 層で検証する（`casts()` 相当の専用機構はない） |
-| 不正遷移 | `@app/server-kit/http` の `InvalidStateTransitionError`（409）を throw する。エンティティごとに独自のエラークラスを作らない |
-| 副作用 | イベントバス／Listener に相当する仕組みはない。遷移関数内から直接関数呼び出し（メール送信等）。レスポンスをブロックする重い副作用は `ctx.waitUntil()` で後処理化する（DEV-01 §4、DEV-05 §4） |
+| 状態の保管 | D1 の `status` 等 `TEXT` カラム。TypeScript 側は文字列リテラルのユニオン型（例 `ReservationStatus`）で表現し、Service 層で検証する |
+| 不正遷移 | 専用の Error サブクラス（`InvalidTransitionError`）を throw する |
+| actor の表現 | テンプレート標準は `actorId: number`（AdminUser 固定）だが、本プロジェクトは 3 系統のアカウントが遷移を起こすため `{ type: "walker" \| "organization_member" \| "platform" \| "system"; id: number \| null }` の判別可能ユニオン（`Actor` 型）を使う。`type: "system"` は Cron Triggers / Webhook 起点の遷移で `id: null` を許容する（DEV-05 §9-1 の「system ユーザーを発明しない」方針を型で表現）|
+| 副作用 | イベントバス／Listener に相当する仕組みはない。遷移関数内から直接関数呼び出し（メール送信・関連エンティティの連鎖遷移等）。レスポンスをブロックする重い副作用は `ctx.waitUntil()` で後処理化する（DEV-01 §4、DEV-05 §4）|
 
-### 3-2. 実装例
+### 3-2. 実装例 1: Reservation（`apps/public`）
 
-実装済みの参照実装をそのまま示す。抜粋ではなく実際のコードであり、テスト
-（`apps/admin/tests/unit/inquiries.test.ts`）が下記の性質を検証している。
+Reservation は本プロジェクトで最も遷移数が多く（12 状態）、WalkSlot の残数連動・Payment の返金判定・監査ログ記録のすべてを含むため代表例とする。
 
 ```typescript
-// apps/admin/src/lib/server/services/inquiries.ts
+// apps/public/src/lib/server/services/reservations.ts
 
-export type InquiryStatus = "new" | "in_progress" | "resolved";
+export type ReservationStatus =
+  | "processing"
+  | "awaiting_payment"
+  | "confirmed"
+  | "organization_reviewing"
+  | "scheduled"
+  | "completed"
+  | "cancelled_by_walker"
+  | "cancelled_by_organization"
+  | "cancelled_by_platform"
+  | "no_show"
+  | "cancelled_weather"
+  | "cancelled_dog_condition";
 
-const TRANSITIONS: Record<InquiryStatus, InquiryStatus[]> = {
-  new: ["in_progress"],
-  in_progress: ["resolved", "new"],
-  resolved: ["in_progress"],
+export type Actor = { type: "walker" | "organization_member" | "platform" | "system"; id: number | null };
+
+const TRANSITIONS: Record<ReservationStatus, ReservationStatus[]> = {
+  processing: ["awaiting_payment", "cancelled_by_walker"],
+  awaiting_payment: ["confirmed", "cancelled_by_walker"],
+  confirmed: ["organization_reviewing", "scheduled", "cancelled_by_walker", "cancelled_by_organization", "cancelled_by_platform", "cancelled_weather", "cancelled_dog_condition"],
+  organization_reviewing: ["scheduled", "cancelled_by_walker", "cancelled_by_organization", "cancelled_by_platform", "cancelled_weather", "cancelled_dog_condition"],
+  scheduled: ["completed", "no_show", "cancelled_by_walker", "cancelled_by_organization", "cancelled_by_platform", "cancelled_weather", "cancelled_dog_condition"],
+  completed: [],
+  cancelled_by_walker: [],
+  cancelled_by_organization: [],
+  cancelled_by_platform: [],
+  no_show: [],
+  cancelled_weather: [],
+  cancelled_dog_condition: [],
 };
 
-export function allowedTransitions(status: InquiryStatus): InquiryStatus[] {
+export class InvalidTransitionError extends Error {
+  constructor(entity: string, from: string, to: string) {
+    super(`Invalid transition for ${entity}: ${from} -> ${to}`);
+  }
+}
+
+export async function transitionReservation(env: Env, reservationId: number, to: ReservationStatus, actor: Actor): Promise<void> {
+  const reservation = await getReservationById(env, reservationId); // 取得処理は省略
+
+  const allowed = TRANSITIONS[reservation.status] ?? [];
+  if (!allowed.includes(to)) {
+    throw new InvalidTransitionError("Reservation", reservation.status, to);
+  }
+
+  const from = reservation.status;
+
+  await env.DB.prepare("UPDATE reservations SET status = ?, updated_at = ? WHERE id = ?").bind(to, new Date().toISOString(), reservationId).run();
+
+  if (to === "confirmed") {
+    await incrementWalkSlotReservedCount(env, reservation.walkSlotId);
+    await notifyReservationConfirmed(reservation, from);
+  } else if (isCancelledOrNoShow(to)) {
+    await decrementWalkSlotReservedCount(env, reservation.walkSlotId);
+    if (isCancelled(to)) {
+      await judgeRefund(env, reservation, to); // 返金条件は GOV-02 TBD-10〜12（未確定）
+    }
+  }
+
+  await recordTransition(env, "Reservation", reservationId, from, to, actor); // §3-4
+}
+
+export function allowedTransitions(status: ReservationStatus): ReservationStatus[] {
   return TRANSITIONS[status] ?? [];
 }
-
-export async function transitionInquiry(db: DbClient, publicId: string, to: InquiryStatus, session: Session) {
-  const row = await findInquiryRow(db, publicId);
-  const from = row.status;
-
-  if (!allowedTransitions(from).includes(to)) {
-    throw new InvalidStateTransitionError("Inquiry", from, to);
-  }
-
-  const [updatedRows] = await db.batch([
-    db
-      .update(inquiries)
-      .set({
-        status: to,
-        handledBy: to === "in_progress" ? session.adminUserId : to === "new" ? null : row.handledBy,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(inquiries.id, row.id))
-      .returning(),
-    activityLogInsert(db, {
-      logName: "inquiry",
-      description: `Inquiry ${from} -> ${to}`,
-      subjectType: "Inquiry",
-      subjectId: row.id,
-      event: `inquiry.${to}`,
-      causerId: session.adminUserId,
-      properties: { from, to },
-    }),
-  ]);
-
-  return toPublicInquiry(updatedRows[0]!);
-}
 ```
 
-この形が守っている規約は 4 つ。
+> `WalkSlot.reserved_count` の加減算・`judgeRefund()` を含む複数テーブル更新は、`env.DB.prepare().run()` の逐次実行ではなく Drizzle の `db.batch([...])` で 1 トランザクションにまとめる（DEV-05 §3、遷移だけ成功しログだけ失敗する不整合を防ぐ）。上記コードは考え方を示す簡略例。
 
-- **引数は `publicId`（ULID）で、内部の整数 `id` は関数の外に出ない**（DEV-07 §1、DEV-05 §2）
-- **`status` を書くのはこの関数だけ**。他のどの関数も `status` を代入しない（§3-1）
-- **本体の UPDATE と `activity_log` の INSERT を `db.batch()` で 1 トランザクションにする**。
-  遷移が拒否された場合はログも残らない（§3-4）
-- **副作用は遷移関数の中に書く**。`handled_by` の割り当て/解放のように「その遷移固有の
-  もの」は、汎用の仕組みでは表現できない（DEV-05 §2）
+### 3-3. API Route / Astro Page からの呼び出し
 
-エラー型は `@app/server-kit/http` の `InvalidStateTransitionError`（409）を使う。エンティティごとに
-独自のエラークラスを定義しない — API の応答形は `toErrorResponse` が一元的に決める（DEV-04 §5）。
-
-### 3-3. API Route からの呼び出し
-
-遷移関数が Service 層にあるため、Astro API Route は入出力ハンドリングのみを担う（DEV-01 §5「レイヤー責務」）。
-**遷移ごとに 1 ルート**とし、`status` への PATCH では表現しない — 正当な遷移が URL 空間に現れ、
-遷移ごとに異なるロールを設定できる。
+`apps/public` に認証済みルート（Walker マイページ・団体ページ）を持たせる決定（GOV-01 D-007）により、`apps/public` も `apps/admin` と同様に API Route → Service → D1 のレイヤー構造を持つ（DEV-01 §5 のレイヤー構造は今後 `apps/public` にも拡張される）。
 
 ```typescript
-// apps/admin/src/pages/api/v1/inquiries/[id]/start.ts
+// apps/public/src/pages/api/v1/reservations/[id]/cancel.ts
 import type { APIContext } from "astro";
-import { env } from "cloudflare:workers"; // Astro.locals.runtime.env は v6 で削除済みの旧 API（DEV-05 §1）
-import { createDb } from "@app/schema/client";
-import { jsonItem, toErrorResponse } from "@app/server-kit/http";
-import { requireRole, requireSession } from "$lib/server/auth/session";
-import { transitionInquiry } from "$lib/server/services/inquiries";
+import { env } from "cloudflare:workers"; // Astro.locals.runtime.env は v6 で削除済みの旧 API（採用する v7 にも無い — DEV-05 §1）
+import { transitionReservation } from "../../../../lib/server/services/reservations";
 
 export async function POST({ params, cookies }: APIContext): Promise<Response> {
-  try {
-    const db = createDb(env.DB);
-    const session = await requireSession(cookies, db); // D1 セッション検証（DEV-02 §1-1）
-    requireRole(session, "editor");
-
-    return jsonItem(await transitionInquiry(db, params.id!, "in_progress", session));
-  } catch (error) {
-    return toErrorResponse(error);
-  }
+  const db = createDb(env.DB); // 取得処理は省略。実際は Service 層で Drizzle 経由（DEV-05 §2）
+  const session = await requireWalkerSession(cookies, db); // Walker 専用のセッション検証（DEV-02 参照。AdminUser のセッションとは完全に別実装）
+  const reservation = await getReservationByPublicId(db, params.id!); // URL キーは public_id（DEV-07 §1）
+  requireOwnsReservation(session, reservation); // Walker 本人の予約のみキャンセル可能
+  await transitionReservation(env, reservation.id, "cancelled_by_walker", { type: "walker", id: session.walkerId });
+  return new Response(null, { status: 204 });
 }
 ```
 
-> D1 の `env.DB.batch()` は Eloquent の `DB::transaction()` のように任意ロジックを包むものではないが、
-> **渡したステートメント列は 1 つの SQL トランザクションとして実行され、途中で失敗すれば全体が
-> ロールバックされる**（Cloudflare D1 公式ドキュメント）。複数テーブルの更新はこれでまとめる。
+### 3-4. 実装例 2: Organization の審査（`apps/admin` から `apps/public` のドメインを更新するケース）
 
-### 3-4. 監査ログとの連携
-
-状態遷移は監査ログの必須記録操作（DEV-05 §9-1）。専用パッケージは使わず、遷移関数内から
-`activity_log` テーブル（DEV-01 §2 / DEV-07 §4-4）へ INSERT する。単一運営前提のため
-`organization_id` は持たない（DEV-07 §4-4）。
-
-書き込みヘルパーは**未実行のステートメントを返す**。呼び出し側が `db.batch()` に載せられるように
-するためで、これがログと変更を同一トランザクションに置く仕組みそのものである。
+§2-1-5 のとおり、Organization の審査系遷移は admin の操作のため `apps/admin` の Service に置く。
 
 ```typescript
-// apps/admin/src/lib/server/services/activity-log.ts
+// apps/admin/src/lib/server/services/organizations.ts
+// Organization は apps/public のドメインだが、審査（under_review → approved/rejected 等）は
+// admin（AdminUser）の操作のため apps/admin 側の Service に置く（§2-1-5）。
+// D1 は apps/public/apps/admin で共有する同一インスタンス（CLAUDE.md「D1/R2/KV バインディングルール」）。
 
-// 返り値は未実行の INSERT。呼び出し側が db.batch() に入れる
-export function activityLogInsert(db: DbClient, entry: ActivityLogEntry) {
-  return db.insert(activityLog).values({
-    logName: entry.logName ?? null,
-    description: entry.description,
-    subjectType: entry.subjectType ?? null,
-    subjectId: entry.subjectId ?? null,
-    event: entry.event ?? null,
-    causerType: entry.causerType ?? "AdminUser",
-    causerId: entry.causerId ?? null,
-    properties: entry.properties ? JSON.stringify(entry.properties) : null,
-    batchId: null,
-  });
+export type OrganizationStatus = "pending_review" | "under_review" | "needs_more_info" | "approved" | "rejected" | "suspended" | "deactivated" | "withdrawn";
+
+const TRANSITIONS: Record<OrganizationStatus, OrganizationStatus[]> = {
+  pending_review: ["under_review"],
+  under_review: ["needs_more_info", "approved", "rejected"],
+  needs_more_info: ["under_review"],
+  approved: ["suspended", "deactivated", "withdrawn"],
+  rejected: [],
+  suspended: ["approved", "deactivated", "withdrawn"],
+  deactivated: ["approved", "withdrawn"],
+  withdrawn: [],
+};
+
+export async function transitionOrganization(env: Env, organizationId: number, to: OrganizationStatus, actor: Actor): Promise<void> {
+  const organization = await getOrganizationById(env, organizationId);
+
+  const allowed = TRANSITIONS[organization.status] ?? [];
+  if (!allowed.includes(to)) {
+    throw new InvalidTransitionError("Organization", organization.status, to);
+  }
+
+  const from = organization.status;
+  await env.DB.prepare("UPDATE organizations SET status = ?, updated_at = ? WHERE id = ?").bind(to, new Date().toISOString(), organizationId).run();
+
+  if (to === "suspended" || to === "deactivated") {
+    await cascadeUnpublishWalkSlots(env, organizationId); // §2-6-4
+  }
+
+  await recordTransition(env, "Organization", organizationId, from, to, actor);
 }
 ```
 
-> 削除も記録する。対象行が消えるため、`properties` に**後から特定できるだけの情報**を入れる
-> （`media` なら R2 のキー、`inquiries` なら公開 ID とメールアドレス）。
+> `apps/public` 側の団体自身の操作（`needs_more_info → under_review` の再提出、`approved/suspended/deactivated → withdrawn`）は別ファイル `apps/public/src/lib/server/services/organizations.ts` に、同じ `TRANSITIONS` 定義・同じ `OrganizationStatus` 型（`packages/schema` の `$inferSelect` から導出、または共通の型定義を重複させないよう配置を要検討）を使って実装する。2 ファイルに分かれる分、`TRANSITIONS` テーブルの重複を避ける置き場所（`packages/schema` に定数を持たせるか等）は **Open**（GOV-02 TBD-55。共有コードの置き場所は `packages/schema` / `packages/server-kit` に限る — GOV-01 D-015）。
+
+### 3-5. 監査ログとの連携
+
+状態遷移は監査ログの必須記録操作（DEV-05 §9-1）。専用パッケージは使わず、遷移関数内から `activity_log` テーブル（DEV-01 §2 / DEV-07 §4-4）へ直接 INSERT する。テンプレート標準の `causer_type` は `AdminUser` 固定だったが、本プロジェクトは 3 系統のアカウントが actor になりうるため、`Actor` 型（§3-1）の `type` をそのまま `causer_type` に記録する。
+
+```typescript
+// 状態遷移を行った関数内で記録する（DEV-05 §9-1）
+async function recordTransition(env: Env, subjectType: string, subjectId: number, from: string, to: string, actor: Actor): Promise<void> {
+  await env.DB.prepare(
+    `INSERT INTO activity_log (log_name, description, subject_type, subject_id, event, causer_type, causer_id, properties, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      "state_transition",
+      `${subjectType} #${subjectId} status changed: ${from} -> ${to}`,
+      subjectType,
+      subjectId,
+      `${subjectType.toLowerCase()}.status_changed`,
+      actor.type,
+      actor.id,
+      JSON.stringify({ old: { status: from }, attributes: { status: to } }),
+      new Date().toISOString(),
+    )
+    .run();
+}
+```
+
+> `actor.type === "system"` の場合は `causer_id` を NULL のまま記録する（DEV-05 §9-1「system ユーザーを発明しない」方針）。Organization の審査（承認・否認）、Payout の振込確定、Reservation のキャンセル、Incident の解決は特に必ず記録する（旧仕様の必須記録操作を踏襲）。`activity_log` の正確なカラム定義は DEV-07 側の確定を待つ（本節は DEV-01 §2 が示す現行の暫定スキーマに従う）。
 
 ---
 
@@ -440,14 +744,14 @@ export function activityLogInsert(db: DbClient, entry: ActivityLogEntry) {
 
 ### 4-1. 状態バッジの標準色
 
-<!-- TEMPLATE: 標準エンティティ（Inquiry / Member）とオプションエンティティ（Post / AiJob / Order）の状態をカテゴリ化 -->
-
 | 状態カテゴリ | 色 | アイコン例 |
 | --- | --- | --- |
-| Published / Resolved / Fulfilled / Completed / Paid | 緑 | check-circle |
-| Draft / New / Pending / Queued | 黄 | clock |
-| In Progress / Processing | 青 | arrow-path |
-| Archived / Cancelled | グレー | archive-box |
+| Active / Approved / Confirmed / Completed / Paid / Resolved | 緑 | check-circle |
+| Pending / Under Review / Processing / Reported / Received | 黄 | clock |
+| In Progress / Aggregating / Scheduled | 青 | arrow-path |
+| Suspended / On Hold / Restricted / Needs More Info | オレンジ | exclamation-triangle |
+| Unpublished / Closed / Withdrawn / Archived / Listing Closed | グレー | archive-box |
+| Cancelled / Rejected / No Show | 赤 | x-circle |
 | Failed | 赤 | exclamation-circle |
 
 ### 4-2. 状態遷移ボタンの表示
@@ -457,9 +761,9 @@ export function activityLogInsert(db: DbClient, entry: ActivityLogEntry) {
 ```svelte
 <!-- Svelte island: 許可された遷移のみボタン表示 -->
 <script lang="ts">
-  import type { InquiryStatus } from "$lib/server/services/inquiries";
+  import type { ReservationStatus } from "../lib/server/services/reservations";
 
-  let { allowedTransitions, onSelect }: { allowedTransitions: InquiryStatus[]; onSelect: (status: InquiryStatus) => void } = $props();
+  let { allowedTransitions, onSelect }: { allowedTransitions: ReservationStatus[]; onSelect: (status: ReservationStatus) => void } = $props();
 </script>
 
 {#each allowedTransitions as nextStatus}
@@ -467,117 +771,176 @@ export function activityLogInsert(db: DbClient, entry: ActivityLogEntry) {
 {/each}
 ```
 
-遷移の確認は共通の確認モーダルに集約する（ブラウザ標準ダイアログ `confirm()` は使わない —
-DEV-01 §3 / DEV-06 §5）。管理画面では shadcn-svelte の `AlertDialog` 等、標準の確認 UI コンポーネントを使う（`npx shadcn-svelte add alert-dialog`）。
+遷移の確認は共通の確認モーダルに集約する（ブラウザ標準ダイアログ `confirm()` は使わない — DEV-01 §3）。ただし確認 UI のコンポーネント実装は **アプリごとに異なる**：
+
+- **`apps/admin`**（admin 向け。例: Organization 審査、Inquiry 対応）: shadcn-svelte の `AlertDialog`（`npx shadcn-svelte add alert-dialog`）
+- **`apps/public`**（org_admin/org_staff・Walker 向け。例: Reservation キャンセル、WalkSlot 中止）: shadcn-svelte は導入しない（DEV-01 §1「UI コンポーネント（公開画面）」。管理画面専用）。プレーン Tailwind + ネイティブ `<dialog>` 要素で同等の確認モーダルを実装する
 
 ```svelte
+<!-- apps/admin: shadcn-svelte の AlertDialog（Organization 審査等） -->
 <script lang="ts">
   import * as AlertDialog from "$lib/components/ui/alert-dialog";
-  import type { InquiryStatus } from "$lib/server/services/inquiries";
+  import type { OrganizationStatus } from "../../lib/server/services/organizations";
 
-  // 公開 ID（ULID）。内部の整数 id はクライアントに渡らない（DEV-07 §1）
-  let { inquiryId }: { inquiryId: string } = $props();
-  let pendingAction: string | null = $state(null);
+  let { organizationId }: { organizationId: number } = $props();
+  let pendingStatus: OrganizationStatus | null = $state(null);
 
   async function applyTransition(): Promise<void> {
-    if (!pendingAction) return;
-    // 遷移ごとに 1 ルート。`status` への PATCH は使わない（§3-3）
-    await fetch(`/api/v1/inquiries/${inquiryId}/${pendingAction}`, { method: "POST" });
-    pendingAction = null;
+    if (!pendingStatus) return;
+    await fetch(`/api/v1/organizations/${organizationId}/transition`, {
+      method: "POST",
+      body: JSON.stringify({ to: pendingStatus }),
+    });
+    pendingStatus = null;
   }
 </script>
 
 <AlertDialog.Root open={pendingStatus !== null}>
   <AlertDialog.Content>
-    <AlertDialog.Title>状態を変更しますか？</AlertDialog.Title>
+    <AlertDialog.Title>審査ステータスを変更しますか？</AlertDialog.Title>
     <AlertDialog.Action onclick={applyTransition}>変更する</AlertDialog.Action>
   </AlertDialog.Content>
 </AlertDialog.Root>
+```
+
+```svelte
+<!-- apps/public: ネイティブ <dialog> によるプレーン Tailwind 確認モーダル（Reservation キャンセル等） -->
+<script lang="ts">
+  import type { ReservationStatus } from "../lib/server/services/reservations";
+
+  let { reservationId }: { reservationId: number } = $props();
+  let dialogEl: HTMLDialogElement;
+  let pendingStatus: ReservationStatus | null = $state(null);
+
+  function openConfirm(status: ReservationStatus): void {
+    pendingStatus = status;
+    dialogEl.showModal();
+  }
+
+  async function applyTransition(): Promise<void> {
+    if (!pendingStatus) return;
+    await fetch(`/api/v1/reservations/${reservationId}/cancel`, { method: "POST" });
+    dialogEl.close();
+    pendingStatus = null;
+  }
+</script>
+
+<dialog bind:this={dialogEl} class="rounded-lg p-6 shadow-lg backdrop:bg-black/40">
+  <p class="mb-4">予約をキャンセルしますか？</p>
+  <button class="rounded bg-red-600 px-4 py-2 text-white" onclick={applyTransition}>キャンセルする</button>
+</dialog>
 ```
 
 ---
 
 ## 5. テスト戦略
 
-テストは Vitest（DEV-01 §1）。**workerd 上で実行する**（`@cloudflare/vitest-plugin`）ため、
-D1 も `db.batch()` も本物が動く — モックしない（DEV-03 §3）。実装済みの参照実装は
-`apps/admin/tests/unit/inquiries.test.ts`。「全ての遷移パターンにテストがあること」を目標に維持する。
+テストツールは Vitest に確定済み（DEV-01 §1）。「全ての状態遷移パターンにテストがあること」を目標として維持する。以下は Reservation を例にした Vitest での実装イメージ。
 
 ### 5-1. Unit Test
 
-遷移そのものだけでなく、**拒否された遷移が監査ログを残さないこと**まで確認する。`db.batch()` が
-1 トランザクションであるという前提を検証しているのはこのテストである。
-
 ```typescript
-import { env } from "cloudflare:workers";
-import { InvalidStateTransitionError } from "@app/server-kit/http";
-import { describe, expect, it } from "vitest";
-import { allowedTransitions, transitionInquiry } from "../../src/lib/server/services/inquiries";
+import { describe, it, expect } from "vitest";
+import { transitionReservation, InvalidTransitionError } from "../../lib/server/services/reservations";
 
-it("allows only the moves the state machine declares", async () => {
-  expect(allowedTransitions("new")).toEqual(["in_progress"]);
-  const row = await arrive();
+it("allows confirmed to cancelled_by_walker", async () => {
+  const reservation = await createTestReservation({ status: "confirmed" });
 
-  await expect(transitionInquiry(db, row.publicId, "resolved", session)).rejects.toBeInstanceOf(InvalidStateTransitionError);
-  await expect(transitionInquiry(db, row.publicId, "in_progress", session)).resolves.toMatchObject({ status: "in_progress" });
+  await transitionReservation(env, reservation.id, "cancelled_by_walker", { type: "walker", id: reservation.walkerId });
+
+  const updated = await getReservationById(env, reservation.id);
+  expect(updated.status).toBe("cancelled_by_walker");
 });
 
-it("assigns the handler on start and releases it on reopen", async () => {
-  const row = await arrive();
+it("rejects completed to confirmed", async () => {
+  const reservation = await createTestReservation({ status: "completed" });
 
-  await transitionInquiry(db, row.publicId, "in_progress", session);
-  expect((await findRow(row.id)).handledBy).toBe(session.adminUserId);
-
-  await transitionInquiry(db, row.publicId, "new", session);
-  expect((await findRow(row.id)).handledBy).toBeNull();
+  await expect(transitionReservation(env, reservation.id, "confirmed", { type: "walker", id: reservation.walkerId })).rejects.toThrow(InvalidTransitionError);
 });
 
-it("leaves no audit entry when the transition is rejected", async () => {
-  const row = await arrive();
-  await transitionInquiry(db, row.publicId, "resolved", session).catch(() => {});
+it("decrements WalkSlot.reserved_count on cancellation", async () => {
+  const reservation = await createTestReservation({ status: "confirmed" });
+  const spy = vi.spyOn(walkSlots, "decrementWalkSlotReservedCount");
 
-  expect(await db.select().from(activityLog)).toHaveLength(0);
+  await transitionReservation(env, reservation.id, "cancelled_by_walker", { type: "walker", id: reservation.walkerId });
+
+  expect(spy).toHaveBeenCalledWith(env, reservation.walkSlotId);
 });
 ```
 
 ### 5-2. データセットでマトリクス全網羅
 
-遷移が増えたら個別テストではなくこちらを増やす。`allowedTransitions()` を真とせず、
-**マトリクス（§2-N-2）を真として**関数の側を検証する — 両方が同じ定数を見ていては何も検証できない。
-
 ```typescript
 it.each([
-  ["new", "in_progress", true],
-  ["new", "resolved", false],
-  ["in_progress", "new", true],
-  ["in_progress", "resolved", true],
-  ["resolved", "in_progress", true],
-  ["resolved", "new", false],
+  ["confirmed", "cancelled_by_walker", true],
+  ["completed", "confirmed", false],
+  ["scheduled", "no_show", true],
+  ["cancelled_by_walker", "confirmed", false],
+  // ... 全組み合わせ（§2-7-2 のマトリクスと 1:1 対応させる）
 ])("transition matrix: %s -> %s (allowed=%s)", async (from, to, allowed) => {
-  const row = await arrive({ status: from as InquiryStatus });
-  const call = transitionInquiry(db, row.publicId, to as InquiryStatus, session);
+  const reservation = await createTestReservation({ status: from as ReservationStatus });
+  const actor = { type: "walker" as const, id: reservation.walkerId };
 
-  if (allowed) await expect(call).resolves.toMatchObject({ status: to });
-  else await expect(call).rejects.toBeInstanceOf(InvalidStateTransitionError);
+  if (allowed) {
+    await expect(transitionReservation(env, reservation.id, to as ReservationStatus, actor)).resolves.not.toThrow();
+  } else {
+    await expect(transitionReservation(env, reservation.id, to as ReservationStatus, actor)).rejects.toThrow(InvalidTransitionError);
+  }
 });
 ```
+
+特に以下は必ずテストする：
+
+- Reservation: `confirmed → cancelled_by_walker` は許可、`completed → confirmed` は例外
+- Payment: `paid → refund_processing → refunded` の一連の流れ
+- Organization: `rejected` / `withdrawn` からの遷移がすべて拒否される（終端状態の保証）
+- Payout: `on_hold` からの復帰（`confirmed`）と `scheduled/on_hold → failed` の両経路
 
 ---
 
 ## 6. 状態遷移の可視化
 
-### 6-1. Mermaid 図の標準形
+各エンティティについて、状態一覧表 → 遷移マトリクス表 → 遷移トリガー → 副作用 → （必要に応じ）Mermaid 状態遷移図の順で記載する。
+
+### 6-1. Reservation
 
 ```mermaid
 stateDiagram-v2
-    [*] --> draft
-    draft --> published: publish
-    published --> draft: unpublish
-    published --> archived: archive
-    archived --> published: republish
+    [*] --> processing
+    processing --> awaiting_payment
+    awaiting_payment --> confirmed: 決済成功（Stripe Webhook）
+    confirmed --> organization_reviewing
+    organization_reviewing --> scheduled
+    scheduled --> completed: 実施記録登録
+    scheduled --> no_show: 無断キャンセル
+    confirmed --> cancelled_by_walker
+    confirmed --> cancelled_by_organization
+    confirmed --> cancelled_by_platform
+    confirmed --> cancelled_weather
+    confirmed --> cancelled_dog_condition
 ```
 
-### 6-2. ドキュメント記載順序
+### 6-2. Organization
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending_review
+    pending_review --> under_review
+    under_review --> needs_more_info
+    under_review --> approved
+    under_review --> rejected
+    needs_more_info --> under_review
+    approved --> suspended
+    approved --> deactivated
+    approved --> withdrawn
+    suspended --> approved
+    suspended --> deactivated
+    suspended --> withdrawn
+    deactivated --> approved
+    deactivated --> withdrawn
+```
+
+### 6-3. ドキュメント記載順序
 
 各エンティティについて、以下の順序で記載：
 
@@ -585,20 +948,20 @@ stateDiagram-v2
 2. 遷移マトリクス表
 3. 遷移トリガー（操作主体）
 4. 副作用（イベント・通知）
-5. Mermaid 状態遷移図
+5. Mermaid 状態遷移図（複雑なエンティティのみ、§6-1・§6-2）
 
 ---
 
 ## 7. 記入時チェックポイント
 
-- 状態を持つエンティティが PRD-01 §7 と整合しているか
-- 各エンティティの状態値が DEV-07 の `status` カラム定義（`inquiries` / `members`、採用時は `posts` / `orders` / `ai_jobs` 等）と一致しているか
-- Organization / Subscription / Invitation / Membership / Payment のようなマルチテナント SaaS 課金系のエンティティが紛れ込んでいないか（本テンプレは単一運営が前提。00_README §0-1・§2-2）
+- 状態を持つエンティティが PRD-01 §7 と完全に一致しているか（Organization / OrganizationMember / Invitation / WalkerProfile / Dog / WalkSlot / Reservation / Payment / Payout / Incident / AdoptionInquiry / Inquiry）
+- 各エンティティの状態値が DEV-07 の `status` 系カラム定義と一致しているか
 - 遷移マトリクスで「不可能な遷移」が明示されているか
-- 遷移トリガーが明確か（system / admin / editor / Webhook）
-- 副作用が網羅されているか（メール通知、関連エンティティへの影響）
-- 監査ログとの連携が組み込まれているか（`organization_id` のようなテナント列を持たない `activity_log` の実スキーマ、DEV-07 §4-4 と一致しているか）
-- 状態遷移関数が Service 層に集約され、API Route から呼ばれる構造になっているか（引数は公開 ID と `session` のみ。内部の整数 id を関数の外に出していないか）
-- 遷移ごとに 1 ルートになっているか（`status` への PATCH で表現していないか — §3-3）
-- 不正遷移時の挙動（例外 / エラー画面）が明示されているか
-- 採用しないオプションエンティティ（Post / AiJob / Order）の節が、不要な場合に削除されているか
+- 遷移トリガーが明確か（system / Walker / org_admin / org_staff / admin / Stripe Webhook / Cron Triggers）
+- 副作用が網羅されているか（メール通知、WalkSlot 残数、Payout 集計への影響、Dog の adoptionStatus 連動等）
+- 監査ログとの連携が組み込まれているか（特に Organization 審査・Payout 振込確定・Reservation キャンセル・Incident 解決）
+- 状態遷移関数が Service 層に集約され、API Route / Astro Page から呼ばれる構造になっているか
+- `apps/public`/`apps/admin` それぞれの配置（§3-1）が GOV-01 D-007 と矛盾していないか。Organization のように審査系だけ `apps/admin` に置く例外がある場合、その理由（実行者が admin）が明記されているか
+- 不正遷移時の挙動（`InvalidTransitionError`）が明示されているか
+- キャンセル・返金条件（GOV-02 TBD-10〜13）が未確定のまま実装に落とし込まれていないか（暫定方針にはコメントで TBD 番号を残す）
+- Post（既存実装）の節を誤って削除していないか（§2-13、既存機能として保持）

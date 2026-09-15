@@ -4,112 +4,148 @@ title: システム構成・データモデル
 phase: 2
 status: draft-ai
 owner: Tech Lead / PdM
-last-updated: 2026-08-18
+last-updated: 2026-09-15
 related-docs:
-  - PRD-01: ドメイン概念
+  - PRD-01: ドメインモデル
   - DEV-01: 技術スタック決定書（技術名は本書に書かず DEV-01 を参照）
   - DEV-07: 物理 DB 設計
   - DEV-08: デプロイ・環境
   - DEV-10: 統合・外部 API 仕様
 ---
 
-# 02-system-and-data.md — システム構成・データモデルテンプレート
+# 02-system-and-data.md — システム構成・データモデル
 
 ## このセクションの目的
 
-システム全体の**論理構成**と、プロダクトで扱うエンティティの**論理データモデル**を一体で定義する。本テンプレートは 00_README §0-1 の**パターン A**（コンテンツ主体サイト + 軽量な管理画面。単一運営、Astro SSR + Cloudflare Workers/D1/R2）を前提とし、マルチテナント構造・多階層ロール・サブスク課金・チャットのような構成は持たない（マルチテナントについては §2 で扱う）。
+システム全体の**論理構成**と、プロダクトで扱うエンティティの**論理データモデル**を一体で定義する。本プロジェクトは 00_README §0-1 が定義する「パターン A（コンテンツ主体サイト）」の適用範囲を超え、お散歩参加者（Walker）× 保護団体（Organization）の二者間マーケットプレイスを、プラットフォーム運営（Platform）が仲介する 3 者構造を持つ（`Decided` — GOV-01 D-006）。**本プロジェクトのマルチテナント境界は「Organization（保護団体）側」と「Walker（お散歩参加者）側」の二系統である**点が本テンプレート標準（単一運営・マルチテナント非対象）との差分（PRD-01 §1-0 相当、詳細は本書 §2）。
 
-- 具体的な技術・ライブラリ・インフラの**選定**は **DEV-01（技術スタック決定書）** に一元化する。本書で技術名に言及する場合は構成の説明に必要な範囲にとどめ、必ず DEV-01 参照を併記する（選定理由・バージョン・代替比較は本書に書かない）。
+- 具体的な技術・ライブラリ・インフラの選定は **DEV-01（技術スタック決定書）** に一元化されており、本書には技術名を記載しない。
 - 物理 DB 設計は DEV-07、環境・デプロイは DEV-08、バックアップ・データ保持の運用は OPS-02 に委譲。
 
 ## 0-H. ハイブリッド編集ガイド（要点）
 
 - 推奨モード: Hybrid（AI 整理 + Tech Lead / PdM レビュー）
-- 人間確認必須: 可用性目標、データ保持期間、公開側/管理側の構成分離
+- 人間確認必須: 可用性目標、データ保持期間、マルチテナント境界方針
 - 詳細は 00_README.md §6〜8
 
 ---
 
 ## 1. システム全体構成（論理）
 
-### 1-1. 構成図（標準テンプレート）
+### 1-1. 構成図
 
-各コンポーネントの実体（採用プロダクト名）は DEV-01 §1・§2 を参照。本テンプレートは単一の Cloudflare Worker（Astro SSR）がアプリケーション層を担い、別建てのアプリケーションサーバー・DB サーバー・キューワーカー群を持たない（`astro build` の出力そのものが Worker になる）。
+各コンポーネントの実体（採用プロダクト名）は DEV-01 §1・§2 を参照。本プロジェクトはチャット・リアルタイム通信（WebSocket）を採用しない（PRD-05 参照、`Decided` — GOV-01 D-005）ため標準構成図から WS コンポーネントを除外し、マーケットプレイス決済（Stripe Connect）とジオコーディング（エリア検索用、Google Maps Platform）を追加している。`apps/public`（公開ブラウジング + Walker マイページ + 保護団体ページ）と `apps/admin`（プラットフォーム運営者専用）は独立した Cloudflare Worker で、D1 / R2 のみを共有する（`Decided` — GOV-01 D-007。詳細は §1-3）。
 
 ```mermaid
 graph TB
-    User[利用者] --> Edge[Cloudflare Edge<br/>CDN]
-    Edge --> Worker[Cloudflare Worker<br/>Astro SSR（公開側 + 管理側）]
-    Worker --> D1[(Cloudflare D1)]
-    Worker --> R2[(Cloudflare R2)]
-    Worker -.補助.-> KV[(Cloudflare KV<br/>ロックアウトカウンタ等)]
-    Worker --> Mail[メール配信<br/>Inquiry 受付通知等]
-    Worker -.軽量EC採用時.-> Pay[決済]
-    Worker -.AI機能あり時.-> LLM[LLM プロバイダ]
-    Worker -.RAG採用時.-> Vector[(Vector DB)]
+    Walker[お散歩参加者<br/>Walker] --> Public[apps/public Worker<br/>Astro SSR]
+    OrgStaff[保護団体スタッフ<br/>Organization] --> Public
+    Guest[未ログイン利用者] --> Public
+    Admin[運営者<br/>AdminUser] --> AdminApp[apps/admin Worker<br/>Astro SSR]
+
+    Public --> DB[(Cloudflare D1)]
+    AdminApp --> DB
+    Public --> R2[(Cloudflare R2<br/>犬・団体の写真、申請書類)]
+    AdminApp --> R2
+    Public -.補助.-> KV[(Cloudflare KV<br/>認証失敗カウンタ等)]
+    AdminApp -.補助.-> KV
+
+    Public --> Mail[メール配信<br/>予約確認・審査結果・還元通知]
+    Public --> Pay[決済<br/>参加費 Payment Intent<br/>+ Stripe Connect 送金]
+    Public --> Geo[ジオコーディング<br/>住所→緯度経度・距離検索]
 ```
 
 ### 1-2. 構成コンポーネントの責務
 
 | コンポーネント | 責務 | 実体 |
 | --- | --- | --- |
-| Cloudflare Worker | 公開側・管理側両方のレンダリングと API 処理（Astro Page/API Route → Service → D1 のレイヤー構造は DEV-01 §5） | DEV-01 §1 |
-| Cloudflare D1 | 全業務データの正本 | DEV-01 §1 |
-| Cloudflare R2 | アップロードファイル（Media）の実体 | DEV-01 §1 |
-| Cloudflare KV | 認証失敗カウンタ・メンテナンスフラグ等の補助ストア（Queues は不採用、定期処理は Cron Triggers。セッションは D1 で確定 — DEV-02 §1-1） | DEV-01 §1 |
-| メール配信 | Inquiry 受付通知等のトランザクションメール | DEV-01 §1 |
-| 決済 | 軽量 EC（Order）採用時のみ | DEV-01 §2 |
-| LLM / Vector DB | AI 機能（PRD-05 採用時のみ） | DEV-01 §2 / PRD-05 |
+| `apps/public` Worker | 公開ブラウジング、Walker マイページ（`/mypage/*`）、保護団体ページ（`/organization/*`）のレンダリングと API 処理。Astro Page/API Route → Service → D1 のレイヤー構造を持つ（本プロジェクト固有の拡張 — `Decided` GOV-01 D-007、DEV-01 §1「アカウント系統」） | DEV-01 §1 |
+| `apps/admin` Worker | プラットフォーム運営者専用（単一ロール `admin`）。お知らせ・メディアの CMS（News/Media）に加え、団体審査・横断管理・決済/還元処理・監査ログ閲覧を担う | DEV-01 §1 |
+| Cloudflare D1 | 全業務データの正本。両 Worker が共有 | DEV-01 §1 |
+| Cloudflare R2 | 保護犬・保護団体の写真、団体審査の申請書類、お散歩記録の写真の実体。両 Worker が共有 | DEV-01 §2 |
+| Cloudflare KV | 認証失敗カウンタ・メンテナンスフラグ等の補助ストア（Queues は不採用。セッションは D1） | DEV-01 §1 |
+| メール配信 | 予約確認・審査結果・還元通知等のトランザクションメール | DEV-01 §1 |
+| 決済 | 参加費の都度課金（Payment Intent）+ 保護団体への月次還元・振込（Stripe Connect Transfer）。`Decided` — GOV-01 D-008（旧仕様の判断を継承） | DEV-01 §2・DEV-10 §2 |
+| ジオコーディング | 保護団体・お散歩枠の住所を緯度経度へ変換し、エリア・距離検索を実現。`Decided` — GOV-01 D-009（旧仕様の判断を継承） | DEV-01 §2・DEV-10 §9 |
 
-> チャット・リアルタイム通信（WebSocket / Durable Objects）は本テンプレートの標準構成に含まない（00_README §2-2）。
+> チャット・リアルタイム通知（WebSocket）、LLM / Vector DB は本プロジェクトでは**不採用**（PRD-03 で FG 削除、PRD-05 参照、`Decided` — GOV-01 D-005）。通知はメール + アプリ内通知（D1 テーブルのポーリング取得）のみとする。
 
-### 1-3. 公開側・管理側の構成分離
+### 1-3. 公開側・保護団体側・管理側の構成分離
 
-公開側と管理側は **1 リポジトリ内の pnpm workspaces + Turborepo モノレポ**を標準とし、`apps/public`（公開サイト）・`apps/admin`（管理 CMS）を独立した Cloudflare Worker として別々にデプロイする（`/admin` パスへの統合ではない）。D1 データベースと R2 バケットのみを両アプリで共有する（`CLAUDE.md` D1/R2 binding rules、DEV-08 §1。2 リポジトリ構成から移行した経緯は DEV-01 §1）。以下のレイアウト/スタイルシートの分離で切り分ける（実装詳細は `CLAUDE.md` Architecture 節、レイヤー構造は DEV-01 §5）。
+旧リポジトリでは公開画面・保護団体ページ・プラットフォーム管理画面の 3 領域を単一アプリで提供していたが、本プロジェクトは `apps/public`（対外: 公開ブラウジング + Walker + Organization）と `apps/admin`（対内: プラットフォーム運営者専用）の 2 Worker 構成に再配置する（`Decided` — GOV-01 D-007）。
 
-| 側 | アプリ | レイアウト | スタイルシート | 主な内容 |
-| --- | --- | --- | --- | --- |
-| 公開側 | `apps/public` | `src/layouts/Layout.astro` | `src/styles/global.css`（プレーン Tailwind） | Post / Page 等のコンテンツ表示、Inquiry フォーム、軽量 EC（採用時） |
-| 管理側 | `apps/admin` | `src/layouts/Layout.astro` | `src/styles/admin.css`（shadcn-svelte テーマ） | CMS（Post / Page / Media 管理）、Inquiry 対応、AdminUser 管理 |
+| 側 | アプリ | 主な利用者 | 主な内容 |
+| --- | --- | --- | --- |
+| 公開・Walker | `apps/public` | 一般利用者、お散歩参加者（Walker） | トップページ・団体紹介・お知らせ・FAQ、エリア検索・予約・決済、`/mypage/*`（プロフィール・予約履歴・里親相談） |
+| 保護団体 | `apps/public`（同一 Worker） | 保護団体スタッフ（OrganizationMember） | `/organization/*`（犬・お散歩枠の登録公開、予約管理、実施記録、還元金確認） |
+| プラットフォーム運営 | `apps/admin` | 運営者（AdminUser: 単一ロール `admin`） | お知らせ・メディアの CMS（News/Media）、団体審査・横断管理、決済/還元処理、監査ログ閲覧 |
 
-両レイアウトは同一の props（`title`, `description`）を取り、`<head>` / favicon / CSS import はレイアウト側にのみ置く。公開専用または管理専用でフォークした場合は不要な側の `apps/*` ディレクトリ一式を削除する（README ブートストラップチェックリスト参照）。管理側を検索エンジンに公開しない場合は `X-Robots-Tag`（`apps/admin/src/middleware.ts`）と CSP（`apps/admin/astro.config.mjs` の `security.csp`）を有効化する（DEV-02 参照）。
+保護団体スタッフはプラットフォーム運営者ではなく外部の利用者であるため、内部運営専用の `apps/admin` に混在させず `apps/public` 側に置く（背景の詳細は GOV-01 D-007）。D1 データベースと R2 バケットのみを両アプリで共有し、レイアウト/スタイルシートの分離は `CLAUDE.md` Architecture 節に従う。
 
-> **エンティティ所有**: AdminUser・活動監査ログ（activity_log）は `apps/admin` の関心事、Member・Order は `apps/public` の関心事になる。Post/Category/Tag/Media/Inquiry は `apps/admin` が書き込み、`apps/public` が読み取る（PRD-01 §1-1 参照）。スキーマ定義自体は `packages/schema` に一元化されており、アプリ間でのコピーずれは発生しない。
+> **エンティティ所有**: AdminUser・CMS 系エンティティ（News/Media）は `apps/admin` の関心事。Walker・OrganizationMember・Organization・Dog・WalkSlot・Reservation 等のマーケットプレイス系エンティティは `apps/public` の関心事になる。スキーマ定義自体は `packages/schema` に一元化されており、アプリ間でのコピーずれは発生しない（DEV-01 §1「リポジトリ構成」）。
+
+### 1-4. 公開側構成についての補足
+
+本テンプレート標準が議論する「管理側アプリと分離した静的サイト生成 + CDN ホスティング」対「動的アプリケーション」という二択（本書 §9 相当）は、本プロジェクトでは論点にならない。`apps/public` は元々 Astro SSR（`output: 'server'`）を前提としており、エリア検索・予約・決済・マイページ等の動的機能と、トップページ・団体紹介・お知らせ等の静的寄りのコンテンツ配信を、インフラを分離することなく同一の Astro SSR アプリ内で両立できる。旧仕様にあった「インフラ分離を避けるために単一アプリにする」という判断そのものが不要である。
 
 ---
 
-## 2. マルチテナント構造（非対象）
+## 2. マルチテナント構造の実装方針
 
-本テンプレは単一運営（自社 1 サイト、または受託先クライアント 1 社 1 サイト）が前提であり、マルチテナント構造（Organization 階層、テナントごとのデータ分離、Organization 切替 UI 等）は不要（00_README §0-1、PRD-01 §6）。`organization_id` のようなテナント列は DB のどのテーブルにも持たせない（DEV-07 参照）。
+### 2-1. データ分離方式
 
-マルチテナント SaaS が真に必要な案件は、そもそも本テンプレートの適用対象外である。00_README §0-1 で適用範囲を確認し、別テンプレートの使用を検討する。
+**共有 D1 + テナント ID カラム方式** を採用するが、本プロジェクトはテナント軸が 2 系統ある。
+
+```
+✓ Organization 側データ（Dog / WalkSlot / Payout 等）: organizationId カラムでスコープ
+✓ Walker 側データ（WalkerProfile / Reservation の閲覧等）: walkerId（Walker の ID）でスコープ
+✓ Reservation は organizationId（団体スタッフ側の閲覧用）と walkerId（Walker 側の閲覧用）の両方を持つ
+✓ Service 層で明示的に organizationId / walkerId を引数として要求し、Repository/クエリ関数はそれ無しでは呼び出せない設計にする
+✗ ORM の Global Scope のような自動スコープ機構は使わない（Drizzle にその機構はなく、D1 + Drizzle 前提では自前実装で代替する）
+✗ DB 物理分離（複数 DB / スキーマ）は対象外
+```
+
+### 2-2. テナント境界の強制
+
+ライブラリに頼らず、Service 層での明示的な引数要求とチェック関数で境界を強制する（DEV-01 §4「認可チェックの徹底」）。
+
+| レイヤー | 実装方法 |
+| --- | --- |
+| DB | Organization 系テーブルに `organizationId`（NOT NULL）を必須化。Walker 系テーブルは `walkerId`（Walker の ID、NOT NULL）を必須化（DEV-07 参照） |
+| クエリ関数 | 関数シグネチャで Organization または Walker のスコープを必須引数化する（例: `findDogsForOrganization(db, organizationId)` / `findReservationsForWalker(db, walkerId)`）。スコープ引数を省略できるオーバーロードは作らない |
+| Service | Service の入口で現在のセッションから Organization（`organizationId`）または Walker（`walkerId`）を取得し、以降の呼び出し全てにその値を明示的に渡す。横展開（他 Organization / 他 Walker のデータへのアクセス）を禁止する |
+| 認可チェック関数 | `requireOrganizationMember(session, organizationId)` / `requireWalker(session, walkerId)` のような関数で、操作対象が現在の Organization / Walker 本人と一致することを検証する。運営（AdminUser）のみ横断アクセス可（AdminUser は単一ロールのため、`requireSession` でアカウント種別が AdminUser であることを確認すれば足り、ロールによる分岐は不要 — `Decided` GOV-01 D-011） |
+| テスト | Service 関数が必ず `organizationId` または `walkerId` を要求し、他テナントの ID を渡した場合に例外をスローすることを Vitest で検証する（DEV-01 §1「Testing」。ORM の Architecture Test に相当する自前のユニットテスト） |
+
+### 2-3. Organization 切替（団体スタッフが複数団体に所属する場合）
+
+MVP では団体スタッフは単一 Organization に所属する運用を前提とする `[Assumed: INTAKE に複数所属の要件記載なし / 確認先: 事業責任者]`。将来複数所属を許容する場合は、セッションに現在の `organizationId` を保管し、ミドルウェア相当の処理（Astro の認証チェック関数、DEV-05 参照）で自動セットする方式を採用する。
 
 ---
 
 ## 3. 環境構成
 
-環境分離は `apps/public`/`apps/admin` それぞれの `wrangler.jsonc` の environments 機能で実現する（`Confirmed` — DEV-01 §1。詳細は DEV-08 §2）。論理的な環境区分は以下を標準とする。
+環境は 3 面を標準とする。インフラ上の実体・環境変数の管理方法は DEV-08 を参照。
 
 | 環境 | 用途 | 備考 |
 | --- | --- | --- |
-| local | 開発者ローカル | Dev Container 内で `pnpm dev`（`astro dev`、`APP_PORT_DEV_PUBLIC` / `APP_PORT_DEV_ADMIN`）。D1/R2 はローカルエミュレーション |
-| staging | 受入テスト | 用意する（`Confirmed`）。本番同等構成、外部サービスはテストキー |
-| production | 本番 | 本番キー。各 `wrangler.jsonc` の `replace-with-*` を実値に置換（`CLAUDE.md` D1/R2 binding rules 参照） |
+| local | 開発者ローカル | Dev Container 内で `pnpm dev`。D1/R2/KV はローカルエミュレーション |
+| staging | 受入テスト | 本番同等構成。決済・ジオコーディング等の外部サービスはテストキー |
+| production | 本番 | 本番キー。各 `wrangler.jsonc` の `replace-with-*` を実値に置換 |
 
 ---
 
 ## 4. 外部サービス連携（論理）
 
-具体的なサービス選定は DEV-01 §2、連携仕様の詳細は DEV-10 を参照。本書では障害時の影響と方針のみ定義する。採用可否自体がプロジェクトごとに異なるもの（軽量 EC・AI 機能等）は明記する。
+具体的なサービス選定は DEV-01 §2、連携仕様の詳細は DEV-10 を参照。本書では障害時の影響と方針のみ定義する。
 
 | 機能 | 障害時影響 | 代替策 |
 | --- | --- | --- |
-| メール配信（Resend） | Inquiry 通知遅延 | リトライ（`ctx.waitUntil()` / Cron — DEV-01 §1）/ 手動再送 |
-| ファイルストレージ（R2） | Media 参照不可 | 一時リトライ |
-| 決済（Stripe、軽量 EC 採用時） | 新規注文不可 | リトライ、利用者への通知 |
-| 画像処理（Cloudflare Images、採用時） | 画像最適化配信不可 | 元画像をそのまま配信にフォールバック |
+| 決済（参加費・団体還元） | 新規予約の決済不可、還元振込の遅延 | リトライ（`ctx.waitUntil()` / Cron Triggers — DEV-01 §4）、参加者・団体への通知 |
+| メール配信 | 予約確認・審査結果通知の遅延 | リトライ（`ctx.waitUntil()` / Cron） / 手動再送 |
+| オブジェクトストレージ（R2） | 保護犬・団体の写真、申請書類が参照不可 | 一時リトライ |
+| ジオコーディング | 新規団体・お散歩枠の位置情報登録が一時不可、既存の検索は影響なし | リトライ、手動での緯度経度再設定 |
 | エラー監視 | 障害検知遅延 | Cloudflare Workers 標準ログ/メトリクスで補助（DEV-01 §2） |
-| LLM プロバイダ（AI 機能採用時、PRD-05） | AI 機能停止 | プロバイダフォールバック（PRD-05 で確定） |
 
 ---
 
@@ -117,28 +153,27 @@ graph TB
 
 ### 5-1. 想定規模
 
-<!-- TEMPLATE: プロジェクトの想定規模。コンテンツ主体サイトは、SaaS 型の「継続ログインセッションが積み上がる」トラフィックとは異なり、読み取り中心・バースト性（キャンペーン、SNS/検索流入、記事のバイラル等）を持つ点を踏まえて記入する。本テンプレの適用上限は「同時接続〜数千」（00_README §2-2） -->
-<!-- SAMPLE START: フォーマット例 — 実際の内容に置き換えてください -->
+<!-- SAMPLE START: フォーマット例 — 実績データがないための暫定値。事業責任者確認後に更新すること -->
 | 項目 | 初期 | 6 ヶ月後 | 1 年後 |
 | --- | --- | --- | --- |
-| 月間ページビュー | 5 万 | 20 万 | 80 万 |
-| ピーク時アクセス（RPS 目安） | 5 | 20 | 100（キャンペーン時バースト想定） |
-| 管理画面ユーザー数（AdminUser） | 2 | 5 | 10 |
-| 月間 Inquiry 件数 | 20 | 100 | 300 |
-| 月間 Order 件数（軽量 EC 採用時） | 0 | 30 | 150 |
+| 提携保護団体数 | 20 | 100 | 300 |
+| お散歩参加者（登録数） | 300 | 2,000 | 8,000 |
+| 月間予約件数 | 100 | 800 | 3,000 |
+| 同時接続数 | 30 | 150 | 500 |
+| 月間 API リクエスト | 20 万 | 150 万 | 600 万 |
 <!-- SAMPLE END -->
 
-公開側はエッジ CDN 配信が主体のため、閲覧トラフィックのスケールは Cloudflare のインフラに委ねられる部分が大きい。ボトルネックになりやすいのは D1 への書き込み（Inquiry/Order 受付、管理画面での更新）であり、読み取りは可能な限りキャッシュ/エッジ配信を優先する（§9）。本テンプレの適用上限を超える規模（同時接続 1 万+）は別途専門設計とする（00_README §2-2）。
+Cloudflare Workers のオートスケールに依存する部分が大きいが、ボトルネックになりやすいのは D1 への書き込み（予約・決済確定、団体側の枠登録更新）である。本テンプレの適用上限を超える規模（同時接続 1 万+）は別途専門設計とする（00_README §2-2）。
 
 ### 5-2. 可用性目標（全文書の正本）
 
-可用性の数値目標は本表を正本とし、他文書（PRD-03 / DEV-01 / OPS）は本表を参照する。パターン A では公開側（コンテンツ配信）が事業成果に直結する主役であり、管理側より優先度が高い（SaaS 型のように管理側=製品そのものではない）。
+可用性の数値目標は本表を正本とし、他文書（PRD-03 / DEV-01 / OPS）は本表を参照する。本サービスは公開側・Walker 側・保護団体側が単一 Worker（`apps/public`、§1-3）のため、稼働率目標は区分せず一本化する。管理側（`apps/admin`）はプラットフォーム運営者専用のため別枠とする。
 
 | 区分 | 目標 |
 | --- | --- |
-| 公開側 | 月間 99.9% 以上（コンテンツ閲覧が事業価値の中心のため、管理側より高い目標） |
-| 管理側 | 月間 99.5% 以上 |
-| 計画停止 | 月 1 回まで、利用の少ない時間帯（管理側のみ。公開側は無停止デプロイを前提とする） |
+| `apps/public`（公開・Walker・保護団体） | 月間 99.5% 以上 |
+| `apps/admin`（プラットフォーム運営） | 月間 99.5% 以上 |
+| 計画停止 | 月 1 回まで、利用の少ない時間帯（土日深夜帯） |
 
 バックアップ・DR・データ保持の運用は OPS-02（運用ハンドブック）に委譲する。
 
@@ -148,92 +183,98 @@ graph TB
 
 物理カラム定義は DEV-07 を参照。本書は意味と型の表現のみ。エンティティ定義の正本は PRD-01。
 
-### 6-1. 標準エンティティ（コンテンツ主体サイトの雛形）
+本プロジェクトはアカウント系統が 3 系統・完全分離である（`Decided` — GOV-01 D-004・D-007、DEV-01 §1「アカウント系統」）。旧仕様にあった単一の `User` エンティティ（`platformRole` 列で Walker / 運営を判別する方式）は採用せず、`AdminUser`（`apps/admin`）・`Walker`（`apps/public`、お散歩参加者アカウント）・`OrganizationMember`（`apps/public`、保護団体スタッフアカウント）をそれぞれ別テーブル・別セッション Cookie として持つ。
+
+### 6-1. 標準エンティティ（本テンプレート標準に由来）
 
 | エンティティ | 主要属性 | 型表現 | 備考 |
 | --- | --- | --- | --- |
-| AdminUser | name, email, role, status | email: メールアドレス、role: 列挙（admin / editor） | email UNIQUE。ロールは単一階層・少数（PRD-01 §1-2） |
-| Member | name, email, passwordHash, status, lastLoginAt | status: 列挙（active / inactive） | 公開側ログイン。AdminUser とは完全に別系統（ロール構造なし・単一種別）。テーブル・クッキー・照合コードを共有しない（DEV-02 §1-2） |
-| Media | key, mimeType, sizeBytes, altText | key: R2 オブジェクトキー | key はサーバーが生成する（`media/<ULID>`）。アップロードされたファイル名は使わない（DEV-10 §4-2） |
-| Inquiry | type, name, email, message, status, handledBy | status: 列挙（new / in_progress / resolved） | 公開側から未認証で作成し、管理側で対応する。実装の参照実装（DEV-05 §2） |
+| AdminUser | name, email, passwordHash, status | — | email UNIQUE。`apps/admin`。プラットフォーム運営者専用、単一ロール `admin`（サポート等の追加ロールなし。`Decided` — GOV-01 D-011。D-004 を置換） |
+| Walker | name, email, passwordHash, status, createdAt | status: 列挙（PRD-01 §7） | email UNIQUE。`apps/public`。お散歩参加者のアカウント。ロール階層を持たず `status` で機能解禁を判定するデータ駆動方式（旧仕様の判断を踏襲、`Decided` — GOV-01 D-004） |
+| Invitation | email, organizationId, role, token, status, expiresAt | token: ランダム文字列、status: 列挙（pending/accepted/expired） | token UNIQUE。`apps/public`。保護団体スタッフの招待 |
+| AuditLog | actorType, actorId, action, targetType, targetId, before, after | actorType: 列挙（admin_user/organization_member/walker）、before/after: JSON | 保持期間は §8。3 系統のアカウントを横断して単一の `actorId` 空間を持たないため `actorType` で判別する |
+| Notification | recipientType, recipientId, type, payload, readAt | recipientType: 列挙（walker/organization_member）、payload: JSON | AdminUser 宛の通知は現時点で対象外 |
+| Media | key, mimeType, sizeBytes, altText | key: R2 オブジェクトキー | `apps/admin` がアップロードを管理。key はサーバーが生成する（`media/<ULID>`。DEV-10 §4-2） |
 
-> `organization_id` に相当するテナント列はいずれのエンティティにも持たせない（§2）。
-
-> **記事・お知らせをエンティティとして持つかは更新者で決まる。** 開発者が git で更新するなら
-> エンティティ化せず `packages/content` の Markdown（Content Collections）に置き、D1 の読み取りも
-> 管理画面も発生させない。納品先の顧客が管理画面から更新する場合に限り Post / Category / Tag を
-> §6-2 に追加する（DEV-01 §1、DEV-07 §3-2）。
+> **Post / Category / Tag は採用しない**（`Decided` — GOV-01 D-014）。対応する画面が PRD-04 に無い。記事型コンテンツは News のみとする。
 
 ### 6-2. プロダクト固有エンティティ
 
-<!-- TEMPLATE: プロダクト固有のエンティティを論理レベルで定義。マルチテナント前提の organizationId は付与しない（§2 参照）。Page / Order を採用する場合はここに追記する -->
-<!-- SAMPLE START: フォーマット例 — 実際の内容に置き換えてください -->
 | エンティティ | 主要属性 | 備考 |
 | --- | --- | --- |
-| Page | slug, title, body, status | 固定ページ（会社概要等）。CMS 管理が不要なら Astro の静的ページで代替可（PRD-01 §1-1） |
-| Post / Category / Tag | title, slug, body, status, authorId, publishedAt | 顧客が管理画面から記事を更新する場合のみ。開発者更新なら Content Collections（§6-1 の注記） |
-| Order | customerName, customerEmail, memberId（任意・nullable FK）, items, status, amount | 軽量 EC 採用時のみ。memberId は Member への任意紐付け — ゲスト注文（customerName/customerEmail のみ、memberId は NULL）と会員紐付け注文の両方をサポート（PRD-01 §1-1・§1-3）。status: 列挙（pending / paid / fulfilled / cancelled）。物理カラム名は DEV-07 §7-1 を正とする。在庫同期は持たない（00_README §2-2） |
-| [プロダクト固有エンティティ] | [主要属性] | [備考] |
-<!-- SAMPLE END -->
+| Organization | name, slug, status | slug UNIQUE。`apps/public` |
+| OrganizationMember | organizationId, email, passwordHash, role, status, joinedAt | role: 列挙（org_admin/org_staff）、直書き（`Decided` — GOV-01 D-004）。`apps/public`。旧仕様の `userId` 経由（共有 User テーブル参照）ではなく、本プロジェクトではアカウント情報（email/passwordHash）を自身のテーブルに持つ独立した認証系統 |
+| WalkerProfile | walkerId, nameKana, birthdate, postalCode, address, phone, emergencyContactName, emergencyContactPhone, dogExperience, largeDogWalkExperience, preferredArea, status | status: 列挙（PRD-01 §7）。Walker の 1:1 拡張（`walkerId` で紐付け） |
+| Dog | organizationId, name, breed, size, weight, temperament, walkNotes, requiredExperience, beginnerAllowed, childAllowed, multiDogAllowed, walkEligible, adoptionStatus, publicProfile, internalNotes | adoptionStatus: 列挙（PRD-01 §7）。internalNotes は健康・安全情報で非公開 |
+| WalkSlot | organizationId, title, startAt, acceptanceStartAt, acceptanceEndAt, durationMinutes, meetingPlace, area, latitude, longitude, capacity, remainingCapacity, feePerPerson, staffAccompanied, beginnerAllowed, childAllowed, minAge, requiredExperience, weatherPolicy, cancellationPolicy, status | status: 列挙（PRD-01 §7）。latitude/longitude はジオコーディング結果（DEV-10 §9） |
+| WalkSlotDog | walkSlotId, dogId | 多対多の中間テーブル |
+| Reservation | walkSlotId, organizationId, walkerId, participantCount, emergencyContactSnapshot, status | walkerId は Walker の ID。emergencyContactSnapshot: 予約時点の緊急連絡先スナップショット（JSON）。status: 列挙（PRD-01 §7） |
+| Payment | reservationId, amount, organizationShareAmount, platformFeeAmount, currency, status, stripePaymentIntentId, paidAt, refundedAt | status: 列挙（PRD-01 §7）。Stripe Payment Intent（`Decided` — GOV-01 D-008） |
+| Payout | organizationId, periodStart, periodEnd, totalReservations, totalParticipants, grossAmount, platformFeeAmount, adjustmentAmount, payoutAmount, status, paidAt | status: 列挙（PRD-01 §7）。Stripe Connect の Connected Account への Transfer で送金（`Decided` — GOV-01 D-008）。月次集計は Cloudflare Cron Triggers（`Decided` — GOV-01 D-010） |
+| WalkRecord | walkSlotId, conducted, conductedAt, staffInCharge, dogsWalked, photos, staffComment, incidentFlag | dogsWalked: JSON 配列（実施時に担当した犬） |
+| Incident | organizationId, reservationId, dogId, walkerId, severity, category, description, occurredAt, location, reportedBy, status, preventionMeasures | walkerId は Walker の ID。severity: 列挙（P0〜P3 相当）。status: 列挙（PRD-01 §7） |
+| AdoptionInquiry | dogId, walkerId, organizationId, motivation, livingEnvironment, status | walkerId は Walker の ID。status: 列挙（PRD-01 §7） |
+| News | title, body, audience, publishedAt, publishedUntil, isImportant | audience: 列挙（一般公開/参加者限定/団体限定/全登録ユーザー/特定団体/特定利用者） |
+| Inquiry | category, name, email, phone, message, status, priority | status: 列挙（PRD-01 §7）。本テンプレート標準の Inquiry（お問い合わせフォーム）をそのまま踏襲。里親相談は別エンティティ AdoptionInquiry として区別する |
+
+> **読み物系コンテンツをエンティティにするかは「閲覧者で出し分けるか」で決まる。** News は
+> `audience` でログイン状態に応じて出し分けるためエンティティ化して D1 に置く。FAQ・利用ガイド・
+> 安全に利用するために・特定商取引法に基づく表示は全閲覧者に同一内容のためエンティティ化せず
+> ページに直書きし、利用規約・プライバシーポリシーは改定履歴が必要なため `packages/content` の
+> Markdown（Content Collections）に置く（`Decided` — GOV-01 D-013、判断根拠は DEV-06 §1-1）。
 
 ---
 
 ## 7. エンティティ間リレーション
 
-<!-- SAMPLE START: フォーマット例 — 実際の内容に置き換えてください -->
 ```mermaid
 erDiagram
-    ADMIN_USER ||--o{ POST : authors
-    CATEGORY ||--o{ POST : classifies
-    POST }o--o{ TAG : tagged_with
-    POST ||--o{ MEDIA : uses
-    ADMIN_USER ||--o{ INQUIRY : handles
-
-    %% プロダクト固有エンティティ（採用時のみ）
-    %% ADMIN_USER ||--o{ PAGE : authors
-    %% ORDER ||--o{ MEDIA : references
+    ORGANIZATION ||--o{ ORGANIZATION_MEMBER : has
+    ORGANIZATION ||--o{ INVITATION : sends
+    WALKER ||--o| WALKER_PROFILE : has
+    ORGANIZATION ||--o{ DOG : shelters
+    ORGANIZATION ||--o{ WALK_SLOT : publishes
+    WALK_SLOT ||--o{ WALK_SLOT_DOG : candidates
+    DOG ||--o{ WALK_SLOT_DOG : appears_in
+    WALK_SLOT ||--o{ RESERVATION : accepts
+    WALKER ||--o{ RESERVATION : books
+    RESERVATION ||--|| PAYMENT : paid_by
+    ORGANIZATION ||--o{ PAYOUT : receives
+    WALK_SLOT ||--o| WALK_RECORD : recorded_as
+    ORGANIZATION ||--o{ INCIDENT : reports
+    RESERVATION ||--o| INCIDENT : may_cause
+    DOG ||--o{ ADOPTION_INQUIRY : receives
+    WALKER ||--o{ ADOPTION_INQUIRY : submits
 ```
-<!-- SAMPLE END -->
 
 ---
 
 ## 8. データライフサイクル方針
 
-<!-- TEMPLATE: データの保持・削除・アーカイブ方針。運用（削除バッチ等）の実装は OPS-02 参照 -->
-<!-- SAMPLE START: フォーマット例 — 実際の内容に置き換えてください -->
+<!-- SAMPLE START: フォーマット例 — 保存期間は税務・個人情報保護の観点から Tech Lead / 事業責任者確認後に確定してください -->
 | データ種別 | 保持期間 | 削除ポリシー | アーカイブ条件 |
 | --- | --- | --- | --- |
-| Post | 永続（公開資産として） | 削除は明示操作のみ。公開停止は archived ステータスで表現 | 公開終了時に status を archived へ遷移（PRD-01 §7） |
-| Media | 参照が切れてから 90 日 | 参照元 Post/Page が無い（孤立）状態が続いたら物理削除（バッチ） | — |
-| Inquiry | 1 年 | 1 年経過後に物理削除（個人情報を含むため） | resolved から一定期間後に削除対象化 |
-| Order（軽量 EC 採用時） | 契約・法令要件に応じて（例: 税務要件で 7 年） | 法令要件を満たす期間は削除不可 | — |
-| AdminUser | 退職/契約終了後 1 年 | 1 年経過後に匿名化 or 削除 | 退職時点で status を inactive へ遷移 |
+| Reservation / Payment（決済関連） | 決済日から 7 年（帳簿書類保存の一般的な実務慣行 `[Assumed: 確認先: 税理士]`） | 保持期間経過後に物理削除 | — |
+| Payout（振込記録） | 同上（7 年） | 同上 | — |
+| Dog / WalkSlot | Organization の掲載終了後 1 年 | 1 年経過で物理削除 | 掲載終了時に unpublished / closed |
+| WalkRecord（写真含む） | Organization の掲載終了後 1 年 | 同上 | — |
+| Incident（事故・トラブル） | `[Open]`（GOV-02 TBD-22。暫定 5 年） | 保持期間経過後に物理削除 | — |
+| AdoptionInquiry | `[Open]`（GOV-02 TBD-33。暫定 3 年） | 保持期間経過後に物理削除 | 相談終了・取下げ時にステータス変更 |
+| 招待情報（Invitation） | 30 日 | 失効後物理削除 | — |
+| 監査ログ（AuditLog） | 永続 | 削除不可 | — |
+| Notification | 90 日 | 90 日で物理削除 | — |
 <!-- SAMPLE END -->
 
----
-
-## 9. 公開側の構成方針
-
-公開側（コンテンツ配信）は本テンプレートの主機能であり、管理側 CMS はそれを支える裏側の機能である。
-
-| 項目 | 方針 |
-| --- | --- |
-| レンダリング | Astro SSR（`output: 'server'`）。ページ単位で SSR し、インタラクティブ部分のみ Svelte island として埋め込む（DEV-01 §1） |
-| キャッシュ | Cloudflare エッジキャッシュ（CDN）を公開 GET リクエストで活用する想定。TTL・パージ契機の具体方針は **Open**（案件実装時に確定。公開側の参照実装時に確定し DEV-08 に記載） |
-| SEO | サイトマップ / robots.txt の動的生成は現時点で未導入（**Open** — 案件実装時に確定）。導入時は管理画面ルートをサイトマップ・robots.txt 双方から除外する |
-| ドメイン | プロジェクトごとのカスタムドメイン。管理側（`apps/admin`）は `/admin` パスへの統合ではなく、公開側（`apps/public`）とは別の Cloudflare Worker として同一リポジトリ内で独立デプロイする（`Confirmed` — DEV-01 §1、D1/R2 binding rules は `CLAUDE.md` に従う） |
-| 認証 | 公開側は原則認証不要。管理画面ログインのみ認証必須（PRD-01 §1-2）。**例外**: マイページ機能（Member、採用時のみ）を導入する場合、マイページ・ログイン・会員登録・注文履歴等の関連ページのみ認証が必要になる。ブログ・トップページ・お問い合わせフォーム等、それ以外の公開側ページは引き続き認証不要（PRD-01 §1-1・§5「Member Access」） |
+データ保持期限の自動削除バッチは Cloudflare Cron Triggers（`apps/admin` の Scheduled Worker）で実行する（`Decided` — GOV-01 D-010、OPS-02 §4-3）。
 
 ---
 
-## 10. 記入時チェックポイント
+## 9. 記入時チェックポイント
 
-- 本書の技術名への言及が構成説明に必要な範囲にとどまり、DEV-01 参照が併記されているか（選定理由・バージョン・代替比較を本書に書いていないか）
-- マルチテナント構造（Organization 階層、`organization_id` 等）が紛れ込んでいないか（§2、単一運営が前提）
-- ロールが少数（1〜2 種）で記述され、PRD-01 §1-2 / DEV-02 と整合しているか。3 ロール以上が必要になっていないか
-- 想定規模（§5-1）がテンプレ適用上限（同時接続〜数千）内か、公開側の読み取り中心・バースト性を踏まえた記述になっているか
-- 可用性目標（§5-2）が現実的か。公開側が管理側より優先されているか
-- データライフサイクル（§8）が個人情報（Inquiry）や公開資産（Post/Media）の性質に応じて記述されているか
-- エンティティ名が PRD-01 / DEV-07 と一致しているか（AdminUser / Post / Category / Tag / Media / Inquiry、採用時は Page / Order / Member）
+- 本書に技術名・ライブラリ名が書かれていないか（すべて DEV-01 参照になっているか）
+- マルチテナント境界の実装方針（§2）が Organization 側・Walker 側の 2 系統として明確か、かつ D1 + Drizzle 前提の自前実装（Service 層での明示的な引数要求）で記述されているか（ORM の Global Scope 等ライブラリ依存の記法が残っていないか）
+- アカウント系統が AdminUser / Walker / OrganizationMember の 3 系統・完全分離として記述され、旧仕様の単一 `User` エンティティが残っていないか（§6、GOV-01 D-004・D-007）
+- 想定規模がテンプレ適用上限（同時接続〜数千）内か、可用性目標が現実的か
+- データライフサイクルが OPS-01 / DEV-02 / OPS-02 と整合しているか
+- エンティティ名が PRD-01 / PRD-03 / DEV-07 と一致しているか
 - DEV-07 が物理設計に着手できる粒度か
-- Member（採用時のみ）と Order の関係が PRD-01 と整合しているか：Order の memberId は任意（nullable）で、ゲスト注文と会員紐付け注文の両方をサポートしているか。Member が AdminUser のロール構造・認証実装と混同されていないか（§6-2、PRD-01 §1-1・§1-2）
