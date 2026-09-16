@@ -230,8 +230,11 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | `password_reset_tokens` | `admin_users` 向けパスワードリセット。列定義は §4-6 |
 | `walker_sessions` | `walkers` 向けセッション。`walker_session` クッキー。列定義は §5-2 |
 | `organization_sessions` | `organization_members` 向けセッション。`organization_session` クッキー。列定義は §5-6 |
+| `walker_password_reset_tokens` | `walkers` 向けパスワードリセット（SCR-13・14）。列定義は §5-23 |
+| `organization_member_password_reset_tokens` | `organization_members` 向けパスワードリセット（ADM-24・25）。列定義は §5-24 |
+| `organization_application_tokens` | 保護団体登録申請の差し戻し対応（SCR-51）。列定義は §5-25 |
 
-> `walkers` / `organization_members` 向けのパスワードリセット・招待受諾フローの単発トークン機構は本書時点では `invitations`（§5-7、招待固有）のみを確定済みとし、独立したリセットトークンテーブルの要否は `[Open]`（GOV-02 TBD-47）。実装時は `password_reset_tokens`（§4-6）と同じ Web Crypto HMAC 署名パターンを踏襲する想定。
+> **単発トークンは系統ごとに別テーブルとする**（`Decided` — GOV-01 D-020）。`subject_type` + `subject_id` の polymorphic 1 テーブルにまとめない — 引くたびに系統の絞り込みを書く必要があり、**書き忘れると Walker のトークンで団体スタッフのパスワードを変更できる**。テーブルを分ければこの取り違えは構造的に起こり得ない。招待受諾（ADM-26）は `invitations`（§5-7）が担当する。いずれも `password_reset_tokens`（§4-6）と同じ Web Crypto HMAC 署名パターンを踏襲し、`used_at` で 1 回限りの使用を強制する。
 
 ### 3-2. 標準テーブル（コンテンツ主体サイトの雛形・必須）
 
@@ -856,6 +859,53 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 **FAQ はテーブルを作らない**（`Decided` — GOV-01 D-016）。カテゴリで絞り込む構造化データであり Markdown 本文でもないため、`apps/public/src/lib/faq.ts` の TypeScript 定数として持つ（DEV-06 §1-1）。FAQ 管理画面も作らない。
 
 運営がデプロイなしで FAQ を更新したいという要求が実際に出た時点で D1 へ移す（GOV-02 TBD-41）。その際は `id` / `public_id` / `question` / `body` / `category` / `sort_order` / `is_published` / `created_at` / `updated_at` の構成を想定する。
+
+### 5-23. walker_password_reset_tokens
+
+`walkers` 向けパスワードリセット（SCR-13 申請・SCR-14 実行）。列構成は `password_reset_tokens`（§4-6）と同一で、FK だけが違う。
+
+| カラム | 型 | NULL | 備考 |
+| --- | --- | --- | --- |
+| id | INTEGER | NO | PK |
+| walker_id | INTEGER | NO | FK → walkers.id |
+| token | TEXT | NO | UNIQUE。リセットリンクに埋め込む値 |
+| expires_at | TEXT | NO | ISO 8601。発行から 60 分 |
+| used_at | TEXT | YES | 使用済みになった時刻。NULL の間のみ有効なリンクとして扱う |
+| created_at | TEXT | NO |  |
+
+**Index**: UNIQUE(`token`), `walker_id`, `expires_at`
+
+### 5-24. organization_member_password_reset_tokens
+
+`organization_members` 向けパスワードリセット（ADM-24 申請・ADM-25 実行）。§5-23 と同形だが**別テーブル**（`Decided` — GOV-01 D-020、§3-1 の注記）。
+
+| カラム | 型 | NULL | 備考 |
+| --- | --- | --- | --- |
+| id | INTEGER | NO | PK |
+| organization_member_id | INTEGER | NO | FK → organization_members.id |
+| token | TEXT | NO | UNIQUE |
+| expires_at | TEXT | NO | ISO 8601。発行から 60 分 |
+| used_at | TEXT | YES | 使用済みになった時刻 |
+| created_at | TEXT | NO |  |
+
+**Index**: UNIQUE(`token`), `organization_member_id`, `expires_at`
+
+### 5-25. organization_application_tokens
+
+保護団体登録申請の差し戻し・追加確認依頼に申請者が対応するための URL トークン（SCR-51、F-03-05）。
+
+| カラム | 型 | NULL | 備考 |
+| --- | --- | --- | --- |
+| id | INTEGER | NO | PK |
+| organization_id | INTEGER | NO | FK → organizations.id（審査中の申請も `organizations` の行として存在する — §5-4） |
+| token | TEXT | NO | UNIQUE |
+| expires_at | TEXT | NO | ISO 8601。差し戻し対応の猶予に合わせて発行時に決める |
+| used_at | TEXT | YES | 再提出が完了した時刻 |
+| created_at | TEXT | NO |  |
+
+**Index**: UNIQUE(`token`), `organization_id`, `expires_at`
+
+> 申請者はまだアカウントを持たない（団体アカウントの発行は承認後 — F-03-06）。ログインさせられないため、本人性をこのトークンだけで担保する。差し戻しのたびに新しい行を発行し、古い行は `used_at` か `expires_at` で無効化する。
 
 ---
 

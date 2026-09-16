@@ -273,6 +273,18 @@ related-docs:
 | 決定者 | Tech Lead |
 | 関連 TBD | — |
 
+### D-020：単発トークンは系統ごとに別テーブルとする（polymorphic 1 テーブルにまとめない）
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-16 |
+| カテゴリ | 設計 |
+| 決定内容 | パスワードリセット等の単発トークンを、既存の `password_reset_tokens`（`admin_users` 向け、DEV-07 §4-6）に加えて **`walker_password_reset_tokens`**（§5-22）・**`organization_member_password_reset_tokens`**（§5-23）・**`organization_application_tokens`**（§5-24、SCR-51 の差し戻し対応）の 3 テーブルとして持つ。`subject_type` + `subject_id` の polymorphic 1 テーブルにはまとめない。列構成は 4 テーブルとも同一（`token` UNIQUE / `expires_at` / `used_at` / `created_at` + 系統ごとの FK）で、Web Crypto HMAC 署名でトークンを発行し `used_at` で 1 回限りの使用を強制する。招待受諾（ADM-26）は既存の `invitations`（§5-7）が担当する |
+| 背景 | GOV-02 TBD-47 の解決。polymorphic 1 テーブルは引くたびに `AND subject_type = 'walker'` 相当の絞り込みが必要で、**書き忘れると Walker のトークンで団体スタッフのパスワードを変更できる** — 3 系統分離（DEV-02 §1-4）が防ごうとしている取り違えそのものになる。テーブルを分ければこの事故は構造的に起こり得ない。DEV-02 §1-4 は既に「実装の重複を許容してでも境界を明確にする」と明言しており、認証境界については重複を選ぶ方針が確定している。テーブルを持たない HMAC 署名のみの方式も検討したが、使用済みを記録できずリセットリンクが有効期限内は何度でも使えるため、パスワードリセットには採れない。`notification_settings` が polymorphic なのは通知設定が漏れても実害が小さいためで、認証情報とは重みが違う |
+| 影響範囲 | DEV-07 §3-1・§5-23〜§5-25、DEV-02 §1-2・§1-3、PRD-04 §3-1（SCR-13・14・51）・§3-2（ADM-24・25） |
+| 決定者 | Tech Lead |
+| 関連 TBD | GOV-02 TBD-47（解決済み） |
+
 ---
 
 ## 3. 記録すべき意思決定の種別
