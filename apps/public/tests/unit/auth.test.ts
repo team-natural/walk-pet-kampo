@@ -57,11 +57,11 @@ describe("getSession", () => {
     await expect(getSession(cookiesWith("not-a-real-token"), db)).resolves.toBeNull();
   });
 
-  it("returns null once expired, and once the account is deactivated", async () => {
+  it("returns null once expired, and once the account is suspended", async () => {
     const walker = await insertWalker();
     const { token } = await createSession(db, walker.id, 30);
 
-    await db.update(walkers).set({ status: "inactive" }).where(eq(walkers.id, walker.id));
+    await db.update(walkers).set({ status: "suspended" }).where(eq(walkers.id, walker.id));
     await expect(getSession(cookiesWith(token), db)).resolves.toBeNull();
 
     await db.update(walkers).set({ status: "active" }).where(eq(walkers.id, walker.id));
@@ -84,11 +84,11 @@ describe("login", () => {
     expect(row!.lastLoginAt).not.toBeNull();
   });
 
-  it("rejects a wrong password and a deactivated account without creating a session", async () => {
+  it("rejects a wrong password and a suspended account without creating a session", async () => {
     await insertWalker();
     await expect(login(db, EMAIL, "wrong", 30)).rejects.toBeInstanceOf(UnauthenticatedError);
 
-    await db.update(walkers).set({ status: "inactive" }).where(eq(walkers.email, EMAIL));
+    await db.update(walkers).set({ status: "suspended" }).where(eq(walkers.email, EMAIL));
     await expect(login(db, EMAIL, PASSWORD, 30)).rejects.toBeInstanceOf(UnauthenticatedError);
     expect(await db.select().from(walkerSessions)).toHaveLength(0);
   });

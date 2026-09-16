@@ -29,9 +29,9 @@ beforeEach(async () => {
 
   const [admin] = await db
     .insert(adminUsers)
-    .values({ publicId: ulid(), name: "Editor", email: `${ulid()}@example.com`, passwordHash: "x.y", role: "editor", status: "active", updatedAt: new Date().toISOString() })
+    .values({ publicId: ulid(), name: "Admin", email: `${ulid()}@example.com`, passwordHash: "x.y", status: "active", updatedAt: new Date().toISOString() })
     .returning();
-  session = { adminUserId: admin!.id, adminUserPublicId: admin!.publicId, role: "editor" };
+  session = { adminUserId: admin!.id, adminUserPublicId: admin!.publicId };
 });
 
 describe("the public shape", () => {

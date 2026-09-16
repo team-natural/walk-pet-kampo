@@ -1,4 +1,4 @@
-// Read paths needed by login/me. Full AdminUser management (list/invite/role change/deactivate,
+// Read paths needed by login/me. Full AdminUser management (list/invite/deactivate,
 // admin-only) is separate, not-yet-implemented scope.
 import { adminUsers } from "@app/schema";
 import type { DbClient } from "@app/schema/client";
@@ -12,7 +12,6 @@ export function toPublicAdminUser(user: AdminUserRow) {
     id: user.publicId,
     name: user.name,
     email: user.email,
-    role: user.role,
     status: user.status,
   };
 }

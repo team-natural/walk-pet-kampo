@@ -232,7 +232,7 @@ classDiagram
 | Invitation | Organization への団体スタッフ招待 | email, organizationId, role, token, status, expiresAt |
 | AuditLog | 重要操作の監査ログ。アカウント系統が 3 分離のため、単一の `actorId` では発行元を一意に特定できず `actorType` を併記する | actorType（admin_user/organization_member/walker）, actorId, action, targetType, targetId, before, after |
 | Notification | 通知。AuditLog 同様、宛先アカウント系統を明示する（AdminUser 宛の通知は現時点で対象外）| recipientType（organization_member/walker）, recipientId, type, payload, readAt |
-| Inquiry | お問い合わせフォームの送信 1 件（本テンプレ標準の Inquiry と同一パターン）| category, name, email, message, status, submittedAt |
+| Inquiry | お問い合わせフォームの送信 1 件（本テンプレ標準の Inquiry と同一パターン）| type, name, email, message, status, handledBy, submittedAt |
 
 ### 3-2. プロダクト固有エンティティ
 
@@ -323,7 +323,7 @@ classDiagram
 | Incident | reported / investigating / in_progress / resolved / closed | 事故・トラブル対応状態 |
 | AdoptionInquiry | received / organization_reviewing / contacted / interview_scheduled / transferred_to_organization_process / closed / withdrawn | 里親相談の状態 |
 | Invitation | pending / accepted / expired | 団体スタッフ招待の状態 |
-| Inquiry | unhandled / in_progress / on_hold / resolved / no_action_needed | お問い合わせ対応状態 |
+| Inquiry | new / in_progress / resolved | お問い合わせ対応状態（テンプレート標準のまま — DEV-09 §2-12）|
 
 > 状態遷移ルール（遷移マトリクス・トリガー）の詳細は DEV-09 を参照。実装は単一の TypeScript 遷移関数/モジュールに集約し、専用の状態遷移ライブラリは使わない（DEV-01 §4）。
 

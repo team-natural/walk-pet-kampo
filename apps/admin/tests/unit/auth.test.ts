@@ -1,15 +1,15 @@
 // The session rules themselves are covered once in @app/server-kit; what is app-specific — and
-// what these cover — is the join, the role check and the login orchestration.
+// what these cover — is the join and the login orchestration.
 import { env } from "cloudflare:workers";
 import { adminSessions, adminUsers } from "@app/schema";
 import { createDb } from "@app/schema/client";
 import { ulid } from "@app/schema/ulid";
 import { hashPassword } from "@app/server-kit/auth";
-import { ForbiddenError, UnauthenticatedError } from "@app/server-kit/http";
+import { UnauthenticatedError } from "@app/server-kit/http";
 import type { AstroCookies } from "astro";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { ADMIN_SESSION_COOKIE, createSession, destroySession, getSession, requireRole } from "../../src/lib/server/auth/session";
+import { ADMIN_SESSION_COOKIE, createSession, destroySession, getSession } from "../../src/lib/server/auth/session";
 import { login, logout } from "../../src/lib/server/services/auth";
 
 const db = createDb(env.DB);
@@ -28,7 +28,6 @@ async function insertUser(overrides: Partial<typeof adminUsers.$inferInsert> = {
       name: "Admin",
       email: EMAIL,
       passwordHash: await hashPassword(PASSWORD),
-      role: "admin",
       status: "active",
       updatedAt: new Date().toISOString(),
       ...overrides,
@@ -43,14 +42,13 @@ beforeEach(async () => {
 });
 
 describe("getSession", () => {
-  it("resolves a valid token to its AdminUser, role included", async () => {
+  it("resolves a valid token to its AdminUser", async () => {
     const user = await insertUser();
     const { token } = await createSession(db, user.id, 30);
 
     await expect(getSession(cookiesWith(token), db)).resolves.toEqual({
       adminUserId: user.id,
       adminUserPublicId: user.publicId,
-      role: "admin",
     });
   });
 
@@ -72,13 +70,6 @@ describe("getSession", () => {
       .set({ expiresAt: new Date(Date.now() - 1000).toISOString() })
       .where(eq(adminSessions.sessionToken, token));
     await expect(getSession(cookiesWith(token), db)).resolves.toBeNull();
-  });
-});
-
-describe("requireRole", () => {
-  it("lets admin satisfy an editor-level check but not the reverse", () => {
-    expect(() => requireRole({ adminUserId: 1, adminUserPublicId: "x", role: "admin" }, "editor")).not.toThrow();
-    expect(() => requireRole({ adminUserId: 1, adminUserPublicId: "x", role: "editor" }, "admin")).toThrow(ForbiddenError);
   });
 });
 

@@ -2,19 +2,16 @@
 // rules live in @app/server-kit/auth, the storage never is.
 import type { AstroCookies } from "astro";
 import { isActiveSession, newSessionToken, sessionExpiresAt } from "@app/server-kit/auth";
-import { ForbiddenError, UnauthenticatedError } from "@app/server-kit/http";
+import { UnauthenticatedError } from "@app/server-kit/http";
 import { adminSessions, adminUsers } from "@app/schema";
 import type { DbClient } from "@app/schema/client";
 import { eq } from "drizzle-orm";
 
 export const ADMIN_SESSION_COOKIE = "admin_session";
 
-export type AdminRole = "admin" | "editor";
-
 export interface Session {
   adminUserId: number;
   adminUserPublicId: string;
-  role: AdminRole;
 }
 
 export async function getSession(cookies: AstroCookies, db: DbClient): Promise<Session | null> {
@@ -25,7 +22,6 @@ export async function getSession(cookies: AstroCookies, db: DbClient): Promise<S
     .select({
       adminUserId: adminUsers.id,
       adminUserPublicId: adminUsers.publicId,
-      role: adminUsers.role,
       status: adminUsers.status,
       expiresAt: adminSessions.expiresAt,
     })
@@ -35,22 +31,16 @@ export async function getSession(cookies: AstroCookies, db: DbClient): Promise<S
     .limit(1);
 
   if (!row || !isActiveSession(row)) return null;
-  return { adminUserId: row.adminUserId, adminUserPublicId: row.adminUserPublicId, role: row.role };
+  return { adminUserId: row.adminUserId, adminUserPublicId: row.adminUserPublicId };
 }
 
+// There is no requireRole counterpart: AdminUser has one role, so being logged in is the whole
+// of Platform authorization (GOV-01 D-011, DEV-02 §2-3). Organization-side checks live in
+// apps/public and are a different system entirely.
 export async function requireSession(cookies: AstroCookies, db: DbClient): Promise<Session> {
   const session = await getSession(cookies, db);
   if (!session) throw new UnauthenticatedError();
   return session;
-}
-
-// `admin` implicitly satisfies an `editor`-level check — the upper role includes the lower
-// role's permissions.
-export function requireRole(session: Session, role: AdminRole): void {
-  const allowed: AdminRole[] = role === "editor" ? ["admin", "editor"] : ["admin"];
-  if (!allowed.includes(session.role)) {
-    throw new ForbiddenError(`この操作には ${role} ロールが必要です。`);
-  }
 }
 
 export async function createSession(db: DbClient, adminUserId: number, ttlDays: number): Promise<{ token: string; expiresAt: string }> {

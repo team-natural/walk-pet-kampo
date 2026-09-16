@@ -264,7 +264,7 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 | --- | --- | --- |
 | GET | `/api/v1/inquiries` | お問い合わせ一覧（admin） |
 | GET | `/api/v1/inquiries/{id}` | 詳細 |
-| PATCH | `/api/v1/inquiries/{id}` | 対応状況・担当者変更（`unhandled/in_progress/on_hold/resolved/no_action_needed`。DEV-09 §2-12） |
+| PATCH | `/api/v1/inquiries/{id}` | 対応状況・担当者変更（`new/in_progress/resolved`。DEV-09 §2-12） |
 
 ### 5-6. `apps/admin` — 管理ダッシュボード・監査ログ
 
@@ -404,7 +404,7 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 
 | メソッド | パス | 用途 | 認証 |
 | --- | --- | --- | --- |
-| POST | `/api/v1/inquiries` | お問い合わせフォーム送信（F-14-03。`inquiries.category` で分類） | 不要 |
+| POST | `/api/v1/inquiries` | お問い合わせフォーム送信（F-14-03） | 不要 |
 
 > FG-14 のうちお知らせ（F-14-01 / SCR-34・35）と FAQ（F-14-02 / SCR-36）はエンドポイントを持たない。ページが Content Collections・TypeScript 定数から直接描画するため、取得する API が無い（`Decided` — GOV-01 D-016、§5-5 の注記）。
 

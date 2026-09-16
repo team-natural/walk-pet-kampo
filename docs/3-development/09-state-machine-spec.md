@@ -45,7 +45,7 @@ PRD-01 §7 と完全に一致させる。標準テンプレートが前提とす
 | Payout | 7 | Cron Triggers による月次集計、admin の振込確定操作、Stripe Connect Transfer | `apps/admin`（審査系と同じ D1 直接更新パターン。org_admin 向け参照専用クエリのみ `apps/public`）|
 | Incident | 5 | 団体スタッフの報告・対応更新、admin の完了処理 | `apps/public` |
 | AdoptionInquiry | 7 | Walker の相談送信、団体スタッフの対応更新 | `apps/public` |
-| Inquiry | 5 | 運営（admin）の対応更新 | `apps/admin` |
+| Inquiry | 3 | 運営（admin）の対応更新。**参照実装**（実装済み） | `apps/admin` |
 | News | — | 状態遷移を持たない（Content Collections の `draft` フラグと git で表現 — GOV-01 D-016、§2-13） | — |
 
 ---
@@ -493,35 +493,32 @@ Stripe Connect の Transfer 状態と整合させる（DEV-10 §2）。
 
 #### 2-12-1. 状態一覧
 
-PRD-01 §7 / DEV-07（`inquiries.status`）と一致させる。テンプレート標準の `new/in_progress/resolved` の 3 状態ではなく、旧仕様を踏襲した 5 状態を採用する。
+PRD-01 §7 / DEV-07 §4-3（`inquiries.status`）と一致させる。テンプレート標準の 3 状態をそのまま採用する。
 
 | 状態 | 説明 |
 | --- | --- |
-| `unhandled` | 未対応 |
+| `new` | 新規受信・未対応 |
 | `in_progress` | 対応中 |
-| `on_hold` | 保留 |
-| `resolved` | 対応完了（終端状態）|
-| `no_action_needed` | 対応不要（終端状態）|
+| `resolved` | 対応完了 |
 
 #### 2-12-2. 遷移マトリクス
 
-| 遷移元 → 遷移先 | in_progress | on_hold | resolved | no_action_needed |
-| --- | :---: | :---: | :---: | :---: |
-| unhandled | ✓ | ✗ | ✗ | ✓ |
-| in_progress | ✗ | ✓ | ✓ | ✓ |
-| on_hold | ✓ | — | ✓ | ✓ |
+| 遷移元 → 遷移先 | new | in_progress | resolved |
+| --- | :---: | :---: | :---: |
+| new | — | ✓ | ✗ |
+| in_progress | ✓ | — | ✓ |
+| resolved | ✗ | ✓ | — |
 
 #### 2-12-3. 遷移トリガー
 
 | 遷移 | トリガー | 実行者 |
 | --- | --- | --- |
-| unhandled → in_progress | 対応担当者をアサイン | admin |
-| unhandled → no_action_needed | 対応不要と判断 | admin |
-| in_progress → on_hold | 一時保留（先方回答待ち等）| admin |
-| on_hold → in_progress | 保留解除 | admin |
-| in_progress/on_hold → resolved / no_action_needed | 対応完了・対応不要の確定 | admin |
+| new → in_progress | 対応開始（`handled_by` に実行者を記録）| admin |
+| in_progress → new | 差し戻し（`handled_by` を NULL に戻す）| admin |
+| in_progress → resolved | 対応完了 | admin |
+| resolved → in_progress | 再オープン | admin |
 
-> Inquiry は運営（`apps/admin` の AdminUser）が対応するプラットフォーム横断のお問い合わせであり、`apps/admin/src/lib/server/services/inquiries.ts` に実装する（本プロジェクトの参照実装そのもの — DEV-05 §1）。
+> Inquiry は運営（`apps/admin` の AdminUser）が対応するプラットフォーム横断のお問い合わせであり、`apps/admin/src/lib/server/services/inquiries.ts` に**実装済み**（本プロジェクトの参照実装そのもの — DEV-05 §1）。状態・遷移は実装をそのまま正とする。
 
 ---
 

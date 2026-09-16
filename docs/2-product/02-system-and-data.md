@@ -214,7 +214,7 @@ Cloudflare Workers のオートスケールに依存する部分が大きいが�
 | WalkRecord | walkSlotId, conducted, conductedAt, staffInCharge, dogsWalked, photos, staffComment, incidentFlag | dogsWalked: JSON 配列（実施時に担当した犬） |
 | Incident | organizationId, reservationId, dogId, walkerId, severity, category, description, occurredAt, location, reportedBy, status, preventionMeasures | walkerId は Walker の ID。severity: 列挙（P0〜P3 相当）。status: 列挙（PRD-01 §7） |
 | AdoptionInquiry | dogId, walkerId, organizationId, motivation, livingEnvironment, status | walkerId は Walker の ID。status: 列挙（PRD-01 §7） |
-| Inquiry | category, name, email, phone, message, status, priority | status: 列挙（PRD-01 §7）。本テンプレート標準の Inquiry（お問い合わせフォーム）をそのまま踏襲。里親相談は別エンティティ AdoptionInquiry として区別する |
+| Inquiry | type, name, email, message, status, handledBy | status: 列挙（PRD-01 §7）。本テンプレート標準の Inquiry（お問い合わせフォーム）を列構成ごとそのまま踏襲する。里親相談は別エンティティ AdoptionInquiry として区別する |
 
 > **読み物系コンテンツをエンティティにするかは「誰が編集するか」で決まる。** 開発者が git で
 > 更新するものはエンティティ化しない — お知らせは `packages/content/news/` の Content

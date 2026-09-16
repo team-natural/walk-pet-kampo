@@ -8,10 +8,9 @@ import { fileURLToPath } from "node:url";
 import { hashPassword } from "@app/server-kit/auth";
 import { ulid } from "@app/schema/ulid";
 
-const TABLES = {
-  admin_users: { roles: ["admin", "editor"] },
-  walkers: { roles: null },
-};
+// Neither table has a role column: AdminUser is always `admin` (GOV-01 D-011) and Walker has no
+// role at all. Organization staff roles live on organization_members, which this does not seed.
+const TABLES = ["admin_users", "walkers"];
 
 function parseArgs(argv) {
   const args = {};
@@ -36,21 +35,14 @@ function requireValue(args, key) {
 
 const sqlQuote = (value) => `'${String(value).replaceAll("'", "''")}'`;
 
-const USAGE = "Usage: pnpm seed -- --table=admin_users|walkers --email=<email> --password=<password> --name=<name> [--role=admin|editor] [--db=<binding or database_name>] [--remote] [--env=<wrangler env>]";
+const USAGE = "Usage: pnpm seed -- --table=admin_users|walkers --email=<email> --password=<password> --name=<name> [--db=<binding or database_name>] [--remote] [--env=<wrangler env>]";
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  const table = TABLES[args.table] ? args.table : null;
+  const table = TABLES.includes(args.table) ? args.table : null;
 
   if (!table || !args.email || !args.password || !args.name) {
     console.error(USAGE);
-    process.exit(1);
-  }
-
-  const { roles } = TABLES[table];
-  const role = roles ? (args.role ?? roles[0]) : null;
-  if (roles && !roles.includes(role)) {
-    console.error(`--role must be one of ${roles.join(", ")} for ${table}.`);
     process.exit(1);
   }
 
@@ -60,8 +52,8 @@ async function main() {
 
   const passwordHash = await hashPassword(password);
   const now = new Date().toISOString();
-  const columns = ["public_id", "name", "email", "password_hash", ...(role ? ["role"] : []), "status", "created_at", "updated_at"];
-  const values = [ulid(), name, email, passwordHash, ...(role ? [role] : []), "active", now, now];
+  const columns = ["public_id", "name", "email", "password_hash", "status", "created_at", "updated_at"];
+  const values = [ulid(), name, email, passwordHash, "active", now, now];
   const sql = `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${values.map(sqlQuote).join(", ")});`;
 
   // Binding name, not database_name: it's valid before a project replaces the placeholders.

@@ -101,10 +101,12 @@ describe("columns", () => {
   );
 
   it(
-    "has no soft deletes and no tenant scope",
+    "has no soft deletes",
     each((table) => {
-      // Deactivation is a `status` column; the single-operator premise rules out tenant scoping.
-      for (const name of ["deleted_at", "organization_id", "tenant_id"]) {
+      // Deactivation is a `status` column. The template also barred `organization_id` here on a
+      // single-operator premise; this project is a marketplace, so that column is the tenant
+      // boundary instead (DEV-07 §8) and only `tenant_id` stays out as a foreign naming.
+      for (const name of ["deleted_at", "tenant_id"]) {
         expect(columnNames(table), table.name).not.toContain(name);
       }
     }),

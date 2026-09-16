@@ -78,12 +78,12 @@ erDiagram
     INQUIRY {
         integer id PK
         text public_id UK "ULID"
-        text category "service/participation/.../other"
+        text type
         text name
         text email
         text message
-        text status "unhandled/.../no_action_needed"
-        text priority "normal/high"
+        text status "new/in_progress/resolved"
+        integer handled_by FK
         text created_at
         text updated_at
     }
@@ -113,6 +113,9 @@ erDiagram
     DOG ||--o{ ADOPTION_INQUIRY : receives
     WALKER ||--o{ ADOPTION_INQUIRY : submits
     WALKER ||--o{ FAVORITE : saves
+    WALKER ||--o{ WALKER_PASSWORD_RESET_TOKEN : resets_with
+    ORGANIZATION_MEMBER ||--o{ ORGANIZATION_MEMBER_PASSWORD_RESET_TOKEN : resets_with
+    ORGANIZATION ||--o{ ORGANIZATION_APPLICATION_TOKEN : resubmits_with
 
     ORGANIZATION {
         integer id PK
@@ -209,7 +212,8 @@ erDiagram
     }
 
     %% WALK_SLOT_DOG / WALK_RECORD / INCIDENT / ADOPTION_INQUIRY / INVITATION / FAVORITE /
-    %% NOTIFICATION_SETTING / NOTIFICATION / STRIPE_EVENT_LOG は §5 参照（お知らせ・FAQ は不採用 — §5-21・§5-22）。
+    %% NOTIFICATION_SETTING / NOTIFICATION / STRIPE_EVENT_LOG / 各 *_TOKEN は §5 参照
+    %% （お知らせ・FAQ は不採用 — §5-21・§5-22）。
     %% draft.yaml / packages/schema/migrations/ と同期すること（DEV-01 §1・§9）。
 ```
 <!-- ERD:END -->
@@ -244,7 +248,7 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | --- | --- | :---: |
 | `admin_users` | 管理画面ログインユーザー（ロールは単一のため role 列なし） | ○ |
 | `media` | アップロードファイルのメタデータ（実体は R2） | ○ |
-| `inquiries` | お問い合わせフォームの送信記録（category 列を拡張してマーケットプレイス用途にも流用 — §4-3） | ○ |
+| `inquiries` | お問い合わせフォームの送信記録（マーケットプレイス用途にもそのまま流用 — §4-3） | ○ |
 
 > テンプレート標準の `posts` / `categories` / `tags` / `post_tags` は**採用しない**（`Decided` — GOV-01 D-014）。対応する公開画面・管理画面が PRD-04 に 1 つも無い。詳細は §4-2 直前の注記。
 
@@ -336,26 +340,24 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 
 ### 4-3. inquiries
 
-コーポレート発信用のお問い合わせフォームに加え、マーケットプレイス関連の一般的な問い合わせ（旧仕様の `inquiries`）も本テーブルに統合する（`category` 列を拡張）。里親相談は別エンティティ `adoption_inquiries`（§5-16）として区別する（PRD-01 §4 ユビキタス言語）。
+マーケットプレイス関連の一般的な問い合わせも本テーブルに統合する。里親相談は別エンティティ `adoption_inquiries`（§5-16）として区別する（PRD-01 §4 ユビキタス言語）。
 
 | カラム | 型 | NULL | 備考 |
 | --- | --- | --- | --- |
 | id | INTEGER | NO | PK |
 | public_id | TEXT | NO | UNIQUE（ULID） |
 | type | TEXT | YES | フォーム種別が複数ある場合のみ（お問い合わせ / 資料請求 等。PRD-02 §6-1） |
-| category | TEXT | NO | service / participation / organization_registration / reservation / payment / incident / adoption / other（旧仕様を踏襲。マーケットプレイス問い合わせの分類） |
 | name | TEXT | NO |  |
 | email | TEXT | NO |  |
-| phone | TEXT | YES | 旧仕様の `inquiries.phone` を踏襲 |
 | message | TEXT | NO |  |
-| status | TEXT | NO | unhandled / in_progress / on_hold / resolved / no_action_needed（PRD-01 §7） |
-| priority | TEXT | NO | normal / high（事故・安全関連は high。旧仕様を踏襲） |
+| status | TEXT | NO | new / in_progress / resolved（PRD-01 §7、DEV-09 §2-12） |
 | handled_by | INTEGER | YES | FK → admin_users.id（対応担当者） |
-| handled_at | TEXT | YES |  |
-| created_at | TEXT | NO |  |
+| created_at | TEXT | NO | PRD-02 の `submittedAt` に相当（フォーム送信記録は作成時刻と同一のため別列を持たない） |
 | updated_at | TEXT | NO |  |
 
-**Index**: UNIQUE(`public_id`), `status, priority`, `category`, `handled_by`
+**Index**: UNIQUE(`public_id`), `status`, `handled_by`, `created_at`
+
+> **テンプレート標準の 3 状態・列構成をそのまま使う。** 旧仕様が持っていた `category` / `phone` / `priority` / `handled_at` は足さない — 分類も優先度も、問い合わせ件数が管理画面のページネーションを必要とするほど増えてから入れれば済み、先に列を足すと `scaffold` の参照実装（`apps/admin/src/lib/server/services/inquiries.ts`）が実装より複雑になる。
 
 ### 4-4. activity_log（自前テーブル — DEV-01 §2）
 
@@ -515,7 +517,7 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | created_at | TEXT | NO |  |
 | updated_at | TEXT | NO |  |
 
-**Index**: UNIQUE(`public_id`), UNIQUE(`slug`), `status`
+**Index**: UNIQUE(`public_id`), UNIQUE(`slug`), `status`, `reviewed_by`
 
 ### 5-5. organization_members
 
@@ -570,7 +572,7 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | created_at | TEXT | NO |  |
 | updated_at | TEXT | NO |  |
 
-**Index**: UNIQUE(`public_id`), UNIQUE(`token`), `organization_id`, `email`, `status`
+**Index**: UNIQUE(`public_id`), UNIQUE(`token`), `organization_id`, `inviter_id`, `email`, `status`
 
 ### 5-8. dogs
 
@@ -738,7 +740,7 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | created_at | TEXT | NO |  |
 | updated_at | TEXT | NO |  |
 
-**Index**: UNIQUE(`public_id`), UNIQUE(`walk_slot_id`)
+**Index**: UNIQUE(`public_id`), UNIQUE(`walk_slot_id`), `staff_in_charge_id`
 
 ### 5-15. incidents
 
@@ -766,7 +768,7 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | created_at | TEXT | NO |  |
 | updated_at | TEXT | NO |  |
 
-**Index**: UNIQUE(`public_id`), `organization_id, status`, `severity`
+**Index**: UNIQUE(`public_id`), `organization_id, status`, `severity`, `reservation_id`, `dog_id`, `walker_id`
 
 ### 5-16. adoption_inquiries
 
@@ -1015,7 +1017,7 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 - `activity_log` の `causer_type` が `AdminUser` / `OrganizationMember` / `Walker` の 3 系統を判別できるか
 - お知らせ・FAQ・利用規約等を D1 に置かない理由が DEV-06 §1-1 と整合しているか（D1 は取引データのみ — GOV-01 D-016）
 - `walker_profiles.terms_agreed_version` があり、`apps/public/src/lib/legal.ts` の `TERMS_VERSION` と対応が取れているか
-- `inquiries` の `category` 拡張が本書に明記されているか
+- `inquiries` がテンプレート標準の 3 状態・列構成のままか（`category` / `priority` を足し戻していないか — §4-3）
 - 型が SQLite の affinity（INTEGER / TEXT / REAL）で一貫しているか（MySQL 型・MySQL の DECIMAL 等の書き残しがないか）
 - Drizzle スキーマ（`packages/schema/src/schema.ts`）が本書のテーブル定義と完全に一致しているか（本書が正本。`schema-build` スキル実行後は差分がないことを確認する）
 - マイグレーション運用ルールが OPS-02（運用ハンドブック）と整合しているか

@@ -2,7 +2,7 @@ import type { APIContext } from "astro";
 import { env } from "cloudflare:workers";
 import { createDb } from "@app/schema/client";
 import { ValidationError, decodeCursor, encodeCursor, jsonCursorCollection, jsonItem, toErrorResponse } from "@app/server-kit/http";
-import { requireRole, requireSession } from "$lib/server/auth/session";
+import { requireSession } from "$lib/server/auth/session";
 import { listMedia, uploadMedia } from "$lib/server/services/media";
 
 export async function GET({ request, cookies }: APIContext): Promise<Response> {
@@ -29,7 +29,6 @@ export async function POST({ request, cookies }: APIContext): Promise<Response> 
   try {
     const db = createDb(env.DB);
     const session = await requireSession(cookies, db);
-    requireRole(session, "editor");
 
     const file = (await request.formData()).get("file");
     if (!(file instanceof File)) {
