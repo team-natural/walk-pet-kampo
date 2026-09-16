@@ -70,7 +70,7 @@ RESTful API の設計規約、認証方式、エラー体系、バージョニ�
 | クッキー | `walker_session`（AdminUser・OrganizationMember と異なる名前。DEV-02 §1-2） |
 | セッション発行 | `POST /api/v1/auth/register`（`walkers`/`walker_profiles` を作成）、`POST /api/v1/auth/login`（`walker_sessions` に行を作成。DEV-07 §5-1・§5-2・§5-3） |
 | セッション失効 | `POST /api/v1/auth/logout` |
-| 認証必須範囲 | `/api/v1/me/*` 全エンドポイントと、予約作成・決済・里親相談送信を伴うエンドポイント。公開検索（`/organizations`・`/dogs`・`/walk-slots` の一覧・詳細）・お知らせ/FAQ/お問い合わせ・保護団体登録申請は認証不要 |
+| 認証必須範囲 | `/api/v1/me/*` 全エンドポイントと、予約作成・決済・里親相談送信を伴うエンドポイント。公開検索（`/organizations`・`/dogs`・`/walk-slots` の一覧・詳細）・お問い合わせ送信・保護団体登録申請は認証不要（お知らせ・FAQ はそもそも API を持たない — §5-5） |
 | ロールなし | Walker はロールを持たない。「本人か」の所有者チェック（`requireWalker(session, walkerId)`）に加え、予約・決済等の利用資格が前提の操作は `requireActiveWalkerProfile(session)`（`walker_profiles.status = active` の検証）を必ず通す（DEV-02 §1-2・§3-1） |
 | 検証の実施箇所 | `apps/public/src/pages/api/**/*.ts` の冒頭。Walker 専用のセッション検証モジュールは OrganizationMember 用と共有しない（DEV-02 §1-4） |
 
@@ -109,7 +109,7 @@ Reservation / Payment / Payout / Incident / AdoptionInquiry / WalkerProfile は 
 
 ### 3-2. 成功（コレクション）
 
-ページ番号方式（件数が少なく安定しているリスト。例: `admin_users` / `news`）とカーソル方式（§8 が指定する大規模リスト。例: `dogs` / `walk_slots` / `reservations` / `activity_log`）で envelope の形が異なる — どちらを使うかは §8 のリスト側で決まり、両方を同時に持つエンドポイントは無い。
+ページ番号方式（件数が少なく安定しているリスト。例: `admin_users` / `inquiries`）とカーソル方式（§8 が指定する大規模リスト。例: `dogs` / `walk_slots` / `reservations` / `activity_log`）で envelope の形が異なる — どちらを使うかは §8 のリスト側で決まり、両方を同時に持つエンドポイントは無い。
 
 **ページ番号方式**
 
@@ -182,8 +182,8 @@ Reservation / Payment / Payout / Incident / AdoptionInquiry / WalkerProfile は 
 
 ### 5-0. 配置の原則
 
-- **`apps/admin`**: AdminUser 認証・管理（§5-1・§5-2）、保護団体審査（§5-3。Organization の審査系遷移は DEV-09 §2-1-5 が明記する唯一の例外配置）、FG-15 横断リソースの一覧・詳細取得（§5-4。読み取り専用。対象データは `apps/public` ドメインの共有 D1 テーブルだが、読み取りのみのため `apps/admin` 側に専用の参照系 Service を置く — `[Assumed]`）、お知らせ・お問い合わせ管理（§5-5。FAQ は D1 に持たないため管理 API を持たない — GOV-01 D-013）、管理ダッシュボード・監査ログ（§5-6）
-- **`apps/public`**: FG-01〜14 全体 — Walker 認証（§5-7）、Organization staff 認証（§5-8）、保護団体登録申請（§5-9）、公開検索（§5-10）、予約・決済（§5-11）、Walker マイページ（§5-12）、団体ページ（§5-13）、お知らせ・FAQ・お問い合わせの公開面（§5-14）に加え、§2-4 で述べた `admin` によるアプリをまたぐ運営者操作（§5-15、`[Open: 認可方式]`）
+- **`apps/admin`**: AdminUser 認証・管理（§5-1・§5-2）、保護団体審査（§5-3。Organization の審査系遷移は DEV-09 §2-1-5 が明記する唯一の例外配置）、FG-15 横断リソースの一覧・詳細取得（§5-4。読み取り専用。対象データは `apps/public` ドメインの共有 D1 テーブルだが、読み取りのみのため `apps/admin` 側に専用の参照系 Service を置く — `[Assumed]`）、お問い合わせ管理（§5-5。お知らせ・FAQ は D1 に持たないため管理 API を持たない — GOV-01 D-016）、管理ダッシュボード・監査ログ（§5-6）
+- **`apps/public`**: FG-01〜14 全体 — Walker 認証（§5-7）、Organization staff 認証（§5-8）、保護団体登録申請（§5-9）、公開検索（§5-10）、予約・決済（§5-11）、Walker マイページ（§5-12）、団体ページ（§5-13）、お問い合わせの公開面（§5-14）に加え、§2-4 で述べた `admin` によるアプリをまたぐ運営者操作（§5-15、`[Open: 認可方式]`）
 
 ### 5-1. `apps/admin` — AdminUser 認証
 
@@ -254,18 +254,14 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 | POST | `/api/v1/payouts/{id}/schedule` | 振込予定日の確定（`confirmed → scheduled`） |
 | POST | `/api/v1/payouts/{id}/hold` | 異常検知時の保留（`aggregating/confirmed → on_hold`） |
 
-### 5-5. `apps/admin` — お知らせ・お問い合わせ管理（admin）
+### 5-5. `apps/admin` — お問い合わせ管理（admin）
 
-`news`（DEV-07 §5-21）は Walker/Organization からの投稿を受け付けない純粋な CMS コンテンツのため、`apps/admin` が全面的に作成・編集する。`inquiries`（標準テーブル、DEV-07 §4-3）は `apps/public` の公開フォームから作成されるが、対応（ステータス変更）は `apps/admin` が担う（`inquiries` の参照実装の配置パターンを踏襲 — DEV-05 §1）。
+`inquiries`（標準テーブル、DEV-07 §4-3）は `apps/public` の公開フォームから作成されるが、対応（ステータス変更）は `apps/admin` が担う（`inquiries` の参照実装の配置パターンを踏襲 — DEV-05 §1）。
 
-> FAQ は D1 に持たないため API を持たない（`Decided` — GOV-01 D-013）。`apps/public/src/pages/faq.astro` に直書きする（DEV-06 §1-1）。
+> **お知らせ・FAQ は API を持たない**（`Decided` — GOV-01 D-016）。お知らせは `packages/content/news/` の Content Collections、FAQ は `apps/public/src/lib/faq.ts` の TypeScript 定数で、いずれもビルド時に解決されるため取得する API も管理する API も無い（DEV-06 §1-1）。
 
 | メソッド | パス | 用途 |
 | --- | --- | --- |
-| GET | `/api/v1/news` | お知らせ一覧 |
-| POST | `/api/v1/news` | お知らせ作成（`audience` で配信範囲指定） |
-| GET | `/api/v1/news/{id}` | 詳細 |
-| PATCH | `/api/v1/news/{id}` | 編集・公開/非公開切替 |
 | GET | `/api/v1/inquiries` | お問い合わせ一覧（admin） |
 | GET | `/api/v1/inquiries/{id}` | 詳細 |
 | PATCH | `/api/v1/inquiries/{id}` | 対応状況・担当者変更（`unhandled/in_progress/on_hold/resolved/no_action_needed`。DEV-09 §2-12） |
@@ -404,15 +400,13 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 | GET | `/api/v1/organization/notification-settings` | 通知設定確認 | — |
 | PATCH | `/api/v1/organization/notification-settings` | 通知種別ごとの ON/OFF | — |
 
-### 5-14. `apps/public` — お知らせ・FAQ・お問い合わせ（公開、FG-14）
+### 5-14. `apps/public` — お問い合わせ（公開、FG-14）
 
 | メソッド | パス | 用途 | 認証 |
 | --- | --- | --- | --- |
-| GET | `/api/v1/news` | お知らせ一覧（`audience` に応じて Walker/Organization staff/全体を出し分け。F-14-01） | 不要（ログイン時は `audience` 判定に利用） |
-| GET | `/api/v1/news/{slug}` | お知らせ詳細 | 不要 |
 | POST | `/api/v1/inquiries` | お問い合わせフォーム送信（F-14-03。`inquiries.category` で分類） | 不要 |
 
-> FG-14 のうち FAQ（F-14-02 / SCR-36）はエンドポイントを持たない。`apps/public/src/pages/faq.astro` の直書きで、取得する API が無い（`Decided` — GOV-01 D-013、§5-5 の注記）。
+> FG-14 のうちお知らせ（F-14-01 / SCR-34・35）と FAQ（F-14-02 / SCR-36）はエンドポイントを持たない。ページが Content Collections・TypeScript 定数から直接描画するため、取得する API が無い（`Decided` — GOV-01 D-016、§5-5 の注記）。
 
 ### 5-15. `apps/public` — プラットフォーム運営者操作（admin、`[Open: 認可方式]` — §2-4、GOV-02 TBD-46）
 
@@ -516,7 +510,7 @@ Cookie: walker_session={session_token}
 - 最大 100 件 / ページ
 - クエリパラメータ: `?page=2&per_page=50`
 - 大規模リスト（`dogs`・`walk_slots`・`reservations`・`payments`・`payouts`・`activity_log` 等）はカーソルベース：`?cursor=eyJpZCI6MTAwfQ`
-- 件数が少なく安定しているリスト（`admin_users`・`news`）はページ番号方式
+- 件数が少なく安定しているリスト（`admin_users`・`inquiries`）はページ番号方式
 - 実装: D1 への `LIMIT`/`OFFSET`（カーソルベースは `WHERE id > ?` 等）クエリを Service 層で組み立て、§3-2 の `meta`/`links` envelope は両アプリ共通の `@app/server-kit/http`（`jsonCursorCollection` / `encodeCursor` / `decodeCursor`）で生成する（GOV-01 D-015、§3-2）
 
 ---

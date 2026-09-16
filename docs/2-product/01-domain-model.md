@@ -65,7 +65,7 @@ Platform（運営：自社。apps/admin）
        └─ Incident（事故・トラブル。Reservation 等に関連）
 ```
 
-> **アプリ間のアカウント配置**: AdminUser は `apps/admin`、Organization / OrganizationMember / Walker / WalkerProfile は `apps/public` に存在する（GOV-01 D-007）。News / Media / Inquiry のような運営発信・運営対応のコンテンツは `apps/admin` が書き込み・`apps/public` が読み取る（CLAUDE.md 参照）。3 系統のアカウントは別テーブル・別セッション（別クッキー名）で完全に分離し、単一の User テーブルに `platformRole` 等の区別フラグを持たせる実装は行わない（DEV-02 §1 参照）。
+> **アプリ間のアカウント配置**: AdminUser は `apps/admin`、Organization / OrganizationMember / Walker / WalkerProfile は `apps/public` に存在する（GOV-01 D-007）。Media / Inquiry のような運営対応のデータは `apps/admin` が対応を書き込み・`apps/public` が読み取る（CLAUDE.md 参照）。3 系統のアカウントは別テーブル・別セッション（別クッキー名）で完全に分離し、単一の User テーブルに `platformRole` 等の区別フラグを持たせる実装は行わない（DEV-02 §1 参照）。
 
 ### 1-2. ロール構造（2 階層・計 3 ロール）
 
@@ -100,7 +100,7 @@ Platform（運営：自社。apps/admin）
 | AdminUser（`admin`/`editor` の 2 ロール）| Platform ロール（単一 `admin`）。`apps/admin` に配置する点は標準と同じ |
 | Member（マイページ機能採用時、ロール階層なしの単一種別）| お散歩参加者（Walker）。標準の Member と同じく `apps/public` 側・AdminUser と別系統だが、`WalkerProfile` による拡張プロフィールと `status` 駆動の利用資格判定を追加している点で拡張 |
 | （標準テンプレに概念なし：マルチテナント・自団体スタッフ管理）| 保護団体（Organization）+ 団体スタッフ所属（OrganizationMember、`org_admin`/`org_staff`。`apps/public` 側 — GOV-01 D-004・D-007）|
-| Post / Page | お知らせ（News）。標準の Post / Category / Tag は採用しない（GOV-01 D-014）。保護犬プロフィール（Dog）やお散歩枠（WalkSlot）は記事とは責務が異なるプロダクト固有エンティティとして別に定義する（§3-2）。利用規約・プライバシーポリシーはエンティティ化せず `packages/content` の Markdown、FAQ・利用ガイド等はページ直書き（GOV-01 D-013、DEV-06 §1-1）|
+| Post / Page | **採用しない**（GOV-01 D-014）。記事型コンテンツはお知らせのみで、`packages/content/news/` の Content Collections として持つためエンティティにならない。保護犬プロフィール（Dog）やお散歩枠（WalkSlot）は記事とは責務が異なるプロダクト固有エンティティとして別に定義する（§3-2）。FAQ は TypeScript 定数、利用規約・利用ガイド等はページ直書き（GOV-01 D-016、DEV-06 §1-1）|
 | Order（軽量 EC 採用時）| 該当なし。決済は Reservation に紐づく都度課金（Payment、Stripe）と、Organization への還元送金（Payout、Stripe Connect）という別体系で実装する（GOV-01 D-008）|
 
 ---
@@ -248,11 +248,10 @@ classDiagram
 | WalkRecord | WalkSlot の実施結果（お散歩記録）| walkSlotId, conducted, conductedAt, staffInCharge, dogsWalked, photos, staffComment, incidentFlag |
 | Incident | 事故・トラブル報告 | organizationId, reservationId, dogId, walkerId, severity, category, description, occurredAt, status |
 | AdoptionInquiry | 里親相談 | dogId, walkerId, organizationId, motivation, livingEnvironment, status |
-| News | お知らせ | title, body, audience（一般公開/参加者限定/団体限定 等）, publishedAt, publishedUntil |
 
-> すべてのプロダクト固有エンティティは `organizationId` または `walkerId`（Walker アカウントの ID、`apps/public` 側）でテナント境界を持つ（§6 参照）。News はプラットフォーム共通のためテナント境界を持たない。
+> すべてのプロダクト固有エンティティは `organizationId` または `walkerId`（Walker アカウントの ID、`apps/public` 側）でテナント境界を持つ（§6 参照）。
 
-> **FAQ はエンティティ化しない**（`Decided` — GOV-01 D-013）。全閲覧者に同一内容で他エンティティとの関係も持たないため、`apps/public/src/pages/faq.astro` に直書きする。利用規約・プライバシーポリシーも同様にエンティティではなく `packages/content/legal/` の Markdown として持つ（改定履歴を git に残すため）。判断根拠は DEV-06 §1-1。
+> **読み物系コンテンツはエンティティ化しない**（`Decided` — GOV-01 D-016）。お知らせは `packages/content/news/` の Content Collections、FAQ は `apps/public/src/lib/faq.ts` の TypeScript 定数、利用規約・プライバシーポリシーは `.astro` 直書き（版番号のみ `apps/public/src/lib/legal.ts` の定数）として持つ。**エンティティになるのは外部ユーザーが投入する取引データだけ**という切り分けで、判断根拠は DEV-06 §1-1。
 
 ---
 
@@ -281,7 +280,7 @@ classDiagram
 | Payment & Payout | Payment, Payout | 都度課金決済（Stripe）と保護団体への還元送金（Stripe Connect）| Walk Operations, Organization Management |
 | Safety & Incident | Incident | 事故・トラブルの報告受付と対応管理 | Walk Operations |
 | Adoption | AdoptionInquiry | 里親相談の受付と保護団体への引き継ぎ | Walk Operations（Dog）, Organization Management |
-| Content & Support | News, Inquiry | お知らせ・問い合わせの管理（`apps/admin` が書き込み、`apps/public` が読み取り）。FAQ・利用規約等の静的コンテンツはエンティティを持たない（§3-2 の注記）| 全コンテキスト |
+| Content & Support | Inquiry | 問い合わせの受付と対応管理（`apps/public` が作成、`apps/admin` が対応）。お知らせ・FAQ・利用規約等の読み物系コンテンツはエンティティを持たない（§3-2 の注記）| 全コンテキスト |
 | Audit & Notification | AuditLog, Notification | 重要操作の監査記録・通知配信（アカウント系統横断） | 全コンテキスト |
 
 ---

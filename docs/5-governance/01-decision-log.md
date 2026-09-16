@@ -188,7 +188,7 @@ related-docs:
 | 決定者 | Tech Lead |
 | 関連 TBD | — |
 
-### D-013：読み物系コンテンツの置き場所を「D1 / Content Collections / ページ直書き」の 3 択で振り分ける
+### D-013：読み物系コンテンツの置き場所を「D1 / Content Collections / ページ直書き」の 3 択で振り分ける → D-016 で置換
 
 | 項目 | 内容 |
 | --- | --- |
@@ -199,6 +199,7 @@ related-docs:
 | 影響範囲 | PRD-01 §1-1・§3-2・§5、PRD-02 §6-1・§6-2、PRD-03 FG-14・FG-15、PRD-04 §3-1・§3-3、DEV-01 §1、DEV-04 §5-5・§5-14、DEV-06 §1-1、DEV-07 §3-2・§5-3・§5-21・§5-22 |
 | 決定者 | 事業責任者 / Tech Lead |
 | 関連 TBD | GOV-02 TBD-41（FAQ を運営が自己編集する要求が出た場合の D1 移行） |
+| 置換 | 2026-09-16 付 D-016 により、判断軸を「誰が編集するか」に一本化。お知らせは D1 → Content Collections、利用規約・プライバシーポリシーは Content Collections → `.astro` 直書き、FAQ は直書き → TypeScript 定数へ変更 |
 
 ### D-014：テンプレート標準のブログ CMS（Post / Category / Tag / PostTag）は採用しない
 
@@ -206,7 +207,7 @@ related-docs:
 | --- | --- |
 | 日付 | 2026-09-09 |
 | カテゴリ | 設計 |
-| 決定内容 | テンプレート標準の `posts` / `categories` / `tags` / `post_tags` の 4 テーブルと対応する Service / API / 管理画面を作らない。記事型コンテンツは News（D1、D-013）のみとする |
+| 決定内容 | テンプレート標準の `posts` / `categories` / `tags` / `post_tags` の 4 テーブルと対応する Service / API / 管理画面を作らない。記事型コンテンツはお知らせ（Content Collections、D-016）のみとする |
 | 背景 | 旧 DEV-07 §3-2 は 4 テーブルを「必須」としていたが、PRD-04 の公開サイトマップ（SCR-01〜45）にも管理画面（SYS-NN）にも対応する画面が 1 つも定義されていなかった。テンプレートから引き継いだまま残っていた残骸である。CLAUDE.md の制約により不要機能の削除は最初の `pnpm db:generate` より前に行う必要があり、本リポジトリは `packages/schema/migrations/` が未生成のため今が最後のタイミングだった。将来コーポレート発信の記事が必要になった場合は、まず `packages/content` の Content Collections を検討する（D-013 の判断軸） |
 | 影響範囲 | PRD-01 §1-1・§3-2、PRD-02 §1-2・§1-3・§6-1、DEV-05 §1、DEV-07 §2-1・§3-2・§4・§10・§12、DEV-09 §1・§2-13、DEV-10 §4-2 |
 | 決定者 | Tech Lead |
@@ -223,6 +224,54 @@ related-docs:
 | 影響範囲 | DEV-01 §1・§5-3・§8、DEV-02 §1-4・§7、DEV-03 §3-1、DEV-04 §3-2・§8、DEV-05 §1・§2、DEV-06 §1 |
 | 決定者 | Tech Lead |
 | 関連 TBD | GOV-02 TBD-45（`apps/public` 内 2 系統のロックアウトキーのスコープ分け） |
+
+### D-016：読み物系コンテンツの判断軸を「誰が編集するか」に一本化し、D1 には取引データのみを置く（D-013 を置換）
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-16 |
+| カテゴリ | 設計 |
+| 決定内容 | 置き場所の判断軸を「誰が編集するか」に統一する。**開発者が更新し、運営・保護団体による編集を要件としないものはリポジトリ側に置き、D1 には取引データのみを置く。**①**Content Collections**（`packages/content/news/`）：お知らせ。`audience` による出し分けと `published_until` の時限公開は要件から外し、公開側に表示するお知らせのみを扱う。`news` テーブル・`/api/v1/news`・お知らせ管理画面（旧 SYS-23〜25）は作らず、参加者個別・団体個別への配信は既存の `notifications`（アプリ内通知、F-13-01）が担う。②**TypeScript 定数**（`apps/public/src/lib/faq.ts`）：FAQ。③**`.astro` 直書き**：トップページ・利用ガイド・安全に利用するために・特定商取引法に基づく表示・**利用規約・プライバシーポリシー**・運営会社（`/company`、新設）・サービス紹介（`/about`、新設）・各種完了案内・404/500・各フォーム画面。`packages/content/legal/` は作らない。④**コード定数**：規約・ポリシーの版番号は `apps/public/src/lib/legal.ts`（`TERMS_VERSION` / `PRIVACY_VERSION`）、参加費・団体還元額・返金規定は `apps/public/src/lib/pricing.ts`。⑤**メール文面**：`render*Email()`（D-013 から変更なし）。⑥**D1**：保護団体・保護犬・お散歩枠・予約・決済・団体還元・実施記録・里親相談・事故報告・会員・通知・お問い合わせ・監査ログのみ |
+| 背景 | 同一テンプレート由来で先行実装されている `team-natural/pet-kampo` の D-002（コンテンツは Content Collections、取引データのみ D1）に考え方を揃える。D-013 の「出し分けの有無 × 改定履歴の要否」は分岐が多く、画面を足すたびに 2 軸で判定する必要があった。「誰が編集するか」の 1 軸なら、外部ユーザーが投入するデータ（保護犬・お散歩枠・予約）は自動的に D1、開発者が git で更新するものはリポジトリ側、と迷わず決まる。お知らせの `audience` 出し分けは事業側の確認の結果、公開側に表示するお知らせのみを扱うため不要と確定し、D-013 が D1 を選んだ唯一の根拠が消えた。利用規約を直書きに戻しても、版番号をコード定数に持てば git がそのまま改定履歴になり F-01-06 の同意記録は成立する（pet-kampo が送料を `lib/commerce.ts` に集約したのと同じ「単一真実源をコードに置く」流儀）。**ただし pet-kampo には規約同意の記録自体が無く、`terms_agreed_version` 相当の列も持たない。** 当プロジェクトは F-01-06 が High 機能のため、版管理だけは pet-kampo に無い形で残す |
+| 影響範囲 | PRD-01 §1-1・§3-2・§5、PRD-02 §2・§3・§6-1・§6-2、PRD-03 FG-14・FG-15、PRD-04 §3-1・§3-3、DEV-04 §5-5・§5-14・§8、DEV-05 §1、DEV-06 §1-1、DEV-07 §3-2・§5-3・§5-21、DEV-09 §1・§2-13、DEV-10 §4-2、00_DEV_GUIDE §5 |
+| 決定者 | 事業責任者 / Tech Lead |
+| 関連 TBD | GOV-02 TBD-41（FAQ の編集要求）、TBD-42（規約改定時の再同意条件）、TBD-44（利用ガイド等の長文化） |
+
+### D-017：公開画面の SEO は `@astrojs/sitemap` + `site` 設定の 1 箇所生成に寄せる
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-16 |
+| カテゴリ | 設計 |
+| 決定内容 | `apps/public` に `@astrojs/sitemap` を導入し、`astro.config.mjs` の `site` に正式 URL を置く。canonical・OGP の絶対 URL は `Layout.astro` が `site` から組み立て、ページ側で URL 文字列を書かない。サイトマップから除外するルート（会員専用・取引・認証・エラー・トークン付き）は `astro.config.mjs` の定数 + `sitemap({ filter })` で弾く。`robots.txt` は `apps/public/public/` に静的配置。構造化データはお散歩枠に `Event`、保護団体に `Organization` の JSON-LD を置く（`[Assumed]`）。保護団体ページ・`apps/admin` は検索対象外 |
+| 背景 | PRD-04 のサイトマップにも DEV-06 にも SEO の記述が 1 行も無く、`@astrojs/sitemap` も未導入だった。保護犬・お散歩枠は検索流入が集客の主線になるため、実装が進んでから後付けすると全ページの `<head>` を触り直すことになる。`team-natural/pet-kampo` が同じ構成（`site` + `EXCLUDED_FROM_SITEMAP` + filter）で先行しており、移植コストが低い |
+| 影響範囲 | DEV-06 §11-1（新設）、PRD-04 §3-1、`apps/public/astro.config.mjs`、`apps/public/src/layouts/Layout.astro`、`apps/public/package.json` |
+| 決定者 | Tech Lead |
+| 関連 TBD | GOV-02 TBD-35・TBD-37（`site` に入れる正式ドメイン）、TBD-52（アクセス解析） |
+
+### D-018：ブランド確定を待たず暫定パレットで着手し、色の定義を `@theme` 1 箇所に集約する
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-16 |
+| カテゴリ | 設計 |
+| 決定内容 | 正式ブランド名（GOV-02 TBD-35）の確定を待たず、温かみのある暫定パレットで `public-design` の establishing run を回す。ブランド色は `apps/public/src/styles/global.css` の Tailwind v4 `@theme` ブロックに `--color-brand-*` として定義し、ブランド確定時はここ 1 箇所の差し替えで全画面へ反映する。**定義するのはブランド色のみ**で、余白・タイポグラフィ等のトークン層は作らない |
+| 背景 | TBD-35 は P0 だが確定時期が読めず、待つと公開画面の実装が 1 画面も始められない。一方で色を各画面の Tailwind ユーティリティに直書きすると、確定時に全画面の書き換えが発生する。CLAUDE.md / PRD-04 §6-2 の「`global.css` は意図的にトークンレス」という方針とは衝突するが、ブランド色に限った最小限の例外とし、トークン体系を作る意図ではないことを明記して両立させる |
+| 影響範囲 | PRD-04 §6-2・§8、DEV-06 §6、`apps/public/src/styles/global.css` |
+| 決定者 | 事業責任者 / Tech Lead |
+| 関連 TBD | GOV-02 TBD-35（正式ブランド名・確定後に色を差し替え） |
+
+### D-019：保護団体ページは共通部品 5 種を先に作り切ってから画面実装に入る
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-16 |
+| カテゴリ | 設計 |
+| 決定内容 | 保護団体ページ（ADM-00〜27、28 画面）に新しいコンポーネントライブラリを追加せず、プレーン Tailwind + 手組みの部品を `apps/public/src/lib/components/organization/` に集約する（PRD-04 §6-1 の `[Assumed]` を確定に格上げ）。あわせて、**ADM 系の最初の画面に着手する前に データテーブル / フォーム部品 / カード / モーダル / トースト の 5 種を 1 セット作り切る** |
+| 背景 | 一覧系だけで 8 画面・フォーム系で 10 画面あり、画面ごとに都度実装すると同じテーブルが微妙に違う実装で並ぶ。shadcn-svelte を `apps/public` に入れない方針（`components.json` が 1 アプリのスタイルシートと 1:1 対応する）は維持したまま、ライブラリの代わりになる最小セットを先に用意する |
+| 影響範囲 | PRD-04 §6-1、DEV-06 §5、`apps/public/src/lib/components/organization/` |
+| 決定者 | Tech Lead |
+| 関連 TBD | — |
 
 ---
 

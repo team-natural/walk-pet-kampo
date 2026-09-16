@@ -223,7 +223,7 @@ Service / Zod バリデーション / API Route を実装        ← scaffold �
     → fixing-motion-performance → web-design-guidelines → design-review の 6 段チェーン
   → LP / トップ / 料金はフルチェーン、認証画面などの単純ページは短縮（AI が判断して申告）
 
-バックエンド:「PRD-03 §2 のお知らせ（News）公開機能を実装して」
+バックエンド:「PRD-03 §2 のお問い合わせ（Inquiry）対応機能を実装して」
   → CLAUDE.md のレイヤー原則（Astro Page/API Route → Service → D1、DEV-01 §5 参照）に従い実装
     認可チェック（`apps/admin` は単一ロール `admin` のため `requireSession` のみで足り、`apps/public` は `org_admin` / `org_staff` のロール検証）は Service / D1 アクセス層で必ず強制（DEV-01 §4、GOV-01 D-011）
   → 専用のバックエンド実装エージェントは未導入（Open）。日本語で直接依頼する

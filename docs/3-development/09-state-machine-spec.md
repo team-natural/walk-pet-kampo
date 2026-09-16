@@ -30,7 +30,7 @@ related-docs:
 
 ## 1. 状態遷移を持つエンティティ一覧
 
-PRD-01 §7 と完全に一致させる。標準テンプレートが前提とする単一運営・少数ロールの Member/AiJob/Order は本プロジェクトには存在しない（PRD-01 §1-0）。テンプレート標準の Post も不採用のため状態遷移を持たない（GOV-01 D-014）。記事型コンテンツの状態遷移は News（§2-13）のみが持つ。
+PRD-01 §7 と完全に一致させる。標準テンプレートが前提とする単一運営・少数ロールの Member/AiJob/Order は本プロジェクトには存在しない（PRD-01 §1-0）。テンプレート標準の Post も不採用のため状態遷移を持たない（GOV-01 D-014）。**記事型コンテンツの状態遷移は 1 つも無い** — 唯一の記事型コンテンツであるお知らせも Content Collections に置くため D1 の行を持たない（GOV-01 D-016、§2-13）。
 
 | エンティティ | 状態数 | 主な遷移トリガー | 配置 |
 | --- | --- | --- | --- |
@@ -46,7 +46,7 @@ PRD-01 §7 と完全に一致させる。標準テンプレートが前提とす
 | Incident | 5 | 団体スタッフの報告・対応更新、admin の完了処理 | `apps/public` |
 | AdoptionInquiry | 7 | Walker の相談送信、団体スタッフの対応更新 | `apps/public` |
 | Inquiry | 5 | 運営（admin）の対応更新 | `apps/admin` |
-| News | 3 | 運営（admin）の公開・掲載終了操作、`published_until` 到達時の日次バッチ | `apps/admin` |
+| News | — | 状態遷移を持たない（Content Collections の `draft` フラグと git で表現 — GOV-01 D-016、§2-13） | — |
 
 ---
 
@@ -525,30 +525,9 @@ PRD-01 §7 / DEV-07（`inquiries.status`）と一致させる。テンプレー�
 
 ---
 
-### 2-13. News
+### 2-13. News（状態遷移を持たない）
 
-お知らせ（DEV-07 §5-21）。運営（`apps/admin` の AdminUser）のみが遷移させる。
-
-| 状態 | 説明 |
-| --- | --- |
-| `draft` | 下書き（非公開）|
-| `published` | 公開中（`audience` の範囲に配信）|
-| `unpublished` | 掲載終了 |
-
-| 遷移元 → 遷移先 | draft | published | unpublished |
-| --- | :---: | :---: | :---: |
-| draft | — | ✓ | ✗ |
-| published | ✓ | — | ✓ |
-| unpublished | ✗ | ✓ | — |
-
-| 遷移 | トリガー | 実行者 |
-| --- | --- | --- |
-| draft → published | 公開操作（`published_at` を記録）| admin |
-| published → draft | 公開の取り消し（誤公開の巻き戻し）| admin |
-| published → unpublished | 掲載終了。`published_until` 到達時は日次バッチでも遷移する（Cron Triggers — GOV-01 D-010）| admin / バッチ |
-| unpublished → published | 再掲載 | admin |
-
-> `published_until` による自動 `unpublished` 化はバッチが実行者になる唯一の遷移。`activity_log.causer_type` はこの場合 `System` を記録する（§3-4）。
+**お知らせは状態遷移の対象外**（`Decided` — GOV-01 D-016）。`packages/content/news/` の Content Collections に置くため D1 の行を持たず、公開・非公開は frontmatter の `draft` フラグと git の commit で表現する（DEV-06 §1-1）。時限公開（旧 `published_until`）も要件から外れたため、対応する日次バッチも持たない。
 
 参照実装: `apps/admin/src/lib/server/services/inquiries.ts`（§3-2 の実装パターンの元になった参照実装 — DEV-05 §1）。
 
@@ -562,7 +541,7 @@ PRD-01 §7 / DEV-07（`inquiries.status`）と一致させる。テンプレー�
 
 | 項目 | 方針 |
 | --- | --- |
-| 配置 | 本書対象のエンティティのうち Organization/OrganizationMember/WalkerProfile/Dog/WalkSlot/Reservation/Payment/Incident/AdoptionInquiry/Invitation は `apps/public/src/lib/server/services/<entity>.ts` に `transition<Entity>(...)` 関数としてエクスポートする（GOV-01 D-007。テンプレート標準の「`apps/public` は D1 アクセスを持たない」前提からの逸脱）。Payout は例外的に `apps/admin/src/lib/server/services/payouts.ts` に置く（下記「例外配置」参照）。Inquiry / Post は従来どおり `apps/admin/src/lib/server/services/<entity>.ts` |
+| 配置 | 本書対象のエンティティのうち Organization/OrganizationMember/WalkerProfile/Dog/WalkSlot/Reservation/Payment/Incident/AdoptionInquiry/Invitation は `apps/public/src/lib/server/services/<entity>.ts` に `transition<Entity>(...)` 関数としてエクスポートする（GOV-01 D-007。テンプレート標準の「`apps/public` は D1 アクセスを持たない」前提からの逸脱）。Payout は例外的に `apps/admin/src/lib/server/services/payouts.ts` に置く（下記「例外配置」参照）。Inquiry は従来どおり `apps/admin/src/lib/server/services/inquiries.ts` |
 | 例外配置 | ①admin が主体となる Organization の審査系遷移（`under_review → approved/rejected` 等）は `apps/admin/src/lib/server/services/organizations.ts` に置く（詳細は §2-1-5）。②Payout は集計・確定・Stripe Connect Transfer 実行のすべてを `apps/admin/src/lib/server/services/payouts.ts` に置く（GOV-01 D-010、詳細は §2-9）。いずれも D1 は両 Worker が共有する同一インスタンスのため、`apps/admin` から対象テーブルへ直接書き込むことは可能（`apps/public` の source を import するわけではない — DEV-01 §5 のレイヤー境界に抵触しない） |
 | 責務 | 遷移可否の判定、遷移実行（D1 更新）、副作用の呼び出し |
 | 状態の保管 | D1 の `status` 等 `TEXT` カラム。TypeScript 側は文字列リテラルのユニオン型（例 `ReservationStatus`）で表現し、Service 層で検証する |
@@ -964,4 +943,4 @@ stateDiagram-v2
 - `apps/public`/`apps/admin` それぞれの配置（§3-1）が GOV-01 D-007 と矛盾していないか。Organization のように審査系だけ `apps/admin` に置く例外がある場合、その理由（実行者が admin）が明記されているか
 - 不正遷移時の挙動（`InvalidTransitionError`）が明示されているか
 - キャンセル・返金条件（GOV-02 TBD-10〜13）が未確定のまま実装に落とし込まれていないか（暫定方針にはコメントで TBD 番号を残す）
-- Post（既存実装）の節を誤って削除していないか（§2-13、既存機能として保持）
+- 記事型コンテンツ（Post / News）の状態遷移を復活させていないか（§2-13。いずれも D1 に行を持たない — GOV-01 D-014・D-016）

@@ -55,7 +55,6 @@ PRD-02（論理設計）を受けた物理 DB 設計。本プロジェクトは 
 
 ```mermaid
 erDiagram
-    ADMIN_USER ||--o{ NEWS : authors
     ADMIN_USER ||--o{ INQUIRY : handles
     ADMIN_USER ||--o{ ORGANIZATION : reviews
 
@@ -65,20 +64,6 @@ erDiagram
         text name
         text email UK
         text status "active/inactive"
-        text created_at
-        text updated_at
-    }
-    NEWS {
-        integer id PK
-        text public_id UK "ULID"
-        text slug UK
-        text title
-        text audience "public/walkers/.../specific_walker"
-        integer target_organization_id FK
-        integer target_walker_id FK
-        text status "draft/published/unpublished"
-        text published_at
-        text published_until
         text created_at
         text updated_at
     }
@@ -224,7 +209,7 @@ erDiagram
     }
 
     %% WALK_SLOT_DOG / WALK_RECORD / INCIDENT / ADOPTION_INQUIRY / INVITATION / FAVORITE /
-    %% NOTIFICATION_SETTING / NOTIFICATION / STRIPE_EVENT_LOG / NEWS は §5 参照（FAQ は不採用 — §5-22）。
+    %% NOTIFICATION_SETTING / NOTIFICATION / STRIPE_EVENT_LOG は §5 参照（お知らせ・FAQ は不採用 — §5-21・§5-22）。
     %% draft.yaml / packages/schema/migrations/ と同期すること（DEV-01 §1・§9）。
 ```
 <!-- ERD:END -->
@@ -301,7 +286,9 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | `notification_settings` | 通知種別ごとの ON/OFF 設定（Walker / OrganizationMember 横断） |  |
 | `notifications` | アプリ内通知の配信記録（PRD-02 §6-1 Notification に対応。`[Assumed]` 追加 — チャット非採用のため通知はメール + 本テーブルのポーリング取得のみ） | ○ |
 | `stripe_event_logs` | Stripe Webhook 冪等性 |  |
-| `news` | お知らせ。**D1 に置く**（`Decided` — GOV-01 D-013）。`audience` による配信範囲制御（一般公開/参加者限定/団体限定/特定団体/特定利用者）はログインセッションに依存するためビルド時に解決できず、`target_organization_id`・`target_walker_id` は FK。`published_until` の時限公開も同様（DEV-06 §1-1） | ○ |
+
+> **`news` テーブルは作らない**（`Decided` — GOV-01 D-016）。お知らせは `packages/content/news/` の
+> Content Collections に置く。参加者個別・団体個別への配信は `notifications` が担当する。
 
 ---
 
@@ -326,7 +313,7 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 > AdminUser は単一ロール（`admin`）のみで運用し、`role` 列を持たない（`Decided` — GOV-01 D-011、D-004 を置換。旧 D-004 時点の super_admin/support の 2 ロール構成から変更）。
 > セッション管理は §4-5 の `admin_sessions` を参照（DEV-02 §1-1）。`admin_users` 自体はセッショントークンを保持しない。
 
-> **`posts` / `categories` / `tags` / `post_tags` は作らない**（`Decided` — GOV-01 D-014）。テンプレート標準のブログ CMS だが、PRD-04 の公開サイトマップ（SCR-01〜45）にも管理画面（SYS-NN）にも対応画面が 1 つも無い。コーポレート発信の記事が必要になった時点で、まず `packages/content` の Content Collections を検討する（DEV-06 §1-1）。
+> **`posts` / `categories` / `tags` / `post_tags` は作らない**（`Decided` — GOV-01 D-014）。テンプレート標準のブログ CMS だが、PRD-04 の公開サイトマップ（SCR-01〜47）にも管理画面（SYS-NN）にも対応画面が 1 つも無い。コーポレート発信の記事が必要になった時点で、まず `packages/content` の Content Collections を検討する（DEV-06 §1-1）。
 
 ### 4-2. media
 
@@ -480,14 +467,14 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | guardian_name | TEXT | YES | 未成年者の保護者氏名 |
 | guardian_phone | TEXT | YES | 未成年者の保護者連絡先 |
 | terms_agreed_at | TEXT | YES | 利用規約・誓約事項への同意日時 |
-| terms_agreed_version | TEXT | YES | 同意した利用規約の版（`packages/content/legal/terms.md` の frontmatter `version`） |
+| terms_agreed_version | TEXT | YES | 同意した利用規約の版（`apps/public/src/lib/legal.ts` の `TERMS_VERSION`） |
 | status | TEXT | NO | provisional / pending_verification / active / restricted / suspended / withdrawn（PRD-01 §7） |
 | created_at | TEXT | NO |  |
 | updated_at | TEXT | NO |  |
 
 **Index**: UNIQUE(`public_id`), UNIQUE(`walker_id`), `status`
 
-> 日時だけでは「どの版に同意したか」が復元できない。規約改定後に再同意を求める判定（F-01-06）はこの列の比較で行う。規約本文を Content Collections に置く決定（GOV-01 D-013、DEV-06 §1-1）と対で成立する。
+> 日時だけでは「どの版に同意したか」が復元できない。規約改定後に再同意を求める判定（F-01-06）はこの列と `TERMS_VERSION` の比較で行う。規約本文は `.astro` 直書きで改定履歴は git が持つため、版番号だけをコード定数に置く（GOV-01 D-016、DEV-06 §1-1）。
 
 ### 5-4. organizations
 
@@ -818,7 +805,7 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | id | INTEGER | NO | PK |
 | subject_type | TEXT | NO | walker / organization_member |
 | subject_id | INTEGER | NO | `subject_type` のテーブルに対する ID |
-| notification_type | TEXT | NO | reservation / payout / news 等 |
+| notification_type | TEXT | NO | reservation / payout / incident 等 |
 | email_enabled | INTEGER | NO | DEFAULT 1 |
 | app_enabled | INTEGER | NO | DEFAULT 1 |
 | created_at | TEXT | NO |  |
@@ -836,7 +823,7 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | public_id | TEXT | NO | UNIQUE（ULID） |
 | recipient_type | TEXT | NO | walker / organization_member |
 | recipient_id | INTEGER | NO | `recipient_type` のテーブルに対する ID |
-| type | TEXT | NO | reservation_confirmed / payout_paid / news_published 等（`notification_settings.notification_type` と対応） |
+| type | TEXT | NO | reservation_confirmed / payout_paid / incident_reported 等（`notification_settings.notification_type` と対応） |
 | payload | TEXT | NO | JSON 文字列（表示内容・リンク先等） |
 | read_at | TEXT | YES |  |
 | created_at | TEXT | NO |  |
@@ -858,32 +845,15 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 
 > Webhook の冪等性確保に必要（Payment Intent・Stripe Connect Transfer 双方のイベントを扱う — DEV-10 §2）。
 
-### 5-21. news
+### 5-21. news（不採用）
 
-お知らせ。`audience` による配信範囲制御と `published_until` の時限公開を持つため D1 に置く（`Decided` — GOV-01 D-013、DEV-06 §1-1）。テンプレート標準のブログ CMS（`posts`）は採用していないため（§4-2 直前の注記）、本テーブルが公開サイト唯一の記事型コンテンツとなる。
+**お知らせのテーブルは作らない**（`Decided` — GOV-01 D-016）。運営発信の告知のみを扱い、閲覧者による出し分けを持たないため、`packages/content/news/` の Content Collections に置く（DEV-06 §1-1）。お知らせ管理画面（旧 SYS-23〜25）も作らない — 削除に伴い PRD-04 の後続画面を繰り上げているため、現在の SYS-23〜25 はお問い合わせ一覧・詳細と管理操作履歴を指す。
 
-| カラム | 型 | NULL | 備考 |
-| --- | --- | --- | --- |
-| id | INTEGER | NO | PK |
-| public_id | TEXT | NO | UNIQUE（ULID） |
-| slug | TEXT | NO | UNIQUE（最大 120 文字を想定） |
-| title | TEXT | NO | 最大 255 文字を想定 |
-| body | TEXT | NO |  |
-| audience | TEXT | NO | public / walkers / organizations / all_registered / specific_organization / specific_walker |
-| target_organization_id | INTEGER | YES | FK → organizations.id（audience = specific_organization の場合） |
-| target_walker_id | INTEGER | YES | FK → walkers.id（audience = specific_walker の場合） |
-| is_important | INTEGER | NO | DEFAULT 0 |
-| status | TEXT | NO | draft / published / unpublished |
-| published_at | TEXT | YES |  |
-| published_until | TEXT | YES |  |
-| created_at | TEXT | NO |  |
-| updated_at | TEXT | NO |  |
-
-**Index**: UNIQUE(`public_id`), UNIQUE(`slug`), `status, published_at`
+参加者個別・団体個別への配信が必要な通知は `notifications`（§5-19）が担当する。テンプレート標準のブログ CMS（`posts`）も採用していないため（§4-2 直前の注記）、**D1 に記事型コンテンツのテーブルは 1 つも無い**。
 
 ### 5-22. faqs（不採用）
 
-**FAQ はテーブルを作らない**（`Decided` — GOV-01 D-013）。全閲覧者に同一内容で他テーブルとの関係も無く、`/faq`（SCR-36）の 1 表示ごとに全行を読み取るコストに見合わないため、`apps/public/src/pages/faq.astro` に直書きする（DEV-06 §1-1）。FAQ 管理画面（旧 SYS-26〜28）も作らない — 削除に伴い PRD-04 の後続画面を繰り上げているため、現在の SYS-26〜28 はお問い合わせ一覧・詳細と管理操作履歴を指す。
+**FAQ はテーブルを作らない**（`Decided` — GOV-01 D-016）。カテゴリで絞り込む構造化データであり Markdown 本文でもないため、`apps/public/src/lib/faq.ts` の TypeScript 定数として持つ（DEV-06 §1-1）。FAQ 管理画面も作らない。
 
 運営がデプロイなしで FAQ を更新したいという要求が実際に出た時点で D1 へ移す（GOV-02 TBD-41）。その際は `id` / `public_id` / `question` / `body` / `category` / `sort_order` / `is_published` / `created_at` / `updated_at` の構成を想定する。
 
@@ -954,7 +924,6 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 
 | データ | 期限 | 削除方式 |
 | --- | --- | --- |
-| News（`news`、unpublished） | 永続（公開資産として） | 削除は明示操作のみ |
 | 添付ファイル（`media`、R2） | 参照が切れてから 90 日 | 孤立状態が続いたら日次バッチで R2 オブジェクトと `media` 行を物理削除 |
 | Inquiry（`inquiries`） | 1 年 | 1 年経過後に物理削除（個人情報を含むため） |
 | AdminUser（退職/契約終了、`admin_users`） | 1 年 | 1 年経過後に匿名化 or 削除 |
@@ -986,7 +955,7 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 
 ## 12. 記入時チェックポイント
 
-- 標準テーブル（§3-2: `admin_users` / `media` / `inquiries`）が全て揃っているか。不採用とした `posts` / `categories` / `tags` / `post_tags` / `faqs` が復活していないか（GOV-01 D-013・D-014）
+- 標準テーブル（§3-2: `admin_users` / `media` / `inquiries`）が全て揃っているか。不採用とした `posts` / `categories` / `tags` / `post_tags` / `faqs` / `news` が復活していないか（GOV-01 D-014・D-016）
 - マーケットプレイス系のアカウント標準テーブル（§3-1・§3-6: `walkers` / `walker_sessions` / `walker_profiles` / `organizations` / `organization_members` / `organization_sessions` / `invitations`）が全て揃っているか
 - `admin_users` / `walkers` / `organization_members` が完全に別テーブル・別セッション（`admin_sessions` / `walker_sessions` / `organization_sessions`）の 3 系統として記述されており、単一の User テーブルに退行していないか（GOV-01 D-004・D-007）
 - Organization 系テーブルに `organization_id`、Walker 系テーブルに `walker_id` があるか。両方を持つべきテーブル（`reservations` / `incidents` / `adoption_inquiries`）が両方持っているか
@@ -994,8 +963,8 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 - 状態を持つテーブルの状態値が PRD-01 §7・DEV-09 と整合しているか
 - 決済情報（カード番号・銀行口座）を保持していないか（Stripe / Stripe Connect の ID のみ保持）
 - `activity_log` の `causer_type` が `AdminUser` / `OrganizationMember` / `Walker` の 3 系統を判別できるか
-- `news` を D1 に置いた理由（`audience` による出し分け・`published_until`）と、FAQ・利用規約等を D1 に置かない理由が DEV-06 §1-1 と整合しているか
-- `walker_profiles.terms_agreed_version` があり、`packages/content/legal/terms.md` の frontmatter `version` と対応が取れているか
+- お知らせ・FAQ・利用規約等を D1 に置かない理由が DEV-06 §1-1 と整合しているか（D1 は取引データのみ — GOV-01 D-016）
+- `walker_profiles.terms_agreed_version` があり、`apps/public/src/lib/legal.ts` の `TERMS_VERSION` と対応が取れているか
 - `inquiries` の `category` 拡張が本書に明記されているか
 - 型が SQLite の affinity（INTEGER / TEXT / REAL）で一貫しているか（MySQL 型・MySQL の DECIMAL 等の書き残しがないか）
 - Drizzle スキーマ（`packages/schema/src/schema.ts`）が本書のテーブル定義と完全に一致しているか（本書が正本。`schema-build` スキル実行後は差分がないことを確認する）

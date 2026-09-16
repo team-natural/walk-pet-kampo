@@ -67,13 +67,13 @@ Platform の 3 者構造 — `Decided` GOV-01 D-006）であり、`apps/admin`�
 apps/admin/src/
 ├── pages/
 │   ├── api/v1/**/*.ts               # API Route（Platform 専用。団体審査、Payout 確定・Transfer 実行、
-│   │                                 #   横断管理〈FG-15〉、Inquiry 対応、News の CMS 系）
+│   │                                 #   横断管理〈FG-15〉、Inquiry 対応）
 │   └── **/*.astro                   # 管理画面ページ（src/layouts/Layout.astro。`/admin` 接頭辞は付けない）
 ├── lib/
 │   ├── components/                  # Svelte island + shadcn-svelte（$lib エイリアス）
 │   ├── server/
 │   │   ├── services/                #   ドメイン別ファイル。inquiries.ts / activity-log.ts /
-│   │   │                            #   admin-users.ts / media.ts / auth.ts（既存）+ news.ts
+│   │   │                            #   admin-users.ts / media.ts / auth.ts（既存）
 │   │   │                            #   + organizations.ts（審査系遷移のみ。§2-1-5 参照）
 │   │   │                            #   + payouts.ts（月次集計バッチ本体・確定・Stripe Connect Transfer 実行）
 │   │   ├── auth/                    #   AdminUser 専用セッション検証（session.ts。DEV-02 §1-1）。

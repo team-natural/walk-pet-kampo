@@ -112,31 +112,32 @@ apps/admin/src/
 
 ---
 
-### 1-1. コンテンツの置き場所（D1 / Content Collections / ページ直書き）
+### 1-1. コンテンツの置き場所（D1 / Content Collections / TypeScript 定数 / ページ直書き）
 
-公開画面に出す読み物系コンテンツは、**誰がいつ更新するか**と**閲覧者によって出し分ける必要が
-あるか**で置き場所が決まる（`Decided` — GOV-01 D-013）。
+判断軸は更新頻度でも出し分けの有無でもなく、**誰が編集するか**（`Decided` — GOV-01 D-016）。
+開発者が git で更新し、運営・保護団体による編集を要件としないものはリポジトリ側に置く。
+**D1 には取引データのみを置く。**
 
 | 置き場所 | 使う条件 | 実体 |
 | --- | --- | --- |
-| **D1** | 閲覧者・ログイン状態によって出し分ける／他テーブルと関係を持つ／運営がデプロイなしで更新する | `packages/schema` のテーブル + `apps/admin` の管理画面 |
-| **Content Collections** | 全閲覧者に同一内容だが、**改定履歴を証跡として残す必要がある** | `packages/content/` の Markdown（frontmatter に `version`） |
-| **ページ直書き** | 全閲覧者に同一内容で、改定履歴も不要 | `apps/public/src/pages/*.astro` |
+| **D1** | 外部ユーザー（保護団体・Walker）が投入する／他テーブルと関係を持つ／トランザクション | `packages/schema` のテーブル + `apps/admin` の管理画面 |
+| **Content Collections** | 開発者が git で更新する記事型コンテンツ | `packages/content/<コレクション名>/` の Markdown |
+| **TypeScript 定数** | 開発者が更新する構造化データ（Markdown 本文ではないもの） | `apps/public/src/lib/*.ts` |
+| **ページ直書き** | `Image`・アイコン・コンポーネントを使う「デザインされたページ」 | `apps/public/src/pages/*.astro` |
 
 迷ったら D1 を選ばない。Cloudflare の課金は D1 の行読み取りに乗るため、閲覧数の多い公開ページ
 ほど差が出る。Content Collections はビルド時に解決されるので読み取りが 0 になり、管理画面も
 作らずに済む。
 
-> **Content Collections の追加手順**（参照実装: `packages/content/articles/` + `@app/content` の
-> `articleSchema`）。Markdown の実体は `src/content/` ではなく `packages/content/<コレクション名>/`
-> に置き、Zod スキーマを `packages/content/src/schema.ts` に足したうえで、
-> `apps/public/src/content.config.ts` の `defineCollection`（`glob` ローダの `base` が
-> `../../packages/content/<コレクション名>`）に登録する。`legal/`（利用規約・プライバシーポリシー）
-> と `pages/`（③④ の長文化時）は本書の適用結果で置き場所だけ決めており、実体は着手時に作る。
+> **Content Collections の追加手順**。Markdown の実体は `src/content/` ではなく
+> `packages/content/<コレクション名>/` に置き、Zod スキーマを `packages/content/src/schema.ts`
+> に足したうえで、`apps/public/src/content.config.ts` の `defineCollection`（`glob` ローダの
+> `base` が `../../packages/content/<コレクション名>`）に登録する。テンプレート標準の
+> `articles/` + `articleSchema` は形が合わないため `news/` + `newsSchema` へ差し替え済み（2026-09-16）。
 
 #### 適用結果（PRD-04 の全画面を棚卸しした結果。抜けを残さないため全 SCR を挙げる）
 
-**① D1 — 業務データ（`slug`/`public_id` で引く。判断の余地なし）**
+**① D1 — 取引データ（`slug`/`public_id` で引く。判断の余地なし）**
 
 | 画面 | 取得元テーブル |
 | --- | --- |
@@ -145,36 +146,50 @@ apps/admin/src/
 | SCR-06/07 お散歩募集一覧・詳細 | `walk_slots` / `walk_slot_dogs` |
 | SCR-17〜20 予約入力・決済確認・完了・失敗 | `reservations` / `payments` |
 | SCR-21〜33 マイページ各画面 | `walkers` / `walker_profiles` / `reservations` / `walk_records` / `favorites` / `adoption_inquiries` / `notifications` |
-| ADM-01〜23（保護団体ページ）・SYS-01〜22, 26〜28（管理画面） | 各業務テーブル |
+| ADM-01〜23（保護団体ページ）・SYS-01〜25（管理画面） | 各業務テーブル |
 
-**② D1 — お知らせのみ CMS コンテンツとして D1 に置く**
+保護犬・お散歩枠は**保護団体スタッフ自身が登録・更新する**（ADM-05〜10）。カタログ型の見た目を
+していても Content Collections には置けない — 1 頭登録するのに PR を出す運用にはできない。
 
-| 画面 | 置き場所 | 理由 |
-| --- | --- | --- |
-| SCR-34/35 お知らせ一覧・詳細、SYS-23〜25 お知らせ管理 | **D1**（`news`） | `audience` で 公開/参加者限定/団体限定/特定団体/特定利用者 を出し分け、`target_organization_id`・`target_walker_id` は FK。ログインセッションに依存する出し分けはビルド時に解決できない。`published_until` の時限公開も同様 |
-
-**③ Content Collections — 改定履歴が証跡になるもの**
+**② Content Collections — 開発者が git で更新する記事型コンテンツ**
 
 | 画面 | 置き場所 | 理由 |
 | --- | --- | --- |
-| SCR-39 利用規約 | `packages/content/legal/terms.md` | F-01-06 の同意記録（`walker_profiles.terms_agreed_version`）が「どの版に同意したか」を指すため改定履歴が必須。git がそのまま版管理になる |
-| SCR-40 プライバシーポリシー | `packages/content/legal/privacy.md` | 同上。改定告知の根拠として履歴が要る |
+| SCR-34/35 お知らせ一覧・詳細 | `packages/content/news/*.md` | 運営発信の告知のみを扱う。閲覧者による出し分けは持たない（GOV-01 D-016）。参加者個別・団体個別への配信は `notifications`（SCR-32 通知一覧、F-13-01）が担当する |
 
-**④ ページ直書き — 全閲覧者に同一・改定履歴も不要**
+お知らせ管理画面は作らない（旧 SYS-23〜25 を削除し、後続の SYS 番号を繰り上げた）。
+
+**③ TypeScript 定数 — 構造化データ**
+
+| 対象 | 置き場所 | 理由 |
+| --- | --- | --- |
+| SCR-36 よくある質問 | `apps/public/src/lib/faq.ts` | カテゴリで絞り込む構造化データであり、Markdown 本文ではない。`faqs` テーブルと FAQ 管理画面は作らない |
+| 規約・ポリシーの版番号 | `apps/public/src/lib/legal.ts`（`TERMS_VERSION` / `PRIVACY_VERSION`） | F-01-06 の同意記録（`walker_profiles.terms_agreed_version`）が指す版。本文は ④ の直書きで、改定履歴は git が持つ |
+| 参加費・団体還元額・返金規定 | `apps/public/src/lib/pricing.ts` | SCR-43 特定商取引法に基づく表示・SCR-18 決済確認・SCR-25 キャンセル画面が同じ値を出す |
+
+> **SCR-43 に載せる金額・返金条件は `pricing.ts` から描画する。** ハードコードすると法定表示と
+> 決済画面で金額が食い違う（参加費 ¥500・団体還元 ¥400 は BIZ-03 §2-1 が正本）。
+
+**④ ページ直書き — デザインされたページ**
 
 | 画面 | 補足 |
 | --- | --- |
-| SCR-01 トップページ | ヒーロー・サービス紹介・参加までの流れ等のコピー。セクション構造がレイアウトと不可分で Markdown 1 枚に収まらないため直書きが素直。**掲載する保護犬・団体・お散歩枠は D1 から取得**（コピーとデータの分離を保つ） |
-| SCR-36 よくある質問 | `faqs` テーブルと FAQ 管理画面（旧 SYS-26〜28）は作らない |
-| SCR-37 利用ガイド / SCR-38 安全に利用するために | 長文化してエンジニア以外が編集したくなったら Content Collections へ移す（③ の版管理は不要なので `packages/content/pages/`） |
-| SCR-43 特定商取引法に基づく表示 | 法定表記。変更頻度が極めて低い |
+| SCR-01 トップページ | ヒーロー・サービス紹介・参加までの流れ等のコピー。セクション構造がレイアウトと不可分。**掲載する保護犬・団体・お散歩枠は D1 から取得**（コピーとデータの分離を保つ） |
+| SCR-37 利用ガイド / SCR-38 安全に利用するために | 長文化してエンジニア以外が編集したくなったら `packages/content/pages/` の Content Collections へ移す（GOV-02 TBD-44） |
+| SCR-39 利用規約 / SCR-40 プライバシーポリシー | 本文は直書き、版番号は ③ の `legal.ts`。`packages/content/legal/` は作らない |
+| SCR-43 特定商取引法に基づく表示 | 法定表記。金額は ③ の `pricing.ts` から |
+| SCR-46 サービス紹介 / SCR-47 運営会社 | `Image`・アイコン・コンポーネントを使うため Markdown 化すると画像最適化と埋め込みを失う |
 | SCR-09/16/19/20/42 各種完了・案内ページ | 数行の案内文言のみ |
 | SCR-44/45 404 / 500 | 実装済み |
 
 **⑤ コンテンツを持たない画面（フォーム・認証のみ）**
 
 SCR-08 参加者登録 / SCR-10〜14 メール確認・ログイン・外部連携・パスワード再設定 / SCR-15 団体登録申請 / SCR-41 お問い合わせ。
-入力フォームと固定ラベルのみで、編集対象のコンテンツを持たない。SCR-08・SCR-15 の同意チェックボックスは ③ の規約本文へリンクする。
+入力フォームと固定ラベルのみで、編集対象のコンテンツを持たない。SCR-08・SCR-15 の同意チェックボックスは ④ の規約本文へリンクし、同意時に ③ の `TERMS_VERSION` を記録する。
+
+> **お問い合わせは「画面」と「送信データ」で置き場所が違う。** フォーム画面（SCR-41）は直書きで
+> 編集対象のコンテンツを持たないが、送信された内容は D1 の `inquiries` に入り `apps/admin` が
+> 対応する（SYS-23/24）。里親相談（`adoption_inquiries`）も同じ構造。
 
 **⑥ 画面外のコンテンツ — メール文面**
 
@@ -182,19 +197,22 @@ SCR-08 参加者登録 / SCR-10〜14 メール確認・ログイン・外部連�
 `render*Email()` テンプレート関数、つまり**コードとして開発者が管理する**（DEV-10 §3-3）。運営が
 デプロイなしに文面を変えたいという要求は現時点で出ていない（GOV-02 TBD-43）。
 
-> **①〜⑥ で PRD-04 の全画面（SCR-01〜45、ADM-00〜23、SYS-01〜28）を網羅する。** 画面を追加する
+> **①〜⑥ で PRD-04 の全画面（SCR-01〜47、ADM-00〜23、SYS-01〜25）を網羅する。** 画面を追加する
 > ときは本節のどれに当たるかを決めてから実装する。決めずに D1 テーブルを足すのが一番よくある事故。
 
-実装は `apps/public/src/content.config.ts` が `packages/content/legal/` を `glob()` ローダーで
+実装は `apps/public/src/content.config.ts` が `packages/content/news/` を `glob()` ローダーで
 読む。
 
 ```typescript
 // apps/public/src/content.config.ts
-const legal = defineCollection({
-  loader: glob({ pattern: "**/*.md", base: "../../packages/content/legal" }),
-  schema: legalSchema, // version, effectiveDate, title
+const news = defineCollection({
+  loader: glob({ pattern: "**/*.md", base: "../../packages/content/news" }),
+  schema: newsSchema, // title, category, publishedDate, draft
 });
 ```
+
+> `draft` は一覧と `getStaticPaths()` の**両方**で除外する。一覧から消しただけでは詳細ページの
+> URL が生き残り、未公開の告知に直接アクセスできる。
 
 > `output: "server"` では `getStaticPaths()` が**黙って無視される**。Content Collections から
 > 生成するページには `export const prerender = true` を必ず書く — 書き忘れると一覧は出るのに
@@ -431,6 +449,37 @@ PRD-04 §4-2 の標準構成に対応する。**保護団体ページ・プラ�
 アニメーション・パフォーマンスの詳細な監査は `.claude/skills/fixing-motion-performance`
 スキルに委ねる（`public-design` チェーンの Step 4）。保護団体ページ・プラットフォーム管理画面
 は最小限の enter/exit トランジションに留め、演出目的のモーションは追加しない。
+
+---
+
+## 11-1. SEO・配信メタデータ
+
+`Decided` — GOV-01 D-017。公開画面は検索流入が集客の主線になるため、サイトマップ・canonical・
+OGP を**設定 1 箇所から機械的に生成する**。保護団体ページ（`/organization/*`）と `apps/admin` は
+検索対象ではないため対象外。
+
+| 項目 | 方針 |
+| --- | --- |
+| サイトマップ | `@astrojs/sitemap` を `apps/public` に導入し、`astro.config.mjs` の `integrations` に登録する |
+| 正規 URL | `astro.config.mjs` の `site` にサービスの正式 URL を置き、`Layout.astro` が canonical と OGP の絶対 URL をここから組み立てる。ページ側で URL 文字列を書かない |
+| `robots.txt` | `apps/public/public/robots.txt` に静的配置し、`Sitemap:` 行で `sitemap-index.xml` を指す |
+| OGP | `Layout.astro` が `title` / `description` / `og:image` を props で受け、既定値をコード側に持つ（サイト設定テーブルは作らない — GOV-01 D-016） |
+| 構造化データ | お散歩枠（SCR-07）に `Event`、保護団体（SCR-03）に `Organization` の JSON-LD を置く。`[Assumed]` — 実装時に検索結果での見え方を確認して確定する |
+
+**サイトマップから除外するルート**を `astro.config.mjs` に定数で持ち、`sitemap({ filter })` で
+弾く。除外対象は「会員専用・取引・認証・エラー・トークン付き」の 5 種：
+
+```text
+/404, /500, /auth/, /mypage/, /checkout/, /register, /verify/,
+/organization/  ← 団体ページ全体（ADM-00〜27）
+/dogs/*/adoption-inquiry  ← 認証必須（SCR-49・50）
+```
+
+> **`draft` のお知らせは除外リストに書かない。** `getStaticPaths()` が弾くのでそもそも生成されず、
+> サイトマップにも現れない。除外リストが要るのは「生成されるが載せたくない」SSR ルートだけ。
+
+> **`site` はブランド確定まで暫定ドメインで置く**（GOV-02 TBD-35・TBD-37）。空のままだと canonical
+> と OGP が相対 URL になり、SNS シェア時に画像が解決されない。
 
 ---
 

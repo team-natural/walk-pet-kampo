@@ -371,16 +371,19 @@ await env.BUCKET.delete(key);
   └─ applications/                      # 団体登録審査の提出書類・本人確認書類（非公開）。追跡用の DB カラムは
                                          # 未確定（必須提出書類自体が [Open] — GOV-02 TBD-25。確定後 DEV-07 に追記）
 /site/
-  ├─ logo/                              # サイトロゴ・OGP 既定画像（コーポレート CMS 標準）
-  └─ news/{news_id}/                    # お知らせの添付・アイキャッチ画像（DEV-07 §5-21）
+  └─ logo/                              # サイトロゴ・OGP 既定画像
 /media/{media_id}/                      # apps/admin の汎用アップロード（media テーブル — DEV-07 §4-2）
 ```
+
+> **お知らせのアイキャッチ・添付は R2 に置かない**（GOV-01 D-016）。お知らせは Content Collections
+> なので画像も開発者が git で更新する — `apps/public/src/assets/` に置き、Astro の `Image` で
+> 最適化する。R2 は外部ユーザーがアップロードするファイルのためにある。
 
 ### 4-3. アクセス制御
 
 | ファイル種別 | アクセス方式 |
 | --- | --- |
-| パブリック（保護犬・団体ロゴ・お散歩記録写真・サイトロゴ・お知らせ添付）| 公開 URL |
+| パブリック（保護犬・団体ロゴ・お散歩記録写真・サイトロゴ）| 公開 URL |
 | プライベート（団体登録の提出書類・本人確認書類、Incident 添付）| 署名付き URL（15 分有効）、運営スタッフ（admin）または該当団体の org_staff 以上に限定 |
 
 > 署名付き URL は R2 の S3 互換 API 経由で発行する presigned URL、または Astro API Route 側で有効期限付きトークンを検証して都度 `env.BUCKET.get()` を返す方式のいずれかを使う。採用方式は **Open**（GOV-02 TBD-49。DEV-05 §11 のデータ出力ファイルと同じ方式に揃える）。

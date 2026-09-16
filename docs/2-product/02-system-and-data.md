@@ -60,7 +60,7 @@ graph TB
 | コンポーネント | 責務 | 実体 |
 | --- | --- | --- |
 | `apps/public` Worker | 公開ブラウジング、Walker マイページ（`/mypage/*`）、保護団体ページ（`/organization/*`）のレンダリングと API 処理。Astro Page/API Route → Service → D1 のレイヤー構造を持つ（本プロジェクト固有の拡張 — `Decided` GOV-01 D-007、DEV-01 §1「アカウント系統」） | DEV-01 §1 |
-| `apps/admin` Worker | プラットフォーム運営者専用（単一ロール `admin`）。お知らせ・メディアの CMS（News/Media）に加え、団体審査・横断管理・決済/還元処理・監査ログ閲覧を担う | DEV-01 §1 |
+| `apps/admin` Worker | プラットフォーム運営者専用（単一ロール `admin`）。団体審査・横断管理・決済/還元処理・お問い合わせ対応・監査ログ閲覧を担う。コンテンツ管理画面は持たない（GOV-01 D-016） | DEV-01 §1 |
 | Cloudflare D1 | 全業務データの正本。両 Worker が共有 | DEV-01 §1 |
 | Cloudflare R2 | 保護犬・保護団体の写真、団体審査の申請書類、お散歩記録の写真の実体。両 Worker が共有 | DEV-01 §2 |
 | Cloudflare KV | 認証失敗カウンタ・メンテナンスフラグ等の補助ストア（Queues は不採用。セッションは D1） | DEV-01 §1 |
@@ -78,11 +78,11 @@ graph TB
 | --- | --- | --- | --- |
 | 公開・Walker | `apps/public` | 一般利用者、お散歩参加者（Walker） | トップページ・団体紹介・お知らせ・FAQ、エリア検索・予約・決済、`/mypage/*`（プロフィール・予約履歴・里親相談） |
 | 保護団体 | `apps/public`（同一 Worker） | 保護団体スタッフ（OrganizationMember） | `/organization/*`（犬・お散歩枠の登録公開、予約管理、実施記録、還元金確認） |
-| プラットフォーム運営 | `apps/admin` | 運営者（AdminUser: 単一ロール `admin`） | お知らせ・メディアの CMS（News/Media）、団体審査・横断管理、決済/還元処理、監査ログ閲覧 |
+| プラットフォーム運営 | `apps/admin` | 運営者（AdminUser: 単一ロール `admin`） | 団体審査・横断管理、決済/還元処理、お問い合わせ対応、監査ログ閲覧 |
 
 保護団体スタッフはプラットフォーム運営者ではなく外部の利用者であるため、内部運営専用の `apps/admin` に混在させず `apps/public` 側に置く（背景の詳細は GOV-01 D-007）。D1 データベースと R2 バケットのみを両アプリで共有し、レイアウト/スタイルシートの分離は `CLAUDE.md` Architecture 節に従う。
 
-> **エンティティ所有**: AdminUser・CMS 系エンティティ（News/Media）は `apps/admin` の関心事。Walker・OrganizationMember・Organization・Dog・WalkSlot・Reservation 等のマーケットプレイス系エンティティは `apps/public` の関心事になる。スキーマ定義自体は `packages/schema` に一元化されており、アプリ間でのコピーずれは発生しない（DEV-01 §1「リポジトリ構成」）。
+> **エンティティ所有**: AdminUser・Media・Inquiry（対応）は `apps/admin` の関心事。Walker・OrganizationMember・Organization・Dog・WalkSlot・Reservation 等のマーケットプレイス系エンティティは `apps/public` の関心事になる。スキーマ定義自体は `packages/schema` に一元化されており、アプリ間でのコピーずれは発生しない（DEV-01 §1「リポジトリ構成」）。
 
 ### 1-4. 公開側構成についての補足
 
@@ -196,7 +196,7 @@ Cloudflare Workers のオートスケールに依存する部分が大きいが�
 | Notification | recipientType, recipientId, type, payload, readAt | recipientType: 列挙（walker/organization_member）、payload: JSON | AdminUser 宛の通知は現時点で対象外 |
 | Media | key, mimeType, sizeBytes, altText | key: R2 オブジェクトキー | `apps/admin` がアップロードを管理。key はサーバーが生成する（`media/<ULID>`。DEV-10 §4-2） |
 
-> **Post / Category / Tag は採用しない**（`Decided` — GOV-01 D-014）。対応する画面が PRD-04 に無い。記事型コンテンツは News のみとする。
+> **Post / Category / Tag は採用しない**（`Decided` — GOV-01 D-014）。対応する画面が PRD-04 に無い。記事型コンテンツはお知らせのみで、それも D1 ではなく Content Collections に置く（D-016）。
 
 ### 6-2. プロダクト固有エンティティ
 
@@ -214,14 +214,14 @@ Cloudflare Workers のオートスケールに依存する部分が大きいが�
 | WalkRecord | walkSlotId, conducted, conductedAt, staffInCharge, dogsWalked, photos, staffComment, incidentFlag | dogsWalked: JSON 配列（実施時に担当した犬） |
 | Incident | organizationId, reservationId, dogId, walkerId, severity, category, description, occurredAt, location, reportedBy, status, preventionMeasures | walkerId は Walker の ID。severity: 列挙（P0〜P3 相当）。status: 列挙（PRD-01 §7） |
 | AdoptionInquiry | dogId, walkerId, organizationId, motivation, livingEnvironment, status | walkerId は Walker の ID。status: 列挙（PRD-01 §7） |
-| News | title, body, audience, publishedAt, publishedUntil, isImportant | audience: 列挙（一般公開/参加者限定/団体限定/全登録ユーザー/特定団体/特定利用者） |
 | Inquiry | category, name, email, phone, message, status, priority | status: 列挙（PRD-01 §7）。本テンプレート標準の Inquiry（お問い合わせフォーム）をそのまま踏襲。里親相談は別エンティティ AdoptionInquiry として区別する |
 
-> **読み物系コンテンツをエンティティにするかは「閲覧者で出し分けるか」で決まる。** News は
-> `audience` でログイン状態に応じて出し分けるためエンティティ化して D1 に置く。FAQ・利用ガイド・
-> 安全に利用するために・特定商取引法に基づく表示は全閲覧者に同一内容のためエンティティ化せず
-> ページに直書きし、利用規約・プライバシーポリシーは改定履歴が必要なため `packages/content` の
-> Markdown（Content Collections）に置く（`Decided` — GOV-01 D-013、判断根拠は DEV-06 §1-1）。
+> **読み物系コンテンツをエンティティにするかは「誰が編集するか」で決まる。** 開発者が git で
+> 更新するものはエンティティ化しない — お知らせは `packages/content/news/` の Content
+> Collections、FAQ は `apps/public/src/lib/faq.ts` の TypeScript 定数、利用規約・プライバシー
+> ポリシー・利用ガイド・安全に利用するために・特定商取引法に基づく表示はページ直書き
+> （`Decided` — GOV-01 D-016、判断根拠は DEV-06 §1-1）。**エンティティになるのは外部ユーザーが
+> 投入する取引データだけ。**
 
 ---
 
