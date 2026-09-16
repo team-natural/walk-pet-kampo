@@ -1,5 +1,5 @@
 <script lang="ts">
-  // POST, not a link: logout deletes the member_sessions row, and a GET that mutates state
+  // POST, not a link: logout deletes the walker_sessions row, and a GET that mutates state
   // would be triggerable by any <img> pointed at it.
   let submitting = $state(false);
   let error = $state("");
@@ -12,7 +12,7 @@
     try {
       const response = await fetch("/api/v1/auth/logout", { method: "POST" });
 
-      // 401 means the session was already gone (expired, or revoked elsewhere) — the member is
+      // 401 means the session was already gone (expired, or revoked elsewhere) — the walker is
       // logged out either way.
       if (response.ok || response.status === 401) {
         window.location.replace("/");

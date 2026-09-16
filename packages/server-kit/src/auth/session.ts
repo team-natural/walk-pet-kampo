@@ -1,5 +1,5 @@
 // The rules every login session obeys. Each app keeps its own tables and cookie — an AdminUser
-// token must never authenticate a Member — but these must not drift between them.
+// token must never authenticate a Walker — but these must not drift between them.
 import { toBase64Url } from "./encoding";
 
 const SESSION_TOKEN_BYTES = 32;

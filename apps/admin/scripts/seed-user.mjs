@@ -10,7 +10,7 @@ import { ulid } from "@app/schema/ulid";
 
 const TABLES = {
   admin_users: { roles: ["admin", "editor"] },
-  members: { roles: null },
+  walkers: { roles: null },
 };
 
 function parseArgs(argv) {
@@ -36,7 +36,7 @@ function requireValue(args, key) {
 
 const sqlQuote = (value) => `'${String(value).replaceAll("'", "''")}'`;
 
-const USAGE = "Usage: pnpm seed -- --table=admin_users|members --email=<email> --password=<password> --name=<name> [--role=admin|editor] [--db=<binding or database_name>] [--remote] [--env=<wrangler env>]";
+const USAGE = "Usage: pnpm seed -- --table=admin_users|walkers --email=<email> --password=<password> --name=<name> [--role=admin|editor] [--db=<binding or database_name>] [--remote] [--env=<wrangler env>]";
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));

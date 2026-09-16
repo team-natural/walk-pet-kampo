@@ -1,0 +1,20 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { getCollection } from "astro:content";
+
+const news = (await getCollection("news", ({ data }) => !data.draft)).sort((a, b) => b.data.publishedDate.getTime() - a.data.publishedDate.getTime());
+---
+
+<Layout title="お知らせ">
+  <h1>お知らせ</h1>
+  <ul>
+    {
+      news.map((entry) => (
+        <li>
+          <time datetime={entry.data.publishedDate.toISOString()}>{entry.data.publishedDate.toLocaleDateString("ja-JP")}</time>
+          <a href={`/news/${entry.id}`}>{entry.data.title}</a>
+        </li>
+      ))
+    }
+  </ul>
+</Layout>

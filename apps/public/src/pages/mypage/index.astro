@@ -1,21 +1,21 @@
 ---
-// Reference for how a member-only PAGE authenticates: it redirects rather than answering 401,
+// Reference for how a Walker-only PAGE authenticates: it redirects rather than answering 401,
 // and guards per-page (middleware.ts does security headers only).
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
 import LogoutButton from "../../lib/components/logout-button.svelte";
 import { getSession } from "$lib/server/auth/session";
-import { getMemberByPublicId, toPublicMember } from "$lib/server/services/members";
+import { getWalkerByPublicId, toPublicWalker } from "$lib/server/services/walkers";
 import { createDb } from "@app/schema/client";
 
 const db = createDb(env.DB);
 const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/login", 302);
 
-// getSession already joined members, so a miss here means the row vanished mid-request.
-const row = await getMemberByPublicId(db, session.memberPublicId);
+// getSession already joined walkers, so a miss here means the row vanished mid-request.
+const row = await getWalkerByPublicId(db, session.walkerPublicId);
 if (!row) return Astro.redirect("/login", 302);
-const member = toPublicMember(row);
+const walker = toPublicWalker(row);
 ---
 
 <Layout title="My page">
@@ -26,7 +26,7 @@ const member = toPublicMember(row);
     </header>
 
     <section class="grid gap-2 text-sm">
-      <p><span class="text-gray-500">Signed in as</span> {member.name} ({member.email})</p>
+      <p><span class="text-gray-500">Signed in as</span> {walker.name} ({walker.email})</p>
     </section>
   </main>
 </Layout>

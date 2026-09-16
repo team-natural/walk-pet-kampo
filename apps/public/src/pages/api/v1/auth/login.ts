@@ -1,11 +1,11 @@
-// `member_session` cookie only — no Authorization header, no JWT.
+// `walker_session` cookie only — no Authorization header, no JWT.
 import type { APIContext } from "astro";
 import { env } from "cloudflare:workers";
 import { assertNotLockedOut, clearAuthFailures, recordAuthFailure } from "@app/server-kit/auth";
 import { UnauthenticatedError, ValidationError, jsonItem, toErrorResponse } from "@app/server-kit/http";
 import { ZodError, flattenError } from "zod";
-import { MEMBER_SESSION_COOKIE } from "$lib/server/auth/session";
-import { toPublicMember } from "$lib/server/services/members";
+import { WALKER_SESSION_COOKIE } from "$lib/server/auth/session";
+import { toPublicWalker } from "$lib/server/services/walkers";
 import { login } from "$lib/server/services/auth";
 import { loginSchema } from "$lib/server/validation/auth";
 import { createDb } from "@app/schema/client";
@@ -22,10 +22,10 @@ export async function POST({ request, cookies, clientAddress }: APIContext): Pro
     await assertNotLockedOut(env.KV, ip, email);
 
     const ttlDays = Number(env.SESSION_TTL_DAYS);
-    const { session, member } = await login(db, email, password, ttlDays);
+    const { session, walker } = await login(db, email, password, ttlDays);
     await clearAuthFailures(env.KV, ip, email);
 
-    cookies.set(MEMBER_SESSION_COOKIE, session.token, {
+    cookies.set(WALKER_SESSION_COOKIE, session.token, {
       httpOnly: true,
       secure: true,
       sameSite: "lax",
@@ -33,7 +33,7 @@ export async function POST({ request, cookies, clientAddress }: APIContext): Pro
       expires: new Date(session.expiresAt),
     });
 
-    return jsonItem(toPublicMember(member));
+    return jsonItem(toPublicWalker(walker));
   } catch (error) {
     if (error instanceof UnauthenticatedError && lockoutScope) {
       await recordAuthFailure(env.KV, lockoutScope.ip, lockoutScope.email, {

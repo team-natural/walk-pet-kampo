@@ -1,5 +1,5 @@
 // Plain Zod (not drizzle-zod) — login input has no 1:1 shape with a table row
-// (`password` here, `passwordHash` in `members`).
+// (`password` here, `passwordHash` in `walkers`).
 import { z } from "zod";
 
 export const loginSchema = z.object({

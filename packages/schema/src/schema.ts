@@ -1,10 +1,9 @@
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
-// Standard tables only. Anything a project may or may not adopt (orders, ai_jobs, …) is added
-// here when it adopts it. `members` is the exception: most projects need a public-side login,
-// and adding one later costs design work while removing one is a deletion — so it ships, and
-// projects that do not need it drop it before their first `pnpm db:generate`.
+// Standard tables only. The marketplace tables (organizations, dogs, walk_slots, reservations, …)
+// are defined in DEV-07 and generated from it by the schema-build skill; they are not here yet.
+// `walkers` is the public-side login, renamed from the template's `members` to match DEV-07.
 
 const createdAt = () =>
   text("created_at")
@@ -57,10 +56,11 @@ export const passwordResetTokens = sqliteTable(
   (table) => [uniqueIndex("uq_password_reset_tokens_token").on(table.token), index("idx_password_reset_tokens_admin_user_id").on(table.adminUserId), index("idx_password_reset_tokens_expires_at").on(table.expiresAt)],
 );
 
-// Public-side login. Deliberately not sharing admin_users/admin_sessions: an AdminUser token
-// must never authenticate on the public site, and the two have different threat models.
-export const members = sqliteTable(
-  "members",
+// Public-side login (Walker = お散歩参加者). Deliberately not sharing admin_users/admin_sessions:
+// an AdminUser token must never authenticate on the public site, and the two have different
+// threat models. OrganizationMember will be a third, equally separate system (DEV-02 §1-4).
+export const walkers = sqliteTable(
+  "walkers",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     publicId: text("public_id").notNull(),
@@ -72,21 +72,21 @@ export const members = sqliteTable(
     createdAt: createdAt(),
     updatedAt: text("updated_at").notNull(),
   },
-  (table) => [uniqueIndex("uq_members_public_id").on(table.publicId), uniqueIndex("uq_members_email").on(table.email), index("idx_members_status").on(table.status)],
+  (table) => [uniqueIndex("uq_walkers_public_id").on(table.publicId), uniqueIndex("uq_walkers_email").on(table.email), index("idx_walkers_status").on(table.status)],
 );
 
-export const memberSessions = sqliteTable(
-  "member_sessions",
+export const walkerSessions = sqliteTable(
+  "walker_sessions",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    memberId: integer("member_id")
+    walkerId: integer("walker_id")
       .notNull()
-      .references(() => members.id),
+      .references(() => walkers.id),
     sessionToken: text("session_token").notNull(),
     expiresAt: text("expires_at").notNull(),
     createdAt: createdAt(),
   },
-  (table) => [uniqueIndex("uq_member_sessions_session_token").on(table.sessionToken), index("idx_member_sessions_member_id").on(table.memberId), index("idx_member_sessions_expires_at").on(table.expiresAt)],
+  (table) => [uniqueIndex("uq_walker_sessions_session_token").on(table.sessionToken), index("idx_walker_sessions_walker_id").on(table.walkerId), index("idx_walker_sessions_expires_at").on(table.expiresAt)],
 );
 
 // Row metadata for an object in R2; `key` is the object key. Delete this table and the BUCKET

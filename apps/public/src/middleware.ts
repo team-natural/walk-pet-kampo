@@ -1,6 +1,6 @@
 import { defineMiddleware } from "astro:middleware";
 
-// Member-only areas. Astro.response.headers does not reach a Response returned from a page —
+// Walker-only areas. Astro.response.headers does not reach a Response returned from a page —
 // a redirect — so the no-store marking lives here rather than in each page's frontmatter.
 const PRIVATE_ROUTES = ["/login", "/mypage", "/api/v1/auth"];
 

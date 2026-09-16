@@ -4,10 +4,10 @@ import { burnPasswordVerification, verifyPassword } from "@app/server-kit/auth";
 import { UnauthenticatedError } from "@app/server-kit/http";
 import type { DbClient } from "@app/schema/client";
 import { createSession, destroySession } from "../auth/session";
-import { getMemberByEmail, touchLastLogin } from "./members";
+import { getWalkerByEmail, touchLastLogin } from "./walkers";
 
 export async function login(db: DbClient, email: string, password: string, ttlDays: number) {
-  const member = await getMemberByEmail(db, email);
+  const walker = await getWalkerByEmail(db, email);
 
   // Same error for "no such account" and "wrong password" — do not let a client distinguish
   // account existence from credential correctness.
@@ -15,18 +15,18 @@ export async function login(db: DbClient, email: string, password: string, ttlDa
 
   // Burn one derivation on the miss paths too, or they answer far faster than a real account —
   // an enumeration oracle regardless of the message being identical.
-  if (!member || member.status !== "active") {
+  if (!walker || walker.status !== "active") {
     await burnPasswordVerification(password);
     throw invalidCredentials();
   }
 
-  const valid = await verifyPassword(password, member.passwordHash);
+  const valid = await verifyPassword(password, walker.passwordHash);
   if (!valid) throw invalidCredentials();
 
-  const session = await createSession(db, member.id, ttlDays);
-  await touchLastLogin(db, member.id);
+  const session = await createSession(db, walker.id, ttlDays);
+  await touchLastLogin(db, walker.id);
 
-  return { session, member };
+  return { session, walker };
 }
 
 export async function logout(db: DbClient, token: string): Promise<void> {

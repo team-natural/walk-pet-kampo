@@ -25,7 +25,7 @@ What comes out for each feature:
 
 | No… | Delete |
 | --- | --- |
-| public-side login | `members` / `member_sessions`; public's `lib/server/{auth,services/auth.ts,services/members.ts,validation/auth.ts}`, `pages/{login.astro,mypage,api/v1/auth}`, `lib/components/{login-form,logout-button}.svelte`; public's KV binding and its `SESSION_TTL_DAYS` / `AUTH_LOCKOUT_*` vars |
+| public-side login | `walkers` / `walker_sessions`; public's `lib/server/{auth,services/auth.ts,services/walkers.ts,validation/auth.ts}`, `pages/{login.astro,mypage,api/v1/auth}`, `lib/components/{login-form,logout-button}.svelte`; public's KV binding and its `SESSION_TTL_DAYS` / `AUTH_LOCKOUT_*` vars |
 | contact form | `inquiries`; both apps' `inquiries` services, validation, routes and tests |
 | file uploads | `media`; admin's `media` service, validation, routes and tests; the `BUCKET` binding in both apps and `r2Buckets` in admin's `vitest.config.ts` |
 | password reset | `password_reset_tokens` |
@@ -41,7 +41,7 @@ What comes out for each feature:
 | `pnpm build` | |
 | `pnpm db:generate` | Drizzle → `packages/schema/migrations/` |
 | `pnpm db:migrate` | Applies to the shared local D1 |
-| `pnpm --filter admin seed -- --table=admin_users --email=… --password=… --name=…` | `--table=members` for the public side. Values need `=`, not a space |
+| `pnpm --filter admin seed -- --table=admin_users --email=… --password=… --name=…` | `--table=walkers` for the public side. Values need `=`, not a space |
 
 ## Container
 

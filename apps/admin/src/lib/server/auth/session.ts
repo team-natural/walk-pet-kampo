@@ -1,4 +1,4 @@
-// AdminUser sessions. Members (apps/public) get their own table, cookie and module — the shared
+// AdminUser sessions. Walkers (apps/public) get their own table, cookie and module — the shared
 // rules live in @app/server-kit/auth, the storage never is.
 import type { AstroCookies } from "astro";
 import { isActiveSession, newSessionToken, sessionExpiresAt } from "@app/server-kit/auth";

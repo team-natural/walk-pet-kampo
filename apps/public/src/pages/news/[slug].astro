@@ -1,0 +1,32 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { getCollection, render } from "astro:content";
+
+// output: "server" (astro.config.mjs) makes every page server-rendered by default;
+// getStaticPaths() is silently ignored without this, so the listing would render while
+// every detail URL 500s.
+export const prerender = true;
+
+export async function getStaticPaths() {
+  // Filter drafts here too, not just in the listing — otherwise the detail URL stays live.
+  const news = await getCollection("news", ({ data }) => !data.draft);
+  return news.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+---
+
+<Layout title={entry.data.title}>
+  <article>
+    <h1>{entry.data.title}</h1>
+    <p>
+      <time datetime={entry.data.publishedDate.toISOString()}>{entry.data.publishedDate.toLocaleDateString("ja-JP")}</time>
+      <span>{entry.data.category}</span>
+    </p>
+    <Content />
+  </article>
+</Layout>

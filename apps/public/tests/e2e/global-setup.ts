@@ -3,10 +3,10 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 // Seeded below rather than read from env vars, so `pnpm test:e2e` works unconfigured.
-export const E2E_MEMBER = {
-  email: "e2e-member@example.test",
+export const E2E_WALKER = {
+  email: "e2e-walker@example.test",
   password: "e2e-only-password",
-  name: "E2E Member",
+  name: "E2E Walker",
 };
 
 // Resolved from this file, not the cwd: `playwright test --config apps/public/...` run from the
@@ -32,9 +32,9 @@ export default function globalSetup() {
   runInAdmin("npx", ["wrangler", "d1", "migrations", "apply", "DB", "--local", ...persist]);
 
   // Drop only this account, so a developer's own data survives a test run. Sessions go first:
-  // member_sessions.member_id has no ON DELETE CASCADE.
-  const email = E2E_MEMBER.email.replaceAll("'", "''");
-  runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", `DELETE FROM member_sessions WHERE member_id IN (SELECT id FROM members WHERE email = '${email}'); DELETE FROM members WHERE email = '${email}';`]);
+  // walker_sessions.walker_id has no ON DELETE CASCADE.
+  const email = E2E_WALKER.email.replaceAll("'", "''");
+  runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", `DELETE FROM walker_sessions WHERE walker_id IN (SELECT id FROM walkers WHERE email = '${email}'); DELETE FROM walkers WHERE email = '${email}';`]);
 
-  runInAdmin("pnpm", ["seed", "--", "--table=members", `--email=${E2E_MEMBER.email}`, `--password=${E2E_MEMBER.password}`, `--name=${E2E_MEMBER.name}`]);
+  runInAdmin("pnpm", ["seed", "--", "--table=walkers", `--email=${E2E_WALKER.email}`, `--password=${E2E_WALKER.password}`, `--name=${E2E_WALKER.name}`]);
 }
