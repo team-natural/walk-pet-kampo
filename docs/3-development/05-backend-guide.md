@@ -384,7 +384,7 @@ F-15-09、DEV-02 §2-3「振込処理の実行」は admin/system 専用）、or
 | --- | --- |
 | 内容 | 団体退会後 90 日以内に当該 Organization に紐づくデータ（`dogs` / `walk_slots` / `reservations` / `walk_records` / `payouts` 等、団体スコープ分のみ）を CSV / JSON で一括エクスポート |
 | 実行方式 | `ctx.waitUntil()` による非同期処理（§4。Workers の実行時間上限に注意し、大規模データは分割処理する） |
-| 配信方式 | Cloudflare R2（DEV-01 §1）上の一時ファイルを署名付き URL（72 時間）でメール通知。署名付き URL の発行方式（R2 presigned URL か API Route 経由のトークン検証か）は **Open**（GOV-02 TBD-49。DEV-10 §4-3 と同じ方式に揃える） |
+| 配信方式 | Cloudflare R2（DEV-01 §1）上の一時ファイルを、**API Route が有効期限付き HMAC トークンを検証して `env.BUCKET.get()` で返す**方式（72 時間）でメール通知する（`Decided` — GOV-01 D-024、DEV-10 §4-3 と同一方式）。R2 の S3 互換 presigned URL は採用しない |
 | 実行権限 | `org_admin` ロールのみ（`requireOrganizationMember` + `requireRole(session, "org_admin")`）。同一 Organization で 1 日 1 回まで |
 | 保管期限 | 一時ファイルは 72 時間後に自動削除。実行は監査ログ（`activity_log`）に記録 |
 

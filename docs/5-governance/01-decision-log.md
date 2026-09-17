@@ -4,7 +4,7 @@ title: 意思決定ログ
 phase: 5
 status: draft-ai
 owner: PdM（兼務前提）
-last-updated: 2026-09-15
+last-updated: 2026-09-17
 related-docs:
   - BIZ-01〜03: 事業判断
   - PRD-01〜05: 要件判断
@@ -284,6 +284,102 @@ related-docs:
 | 影響範囲 | DEV-07 §3-1・§5-23〜§5-25、DEV-02 §1-2・§1-3、PRD-04 §3-1（SCR-13・14・51）・§3-2（ADM-24・25） |
 | 決定者 | Tech Lead |
 | 関連 TBD | GOV-02 TBD-47（解決済み） |
+
+### D-021：ロックアウトカウンタに系統スコープを必須引数として持たせる
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-17 |
+| カテゴリ | 設計 |
+| 決定内容 | `@app/server-kit/auth` の `assertNotLockedOut` / `recordAuthFailure` / `clearAuthFailures` に `AuthScope = "admin" \| "walker" \| "organization"` を**必須の第 2 引数**として追加し、KV キーを `auth-fail:{scope}:ip:{ip}` / `auth-fail:{scope}:email:{email}`（`auth-lock:` も同様）に変更する。デフォルト値は持たせない。IP スコープも系統ごとに分ける |
+| 背景 | GOV-02 TBD-45 の解決。現行キーは `auth-lock:email:{email}` で系統を含まず、Walker と OrganizationMember は `apps/public` の同一 KV 名前空間を共有する。同一メールアドレスが両系統に存在しうる以上、片方のログイン失敗がもう片方をロックする（正しいパスワードで 429 になる）一方、攻撃者は 2 系統を合算して試行回数を稼げる。引数にデフォルト値を与えると付け忘れが型検査を素通りするため、必須引数にして**呼び出し側全てをコンパイルエラーで洗い出す**。`apps/admin` は KV 名前空間が別で衝突しないが、シグネチャを 1 つに揃える方が取り違えが起きない。IP スコープを分けると 1 IP あたりの総試行回数は系統数だけ増えるが、IP ベースの汎用レート制限は WAF 側の責務であり（DEV-02 §7）、アプリ側カウンタの目的はアカウント保護である |
+| 影響範囲 | `packages/server-kit/src/auth/lockout.ts`、`packages/server-kit/tests/lockout.test.ts`、両アプリの `services/auth.ts`、DEV-02 §7、CLAUDE.md（ローカルのロック解除コマンドのキー名） |
+| 決定者 | Tech Lead |
+| 関連 TBD | GOV-02 TBD-45（解決済み） |
+
+### D-022：アプリを跨ぐ運営者操作は Service Binding の RPC で行い、`admin_session` を `apps/public` に渡さない
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-17 |
+| カテゴリ | 設計 |
+| 決定内容 | Reservation / Payment / Payout / Incident / AdoptionInquiry / WalkerProfile に対する運営者操作は、`apps/public` が `WorkerEntrypoint` を継承して export する名前付きエントリポイント `AdminOps` を、`apps/admin` が Service Binding 経由で RPC 呼び出しして実行する。`apps/public` の `wrangler.jsonc` の `main` を `src/worker.ts` に変更し、`@astrojs/cloudflare/handler` の `handle` を default export の `fetch` に据えたうえで `AdminOps` を並べて export する。認可は `apps/admin` 側の `requireSession` で完結させ、RPC 引数に AdminUser の `public_id` を渡して `activity_log.causer_*` に記録する。**`apps/public` から `admin_sessions` テーブルを引く方式と、`admin_session` クッキーの Domain を親ドメインに広げる方式は採らない** |
+| 背景 | GOV-02 TBD-46 の解決。`apps/admin` はサブドメインで動くため、`admin_session` クッキーは既定では `apps/public` に送信されない。届かせるには Domain を親ドメインに広げることになり、運営者の管理セッションが公開サイトの全リクエストに同送される — 3 系統分離（DEV-02 §1-4）が守ろうとしている境界そのものを崩す。`apps/public` 側に `admin_sessions` 検証を複製する案も、クッキーが届かない以上トークンを別経路で渡す必要があり、結局同じ問題に戻る。RPC なら**インターネットから到達できる経路が増えない**（`WorkerEntrypoint` のメソッドは HTTP ルーティングの対象外で、バインディングを宣言した Worker からしか呼べない）ため、共有シークレットの管理も不要。遷移関数の配置を `apps/public` に保ったまま実行者だけを跨がせられるので、DEV-09 §3-1 の原則も動かさずに済む。`@astrojs/cloudflare` 14.3.0 が `./handler` を export しており、カスタムエントリポイントと名前付き export の併存は公式の手順として成立することを確認済み |
+| 影響範囲 | DEV-04 §2-4・§5-15、DEV-09 §2-9-3・§3-1、DEV-02 §1-4、DEV-08、`apps/public/src/worker.ts`（新規）、両アプリの `wrangler.jsonc` |
+| 決定者 | Tech Lead |
+| 関連 TBD | GOV-02 TBD-46（解決済み） |
+
+### D-023：状態遷移表は `packages/schema`、遷移の検証関数は `packages/server-kit` に置く
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-17 |
+| カテゴリ | 設計 |
+| 決定内容 | `OrganizationStatus` 等の status union 型と `ORGANIZATION_TRANSITIONS` 等の遷移表を `packages/schema/src/transitions.ts` に置き、遷移の妥当性を検証する汎用関数 `assertTransition()` を `packages/server-kit` に置く。`apps/admin` / `apps/public` の各 Service は両方を import し、自分が担当する遷移だけを実装する |
+| 背景 | GOV-02 TBD-55 の解決。遷移表は status 列が取りうる値の集合そのもので、テーブル定義の一部として扱うのが自然。`apps/admin`（審査系）と `apps/public`（団体自身の操作）の 2 ファイルに遷移表を複製すると、片方だけ更新した時に「admin では通るが public では弾かれる」不整合が生まれ、しかもテストが 2 つに分かれているため気付きにくい。検証関数側は D1 にもセッションにも触らない純粋関数なので `packages/server-kit`（D-015 の共通化範囲）に置く |
+| 影響範囲 | DEV-09 §3-1・§3-4、DEV-05 §2、`packages/schema/src/transitions.ts`（新規）、`packages/server-kit/src/domain/transition.ts`（新規） |
+| 決定者 | Tech Lead |
+| 関連 TBD | GOV-02 TBD-55（解決済み） |
+
+### D-024：非公開ファイルは presigned URL ではなく API Route + 署名付きトークン + `env.BUCKET.get()` で配信する
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-17 |
+| カテゴリ | 設計 |
+| 決定内容 | 非公開ファイル（団体登録の提出書類・本人確認書類・Incident 添付）の配信は、Astro API Route が セッションによる認可チェック → 有効期限付き HMAC トークンの検証 → `env.BUCKET.get()` の順で行う方式に統一する。データ出力ファイルの 72 時間 URL（DEV-05 §11）も同方式。**R2 の S3 互換 API による presigned URL は採用しない**。アップロードも API Route 経由（DEV-10 §4-4 オプション A）のみとし、presigned PUT（オプション B）は MVP では採らない |
+| 背景 | GOV-02 TBD-49 の解決。presigned URL は R2 の S3 アクセスキーを Secret として別途持つ必要があり、管理対象の認証情報が 1 種類増える。加えて発行後の URL は capability そのものなので、「admin または当該団体の org_staff 以上」というテナント依存の認可を URL 自体では表現できず、転送されれば誰でも引ける。API Route 方式ならセッションとトークンの両方をリクエストごとに検証でき、ローカルの miniflare でも追加設定なしで動く。非公開ファイルは件数が少なく（審査書類と事故報告の添付のみ）、Worker を経由する帯域コストは問題にならない。大容量ファイルを直接 R2 に上げる必要が出たら、その時点で presigned PUT を再検討する |
+| 影響範囲 | DEV-10 §4-3・§4-4、DEV-05 §11、DEV-02 §8 |
+| 決定者 | Tech Lead |
+| 関連 TBD | GOV-02 TBD-49（解決済み） |
+
+### D-025：`awaiting_payment` の失効は `expires_at` 列による遅延判定とし、在庫計算を Cron に依存させない
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-17 |
+| カテゴリ | 設計 |
+| 決定内容 | `reservations` に `expires_at TEXT NULL`（`awaiting_payment` の期限。予約作成から 30 分）を追加する。お散歩枠の空き数を数えるクエリは `status = 'awaiting_payment' AND expires_at < 現在時刻` の予約を在庫から除外する。期限切れ行を `cancelled_by_platform` + `cancelled_reason = 'payment_timeout'` へ遷移させる Cron Triggers の一括処理は**掃除目的の任意実装**とし、在庫計算の正しさを Cron の起動に依存させない。`status` の値は増やさない |
+| 背景 | GOV-02 TBD-48 の解決。Cron で `expired` へ遷移させる方式は、Cron が動かなかった間だけ枠が埋まったままになる — 障害が「予約できない」という形で利用者に出る。在庫計算側で期限を見れば、Cron が止まっても枠は正しく開く。`status` に `expired` を足すと PRD-01 §7 の状態集合と DEV-09 の遷移表を触ることになり、既存の `cancelled_by_platform` + 理由列で同じ情報を表現できるため増やさない |
+| 影響範囲 | DEV-07 §5-11（列追加 → migration）、DEV-09 §2-7-3、DEV-10 §2-2、PRD-03 F-08 |
+| 決定者 | Tech Lead / PdM（兼務） |
+| 関連 TBD | GOV-02 TBD-48（解決済み） |
+
+### D-026：メール文面はプレーン文字列 + 共通レイアウト関数で持つ
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-17 |
+| カテゴリ | 設計 |
+| 決定内容 | 送信メールは `render*Email()` 関数がテキスト本文と最小限の HTML を返す形で実装し、共通のヘッダー・フッターはレイアウト関数 1 つに集約する。React Email 等のテンプレートエンジンは導入しない |
+| 背景 | GOV-02 TBD-50 の解決。送信メールは 10 種程度で、いずれも定型文に数項目を差し込むだけ。JSX のレンダリング依存を Worker のバンドルに持ち込む見返りが薄い。デプロイなしで文面を編集する要求（TBD-43）が出た場合は、テンプレート形式ではなく置き場所ごと再判断する |
+| 影響範囲 | DEV-10 §3-3・§3-4 |
+| 決定者 | Tech Lead |
+| 関連 TBD | GOV-02 TBD-50（解決済み） |
+
+### D-027：機能フラグは `wrangler.jsonc` の `vars` による環境変数で持つ
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-17 |
+| カテゴリ | 設計 |
+| 決定内容 | 機能の ON-OFF は各アプリの `wrangler.jsonc` の `vars` で管理する。KV による動的フラグは導入しない。未設定のフラグは `NaN` / `undefined` を握りつぶさず例外を投げる（`lockout.ts` と同じ fail-closed の扱い） |
+| 背景 | GOV-02 TBD-51 の解決。段階リリースの必要がまだ発生しておらず、KV フラグはフラグを見るたびに KV 読み取りが 1 回増える。デプロイを伴わない切替が必要になった時点で再判断する。`vars` は非継承なので環境ブロックごとに書く必要があり、書き漏れが「フラグが未定義」として現れる — ここを黙って false 扱いにすると本番だけ機能が消えるため、例外にする |
+| 影響範囲 | DEV-08 §4 |
+| 決定者 | Tech Lead |
+| 関連 TBD | GOV-02 TBD-51（解決済み） |
+
+### D-028：AdminUser のメール認証は実装しない
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-17 |
+| カテゴリ | 設計 |
+| 決定内容 | AdminUser の招待受諾時にメールアドレス確認（確認リンクの踏み直し）を行う機能は実装しない |
+| 背景 | GOV-02 TBD-53 の解決。AdminUser は自己登録の経路を持たず、既存の AdminUser が招待して発行する。招待リンクが当該アドレスに届いて開かれた時点でアドレスの到達性は証明されており、確認ステップを重ねても防げる誤りが無い。自己登録があり得る Walker（F-01-01）とは前提が違う |
+| 影響範囲 | DEV-02 §1-1 |
+| 決定者 | Tech Lead |
+| 関連 TBD | GOV-02 TBD-53（解決済み） |
 
 ---
 

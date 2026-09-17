@@ -92,9 +92,10 @@ related-docs:
 6. 並行して Stripe → Webhook（§2-4）→ Payment を paid へ、Reservation を awaiting_payment → confirmed へ
    （`payment_intent.succeeded`、冪等性チェック後。DEV-09 §2-7-3・§2-8-3）
 7. 決済失敗（`payment_intent.payment_failed`）は Payment を failed へ。Reservation は awaiting_payment のまま
-   保持し Walker に再決済を促す通知を送る（自動キャンセルはしない）。放置された awaiting_payment の
-   自動失効ポリシーは `[Open]`（GOV-02 TBD-48）
+   保持し Walker に再決済を促す通知を送る（自動キャンセルはしない）
 ```
+
+**放置された `awaiting_payment` の扱い**（`Decided` — GOV-01 D-025）: 予約作成時に `reservations.expires_at`（作成から 30 分）を入れ、お散歩枠の空き数を数えるクエリが `status = 'awaiting_payment' AND expires_at < 現在時刻` の行を在庫から除外する。期限切れ行を `cancelled_by_platform` + `cancelled_reason = 'payment_timeout'` へ遷移させる Cron Triggers の一括処理は掃除目的の任意実装であり、**在庫計算の正しさを Cron の起動に依存させない** — Cron で遷移させる方式だと、Cron が動かなかった間だけ枠が埋まったままになり、障害が「予約できない」という形で利用者に出る。`status` の値は増やさない。
 
 ### 2-3. 団体還元・送金フロー（Stripe Connect）
 
@@ -330,7 +331,7 @@ await sendAdminAlertEmail(env, {
 - 送信は `ctx.waitUntil()` で後処理化してレスポンスをブロックしない（DEV-01 §4。Queues は不採用）。大量一括送信（お知らせ配信等）は Cron バッチに寄せる
 - テンプレートを介さない、都度組み立てた生の HTML/テキストの直接送信は禁止（テンプレート関数を経由する）
 - 通知種別ごとの ON/OFF（F-13-03、`notification_settings` — DEV-07 §5-18）は送信直前に確認し、`email_enabled = 0` の場合は送信をスキップする
-- テンプレート形式は **Open**（GOV-02 TBD-50。暫定: プレーン文字列 + 共通レイアウト関数 [Assumed]。候補: React Email 等）
+- テンプレートは**プレーン文字列 + 共通レイアウト関数 1 つ**（`Decided` — GOV-01 D-026）。`render*Email()` がテキスト本文と最小限の HTML を返す。React Email 等のテンプレートエンジンは導入しない（送信メールは 10 種程度で定型文への差し込みのみ。JSX のレンダリング依存を Worker のバンドルに持ち込む見返りが薄い）
 - Subject は `【サービス名】` で始める統一スタイル
 - 配信エラーは Resend Webhook で受信
 
@@ -386,19 +387,16 @@ await env.BUCKET.delete(key);
 | パブリック（保護犬・団体ロゴ・お散歩記録写真・サイトロゴ）| 公開 URL |
 | プライベート（団体登録の提出書類・本人確認書類、Incident 添付）| 署名付き URL（15 分有効）、運営スタッフ（admin）または該当団体の org_staff 以上に限定 |
 
-> 署名付き URL は R2 の S3 互換 API 経由で発行する presigned URL、または Astro API Route 側で有効期限付きトークンを検証して都度 `env.BUCKET.get()` を返す方式のいずれかを使う。採用方式は **Open**（GOV-02 TBD-49。DEV-05 §11 のデータ出力ファイルと同じ方式に揃える）。
+> **署名付き URL は Astro API Route 方式で発行する**（`Decided` — GOV-01 D-024）。API Route が ① セッションによる認可チェック（admin または当該団体の org_staff 以上）→ ② 有効期限付き HMAC トークンの検証 → ③ `env.BUCKET.get()` の順で処理する。R2 の S3 互換 API による presigned URL は採用しない — 別途 R2 アクセスキーを Secret として持つ必要があり、かつ発行後の URL は capability そのものなのでテナント依存の認可を表現できず、転送されれば誰でも引ける。データ出力ファイルの 72 時間 URL（DEV-05 §11）も同方式。
 
 ### 4-4. アップロードフロー
 
 ```
-オプション A: Astro API Route 経由（標準）
+Astro API Route 経由（MVP はこれのみ）
   Client → POST /api/v1/uploads → Astro API Route → env.BUCKET.put()
-
-オプション B: Presigned URL（大容量ファイル。お散歩記録の複数写真等）
-  Client → POST /api/v1/uploads/presign → Astro API Route
-  Astro API Route → Presigned URL を返す（R2 の S3 互換 API 経由で署名）
-  Client → PUT で直接 R2 へ
 ```
+
+Presigned PUT（クライアントが R2 へ直接アップロードする方式）は **MVP では採用しない**（`Decided` — GOV-01 D-024）。R2 の S3 アクセスキーを Secret として持つことになり、配信側で presigned URL を採らない判断と揃える。大容量ファイルを直接上げる必要が出た時点で再検討する。
 
 ### 4-5. バックアップ
 

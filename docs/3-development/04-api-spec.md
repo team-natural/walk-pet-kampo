@@ -26,7 +26,7 @@ RESTful API の設計規約、認証方式、エラー体系、バージョニ�
 ## 0-H. ハイブリッド編集ガイド（要点）
 
 - 推奨モード: Hybrid（AI 定型化 + Tech Lead 確定）
-- 人間確認必須: 認証方式、破壊的変更方針、命名一貫性、セキュリティ影響、§2-4・§5-15 に残る `[Open]`（アプリをまたぐ運営者操作の認可方式）
+- 人間確認必須: 認証方式、破壊的変更方針、命名一貫性、セキュリティ影響
 
 ---
 
@@ -85,11 +85,20 @@ RESTful API の設計規約、認証方式、エラー体系、バージョニ�
 | ロール + 境界 | `org_admin` / `org_staff` の 2 階層に加え、Organization 境界の二重認可が必要（DEV-02 §1-3・§3-1）。ロール判定は `requireRole(session, "org_admin" | "org_staff")`、境界判定は `requireOrganizationMember(session, organizationId)`。自団体スコープのため URL に `organizationId` を含めず、セッションの `organization_id` を用いる |
 | Organization 切替 | MVP では 1 スタッフ = 1 団体所属を前提とし、切替機構は持たない（`[Assumed]` — PRD-02 §2-3） |
 
-### 2-4. アプリをまたぐ運営者操作 `[Open]`（GOV-02 TBD-46）
+### 2-4. アプリをまたぐ運営者操作（`Decided` — GOV-01 D-022）
 
 Reservation / Payment / Payout / Incident / AdoptionInquiry / WalkerProfile は `apps/public` のドメインであり、状態遷移関数（`transition<Entity>()`）も `apps/public/src/lib/server/services/<entity>.ts` に集約される（DEV-09 §3-1）。しかしこれらの遷移の一部は `admin`（`apps/admin` の AdminUser）が実行者となる（例: Reservation の運営キャンセル代行、Payment の返金、Payout の振込確定、Incident の運営対応、WalkerProfile の利用制限）。**Organization の審査系遷移のみ `apps/admin` 側への例外配置が明記されている**（DEV-09 §2-1-5。D1 が両 Worker の共有インスタンスであることを根拠に、審査という一回性の操作に限り `apps/admin` 側に直接書き込む Service を置く）。それ以外のエンティティは遷移関数の配置（`apps/public`）を動かさない方針のため（DEV-09 §3-1 が明記する対象は Organization のみ）、これらの操作のエンドポイントは `apps/public` 側の `/api/v1/` に置く（§5-15）。
 
-**未確定事項**: `apps/public` 側のこれらのエンドポイントが、`apps/admin` が発行した `admin_session` をどう検証するかは本書時点で未確定（`apps/admin` は `apps/public` の認証コードを import できないため、`admin_sessions` テーブルを共有 D1 経由で直接照会する検証関数を `apps/public` 側に複製するか、他の方式を取るかは Tech Lead が確定する。DEV-09 §2-9-3 が最初にこの論点を指摘しており、DEV-02 で認可設計を詳細化する）。該当エンドポイントには `[Open: 認可方式]` と付記する（GOV-02 起票対象）。
+**認可方式**: これらの操作は HTTP エンドポイントとしては公開せず、**Service Binding の RPC** で呼ぶ（`Decided` — GOV-01 D-022）。`apps/public` が `WorkerEntrypoint` を継承した名前付きエントリポイント `AdminOps` を export し、`apps/admin` が `services` バインディング経由で `env.PUBLIC_ADMIN_OPS.cancelReservation(...)` のように直接呼び出す。
+
+| 項目 | 内容 |
+| --- | --- |
+| 認可の実行場所 | `apps/admin` 側。ページ / API ルートで `requireSession(cookies, db)` を通した後に RPC を呼ぶ。`apps/public` 側は「バインディングを宣言した Worker からしか呼ばれない」ことを信頼の根拠にする |
+| 実行者の記録 | RPC 引数に AdminUser の `public_id` を渡し、`apps/public` 側の遷移関数が `activity_log.causer_type = "AdminUser"` / `causer_id` に記録する（DEV-09 §3-5） |
+| 採らない方式 | ① `apps/public` から `admin_sessions` を引く ② `admin_session` クッキーの Domain を親ドメインに広げる。②は運営者の管理セッションが公開サイトの全リクエストに同送されることになり、3 系統分離（DEV-02 §1-4）を崩す。①もサブドメインのクッキーが `apps/public` に届かない以上、トークンを別経路で渡す必要があり同じ問題に戻る |
+| 実装上の前提 | `apps/public/wrangler.jsonc` の `main` を `src/worker.ts` に変更し、`@astrojs/cloudflare/handler` の `handle` を default export の `fetch` に据えたうえで `AdminOps` を並べて export する（`@astrojs/cloudflare` 14.3.0 で確認済み） |
+
+`WorkerEntrypoint` のメソッドは HTTP ルーティングの対象外なので、**この方式ではインターネットから到達できる経路が 1 つも増えない**。共有シークレットの管理も不要。
 
 ---
 
@@ -223,7 +232,7 @@ Organization テーブル自体は `apps/public` のドメインだが、審査�
 
 ### 5-4. `apps/admin` — 横断管理（参照系 API `[Assumed]`）
 
-本セクションのエンドポイントはすべて参照系（GET）である。書き込み・状態遷移が必要な操作は §5-15（Reservation/Payment/WalkerProfile）または §5-13 と同一のエンドポイントを `admin` 権限で用いる（Incident/AdoptionInquiry。§2-4 参照）。Payout は §5-4-1（`apps/admin` の運営データ）を参照。Dog / WalkSlot の横断編集（SYS-10・SYS-12 相当）は本書時点でエンドポイント未確定 `[Open]`。
+本セクションのエンドポイントはすべて参照系（GET）である。書き込み・状態遷移が必要な操作は §5-15（Reservation/Payment/WalkerProfile）または §5-13 と同一のエンドポイントを `admin` 権限で用いる（Incident/AdoptionInquiry。§2-4 参照）。Payout は §5-4-1（`apps/admin` の運営データ）を参照。Dog / WalkSlot の横断編集（SYS-10・SYS-12 相当）も §5-15 と同じ RPC 方式に従う（`Decided` — GOV-01 D-022）。
 
 | メソッド | パス | 用途 |
 | --- | --- | --- |
@@ -408,15 +417,21 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 
 > FG-14 のうちお知らせ（F-14-01 / SCR-34・35）と FAQ（F-14-02 / SCR-36）はエンドポイントを持たない。ページが Content Collections・TypeScript 定数から直接描画するため、取得する API が無い（`Decided` — GOV-01 D-016、§5-5 の注記）。
 
-### 5-15. `apps/public` — プラットフォーム運営者操作（admin、`[Open: 認可方式]` — §2-4、GOV-02 TBD-46）
+### 5-15. `apps/public` — プラットフォーム運営者操作（admin、RPC。§2-4、`Decided` — GOV-01 D-022）
 
-対象エンティティ（Reservation/Payment/WalkerProfile）の遷移関数が `apps/public` 側に集約されているため（DEV-09 §3-1）、`admin` が実行者となる操作もここに置く。Payout は例外的に `apps/admin` 側が遷移関数を持つため §5-4-1 を参照（DEV-09 §2-9）。`apps/admin` が発行した `admin_session` をここで検証する具体的な方式は未確定（§2-4）。
+対象エンティティ（Reservation/Payment/WalkerProfile）の遷移関数が `apps/public` 側に集約されているため（DEV-09 §3-1）、`admin` が実行者となる操作もここに置く。Payout は例外的に `apps/admin` 側が遷移関数を持つため §5-4-1 を参照（DEV-09 §2-9）。
 
-| メソッド | パス | 用途 |
+**これらは HTTP エンドポイントではない。** `apps/public/src/worker.ts` が export する `AdminOps`（`WorkerEntrypoint`）のメソッドとして実装し、`apps/admin` が Service Binding 経由で呼ぶ（§2-4）。URL を持たないため、§3 のレスポンス envelope・§4 のエラーコードは適用されず、戻り値は素の TypeScript の値、失敗は例外で返す。
+
+| RPC メソッド | 引数 | 用途 |
 | --- | --- | --- |
-| POST | `/api/v1/reservations/{id}/cancel-by-platform` | 運営判断によるキャンセル代行（`→ cancelled_by_platform`。F-08-04、DEV-09 §2-7-3） |
-| POST | `/api/v1/payments/{id}/refund` | 返金処理（Stripe 返金 API 呼び出し。F-08-06） |
-| POST | `/api/v1/walkers/{id}/transition` | 参加者の利用制限・停止・復帰（body: `{ to }`。`WalkerProfile.status`、DEV-09 §2-4） |
+| `cancelReservationByPlatform` | `{ publicId, reason, actorPublicId }` | 運営判断によるキャンセル代行（`→ cancelled_by_platform`。F-08-04、DEV-09 §2-7-3） |
+| `refundPayment` | `{ publicId, amount?, actorPublicId }` | 返金処理（Stripe 返金 API 呼び出し。F-08-06） |
+| `transitionWalkerProfile` | `{ publicId, to, actorPublicId }` | 参加者の利用制限・停止・復帰（`WalkerProfile.status`、DEV-09 §2-4） |
+| `updateDogByPlatform` | `{ publicId, patch, actorPublicId }` | 保護犬の横断編集（SYS-10。§5-13 の参照系に対する書き込み側） |
+| `updateWalkSlotByPlatform` | `{ publicId, patch, actorPublicId }` | お散歩募集の横断編集・中止（SYS-12） |
+
+`actorPublicId` は `apps/admin` が `requireSession` で確定させた AdminUser の `public_id`。`apps/public` 側は値の真正性を検証せず、バインディング経由でしか呼ばれないことを信頼の根拠にする（§2-4）。
 
 ---
 

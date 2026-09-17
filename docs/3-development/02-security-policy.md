@@ -44,7 +44,7 @@ related-docs:
 | --- | --- | --- |
 | 管理画面（Web） | D1 の `admin_sessions` テーブルでセッションを管理し、`httpOnly` + `Secure` + `SameSite=Lax` 付き署名クッキー（クッキー名 `admin_session`）でセッション ID を保持する（クッキー属性の正本は本表。DEV-04 §2 はこれを参照する）| D1（`admin_sessions`）。ログアウト・強制失効は行削除で即時反映される |
 | API（採用時）| 管理画面と同じ D1 セッション機構を使う。session token をクッキーまたは `Authorization` ヘッダで受け渡す | D1（`admin_sessions`）|
-| メール認証 | 招待制（org_admin/org_staff とは異なり、AdminUser 自体はさらに運営が既存 AdminUser を追加する運用のため自己登録がない）。要否は案件標準を踏襲し **Open**（GOV-02 TBD-53。確定時に GOV-01 へ記録）| — |
+| メール認証 | **実装しない**（`Decided` — GOV-01 D-028）。AdminUser は自己登録の経路を持たず、既存の AdminUser が招待して発行する。招待リンクが当該アドレスに届いて開かれた時点で到達性は証明されており、確認ステップで防げる誤りが無い | — |
 | パスワードリセット | 自前実装（`password_reset_tokens`。DEV-07 §4-6）。トークンは Web Crypto の HMAC 署名（`crypto.subtle.sign`）で発行・検証する | リンク 60 分有効 |
 | パスワードハッシュ化 | Web Crypto API の PBKDF2（`crypto.subtle`）。Workers ランタイム標準実装で追加パッケージ不要 | — |
 | OAuth（任意）| Arctic（DEV-01 §2）| Google 等 |
@@ -262,9 +262,16 @@ IP ベースの汎用レート制限は Cloudflare の WAF / Rate Limiting Rules
 
 3 系統（AdminUser / Walker / OrganizationMember）はそれぞれ別のログインエンドポイントを持つため、ブルートフォース対策のロックアウトも系統ごとに独立した KV カウンタとして数える。
 
-カウンタ自体は両アプリ共通の `packages/server-kit/src/auth/lockout.ts`（`@app/server-kit/auth` の `assertNotLockedOut` / `recordAuthFailure` / `clearAuthFailures`）を使う（`Decided` — GOV-01 D-015）。IP とメールアドレスの 2 スコープを `auth-fail:{scope}`（試行回数、60 秒ウィンドウ）と `auth-lock:{scope}`（ロック中フラグ、`AUTH_LOCKOUT_MINUTES` の TTL）で保持する。KV 名前空間はアプリごとに別なので `apps/admin`（AdminUser）と `apps/public` の間ではキーが衝突しない。
+カウンタ自体は両アプリ共通の `packages/server-kit/src/auth/lockout.ts`（`@app/server-kit/auth` の `assertNotLockedOut` / `recordAuthFailure` / `clearAuthFailures`）を使う（`Decided` — GOV-01 D-015）。IP とメールアドレスの 2 スコープを `auth-fail:{scope}`（試行回数、60 秒ウィンドウ）と `auth-lock:{scope}`（ロック中フラグ、`AUTH_LOCKOUT_MINUTES` の TTL）で保持する。
 
-> `[Open]` **Walker と OrganizationMember は `apps/public` の同一 KV 名前空間を共有する**ため、現在の実装のキー（`auth-lock:email:{email}`）では 2 系統が同じキーを取り合う。同一メールアドレスが両系統に存在しうる以上、`apps/public` 側の呼び出しには系統プレフィックス（`walker` / `organization`）を足す必要がある — 実装時に `@app/server-kit/auth` へスコープ引数を追加する（GOV-02 TBD-45）。
+**キーは系統を含む**（`Decided` — GOV-01 D-021）。3 関数は `AuthScope = "admin" | "walker" | "organization"` を第 2 引数に必須で取り、キーは `auth-fail:{scope}:ip:{ip}` / `auth-fail:{scope}:email:{email}`（`auth-lock:` も同形）になる。
+
+| 項目 | 内容 |
+| --- | --- |
+| なぜ必要か | Walker と OrganizationMember は `apps/public` の**同一 KV 名前空間を共有する**。系統を含まないキーでは、同一メールアドレスが両系統に存在した場合に片方の失敗がもう片方をロックし（正しいパスワードで 429 になる）、逆に攻撃者は 2 系統を合算して試行できる |
+| なぜ必須引数か | デフォルト値を与えると付け忘れが型検査を素通りする。必須にすれば呼び出し側の漏れがコンパイルエラーで出る |
+| `apps/admin` では冗長では | KV 名前空間が別なので衝突はしないが、シグネチャを 1 つに保つ方が取り違えが起きない |
+| IP も分ける理由 | 1 IP あたりの総試行回数は系統数だけ増えるが、IP ベースの汎用レート制限は WAF 側の責務（本節冒頭の表）であり、アプリ側カウンタの目的はアカウント保護である |
 
 閾値は各アプリの `wrangler.jsonc` の `AUTH_LOCKOUT_MAX_ATTEMPTS` / `AUTH_LOCKOUT_MINUTES` で管理する。**どちらかが未設定だと `Number(undefined)` が `NaN` になり比較が常に false になるため、`lockout.ts` は fail-closed に例外を投げる**（DEV-03 §3 の単体テスト対象）。
 

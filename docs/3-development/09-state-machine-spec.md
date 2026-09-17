@@ -684,7 +684,9 @@ export async function transitionOrganization(env: Env, organizationId: number, t
 }
 ```
 
-> `apps/public` 側の団体自身の操作（`needs_more_info → under_review` の再提出、`approved/suspended/deactivated → withdrawn`）は別ファイル `apps/public/src/lib/server/services/organizations.ts` に、同じ `TRANSITIONS` 定義・同じ `OrganizationStatus` 型（`packages/schema` の `$inferSelect` から導出、または共通の型定義を重複させないよう配置を要検討）を使って実装する。2 ファイルに分かれる分、`TRANSITIONS` テーブルの重複を避ける置き場所（`packages/schema` に定数を持たせるか等）は **Open**（GOV-02 TBD-55。共有コードの置き場所は `packages/schema` / `packages/server-kit` に限る — GOV-01 D-015）。
+> `apps/public` 側の団体自身の操作（`needs_more_info → under_review` の再提出、`approved/suspended/deactivated → withdrawn`）は別ファイル `apps/public/src/lib/server/services/organizations.ts` に実装する。
+>
+> **遷移表と status 型の正本は `packages/schema/src/transitions.ts`**（`Decided` — GOV-01 D-023）。上のコード例の `OrganizationStatus` と `TRANSITIONS` は説明のために展開しているが、実装では両ファイルとも `import { ORGANIZATION_TRANSITIONS, type OrganizationStatus } from "@app/schema"` で引く。遷移の妥当性判定そのものは `packages/server-kit` の `assertTransition()` に置く（D1 にもセッションにも触らない純粋関数のため — GOV-01 D-015）。遷移表を 2 ファイルに複製すると、片方だけ更新した時に「admin では通るが public では弾かれる」不整合が生まれ、テストも 2 つに分かれているため気付きにくい。
 
 ### 3-5. 監査ログとの連携
 
