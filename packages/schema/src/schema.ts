@@ -441,12 +441,15 @@ export const reservations = sqliteTable(
     status: text("status", {
       enum: ["processing", "awaiting_payment", "confirmed", "organization_reviewing", "scheduled", "completed", "cancelled_by_walker", "cancelled_by_organization", "cancelled_by_platform", "no_show", "cancelled_weather", "cancelled_dog_condition"],
     }).notNull(),
+    // Free-seat counts exclude awaiting_payment rows past this instant, so a stalled checkout
+    // releases the slot without waiting for the cleanup cron to fire.
+    expiresAt: text("expires_at"),
     cancelledReason: text("cancelled_reason"),
     cancelledAt: text("cancelled_at"),
     createdAt: createdAt(),
     updatedAt: text("updated_at").notNull(),
   },
-  (table) => [uniqueIndex("uq_reservations_public_id").on(table.publicId), index("idx_reservations_organization_id_status").on(table.organizationId, table.status), index("idx_reservations_walker_id").on(table.walkerId), index("idx_reservations_walk_slot_id").on(table.walkSlotId)],
+  (table) => [uniqueIndex("uq_reservations_public_id").on(table.publicId), index("idx_reservations_organization_id_status").on(table.organizationId, table.status), index("idx_reservations_walker_id").on(table.walkerId), index("idx_reservations_walk_slot_id").on(table.walkSlotId), index("idx_reservations_status_expires_at").on(table.status, table.expiresAt)],
 );
 
 export const payments = sqliteTable(

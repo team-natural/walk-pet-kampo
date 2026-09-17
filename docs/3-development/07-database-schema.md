@@ -187,6 +187,7 @@ erDiagram
         integer organization_id FK
         integer walker_id FK
         text status
+        text expires_at "awaiting_payment の期限"
         text created_at
         text updated_at
     }
@@ -667,12 +668,15 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | emergency_contact_name_snapshot | TEXT | NO | 予約時点の緊急連絡先スナップショット |
 | emergency_contact_phone_snapshot | TEXT | NO | 同上 |
 | status | TEXT | NO | processing / awaiting_payment / confirmed / organization_reviewing / scheduled / completed / cancelled_by_walker / cancelled_by_organization / cancelled_by_platform / no_show / cancelled_weather / cancelled_dog_condition（PRD-01 §7） |
-| cancelled_reason | TEXT | YES |  |
+| expires_at | TEXT | YES | `awaiting_payment` の期限（作成から 30 分）。空き枠計算はこれを過ぎた `awaiting_payment` を在庫から除外する（GOV-01 D-025） |
+| cancelled_reason | TEXT | YES | 期限切れの掃除処理は `cancelled_by_platform` + `payment_timeout` を入れる |
 | cancelled_at | TEXT | YES |  |
 | created_at | TEXT | NO |  |
 | updated_at | TEXT | NO |  |
 
-**Index**: UNIQUE(`public_id`), `organization_id, status`, `walker_id`, `walk_slot_id`
+**Index**: UNIQUE(`public_id`), `organization_id, status`, `walker_id`, `walk_slot_id`, `status, expires_at`
+
+> `expires_at` は `status = 'awaiting_payment'` のときだけ意味を持つ。Cron による一括失効は掃除目的の任意実装で、**在庫計算の正しさを Cron の起動に依存させない**（GOV-01 D-025、DEV-10 §2-2）。
 
 ### 5-12. payments
 
