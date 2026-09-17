@@ -1,5 +1,7 @@
-# Members-only, transactional and shelter-console routes. This mirrors SITEMAP_EXCLUDED in
-# astro.config.mjs — a route added to one belongs in the other.
+# Members-only, transactional and shelter-console routes. This mirrors PRIVATE_ROUTE_PREFIXES in
+# src/lib/private-routes.ts by hand — a static file cannot import it, so a route added there
+# belongs here too. Crawl rules only: the noindex meta in Layout.astro is what keeps these URLs
+# out of an index if one is discovered elsewhere.
 User-agent: *
 Disallow: /auth/
 Disallow: /mypage/
@@ -8,4 +10,6 @@ Disallow: /register
 Disallow: /verify/
 Disallow: /organization/
 
+# Same domain as `site` in astro.config.mjs. Both change together when the brand domain is
+# registered (GOV-02 TBD-35・TBD-37).
 Sitemap: https://replace-with-domain.example/sitemap-index.xml

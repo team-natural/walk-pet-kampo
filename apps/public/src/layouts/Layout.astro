@@ -2,23 +2,30 @@
 // Canonical and OGP are built from `site` in astro.config.mjs, never from a URL written in a
 // page (DEV-06 §11-1). Defaults live here rather than in a settings table (GOV-01 D-016).
 import "../styles/global.css";
+import { isPrivateRoute } from "$lib/private-routes";
 
 interface Props {
   title: string;
   description?: string;
+  /** Raster only (PNG/JPEG). Social platforms do not render SVG. */
   ogImage?: string;
-  /** Members-only and transactional screens. Keeps them out of an index even if a link leaks. */
+  ogImageAlt?: string;
+  /** Defaults to true on members-only and transactional routes. */
   noindex?: boolean;
 }
 
 const SITE_NAME = "保護犬おさんぽマッチング";
 const DEFAULT_DESCRIPTION = "保護犬とのお散歩を予約できるサービスです。参加費はそのまま保護団体の活動費になります。";
-const DEFAULT_OG_IMAGE = "/logo.svg";
 
-const { title, description = DEFAULT_DESCRIPTION, ogImage = DEFAULT_OG_IMAGE, noindex = false } = Astro.props;
+const { title, description = DEFAULT_DESCRIPTION, ogImage, ogImageAlt, noindex } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, Astro.site);
-const ogImageUrl = new URL(ogImage, Astro.site);
+// No default image on purpose: the only asset in the repo is an SVG, and Facebook, X, LINE and
+// Slack all refuse to render one. Declaring summary_large_image with an image they drop produces
+// a blank card, which is worse than a text card.
+const ogImageUrl = ogImage ? new URL(ogImage, Astro.site) : null;
+// robots.txt stops crawling but does not stop a URL found elsewhere from being indexed. This does.
+const isNoindex = noindex ?? isPrivateRoute(Astro.url.pathname);
 ---
 
 <!doctype html>
@@ -30,15 +37,16 @@ const ogImageUrl = new URL(ogImage, Astro.site);
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
-    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    {isNoindex && <meta name="robots" content="noindex, nofollow" />}
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={SITE_NAME} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <meta property="og:image" content={ogImageUrl} />
-    <meta name="twitter:card" content="summary_large_image" />
+    {ogImageUrl && <meta property="og:image" content={ogImageUrl} />}
+    {ogImageUrl && ogImageAlt && <meta property="og:image:alt" content={ogImageAlt} />}
+    <meta name="twitter:card" content={ogImageUrl ? "summary_large_image" : "summary"} />
     <slot name="head" />
   </head>
   <body>
