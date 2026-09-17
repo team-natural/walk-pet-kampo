@@ -1,0 +1,37 @@
+---
+// SCR-28 支援実績 — PRD-04 §3-1（認証必要）
+// The chart is LayerChart (DEV-01 §2) and belongs to the design phase; the skeleton renders the
+// same numbers as text so the totals are verifiable before any chart exists.
+// TODO(SCR-28): replace mockReservations with getWalkerSupportTotals() — F-10-03.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockReservations } from "$lib/mocks";
+import type { ReservationSummary } from "$lib/view-models/reservation";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/auth/login", 302);
+
+const reservations: ReservationSummary[] = mockReservations;
+const totalWalks = reservations.length;
+const totalSupport = reservations.reduce((sum, reservation) => sum + reservation.walkSlot.feePerPerson * reservation.participantCount, 0);
+---
+
+<Layout title="支援実績">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">支援実績</h1>
+
+    <section class="grid gap-4 sm:grid-cols-2">
+      <article class="rounded border border-gray-200 p-4">
+        <p class="text-sm text-gray-600">参加したお散歩</p>
+        <p class="text-2xl font-bold">{totalWalks} 回</p>
+      </article>
+      <article class="rounded border border-gray-200 p-4">
+        <p class="text-sm text-gray-600">累計の支援額</p>
+        <p class="text-2xl font-bold">{totalSupport} 円</p>
+      </article>
+    </section>
+  </main>
+</Layout>

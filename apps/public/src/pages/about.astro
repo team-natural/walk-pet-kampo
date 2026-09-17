@@ -1,0 +1,30 @@
+---
+// SCR-46 サービス紹介・こだわり — PRD-04 §3-1
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="このサービスについて">
+  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 p-6">
+    <header class="grid gap-2">
+      <h1 class="text-2xl font-bold">保護犬との一歩を、無理なく</h1>
+      <p class="text-sm text-gray-600">保護犬のお散歩に参加することが、そのまま保護団体の支援になります。</p>
+    </header>
+
+    <section class="grid gap-3 text-sm">
+      <article class="grid gap-1">
+        <h2 class="font-semibold">スタッフが同行します</h2>
+        <p>犬の扱いに慣れていなくても参加できるよう、お散歩には保護団体のスタッフが同行します。</p>
+      </article>
+      <article class="grid gap-1">
+        <h2 class="font-semibold">参加費は保護団体へ</h2>
+        <p>参加費の大部分は保護団体への還元にあてられ、フードや医療費として使われます。</p>
+      </article>
+      <article class="grid gap-1">
+        <h2 class="font-semibold">里親になる前に、会える</h2>
+        <p>迎える・迎えないを決める前に、実際に一緒に歩いて相性を確かめられます。</p>
+      </article>
+    </section>
+
+    <a href="/walks" class="text-sm underline">お散歩をさがす</a>
+  </main>
+</Layout>

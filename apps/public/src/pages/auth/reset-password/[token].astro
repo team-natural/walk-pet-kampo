@@ -1,0 +1,22 @@
+---
+// SCR-14 パスワード再設定 — PRD-04 §3-1
+// TODO(SCR-14): validate the token and post to resetWalkerPassword() — F-01-04.
+import Layout from "../../../layouts/Layout.astro";
+
+const { token } = Astro.params;
+---
+
+<Layout title="新しいパスワードの設定">
+  <main class="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-6">
+    <h1 class="text-2xl font-bold">新しいパスワードの設定</h1>
+
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/auth/reset-password">
+      <input type="hidden" name="token" value={token} />
+      <label class="grid gap-1">
+        <span>新しいパスワード</span>
+        <input type="password" name="password" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">設定する</button>
+    </form>
+  </main>
+</Layout>

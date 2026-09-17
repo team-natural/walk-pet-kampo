@@ -1,0 +1,32 @@
+---
+// ADM-19 事故・トラブル報告詳細 — PRD-04 §3-2
+// TODO(ADM-19): replace mockIncidentDetail with getOwnIncident() — F-12-03.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getOrganizationSession } from "$lib/server/auth/organization-session";
+import { mockIncidentDetail } from "$lib/mocks";
+import type { IncidentDetail } from "$lib/view-models/incident";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getOrganizationSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/organization/login", 302);
+
+const { publicId } = Astro.params;
+const incident: IncidentDetail = mockIncidentDetail;
+---
+
+<Layout title="事故・トラブル報告の詳細">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{incident.category}（{incident.severity}）</h1>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-gray-500">発生日時</dt> <dd class="inline">{incident.occurredAt}</dd></div>
+      <div><dt class="inline text-gray-500">場所</dt> <dd class="inline">{incident.location}</dd></div>
+      <div><dt class="inline text-gray-500">報告者</dt> <dd class="inline">{incident.reportedByName}</dd></div>
+      <div><dt class="inline text-gray-500">状態</dt> <dd class="inline">{incident.status}</dd></div>
+      <div><dt class="inline text-gray-500">状況</dt> <dd class="inline">{incident.description}</dd></div>
+      <div><dt class="inline text-gray-500">再発防止</dt> <dd class="inline">{incident.preventionMeasures}</dd></div>
+    </dl>
+  </main>
+</Layout>

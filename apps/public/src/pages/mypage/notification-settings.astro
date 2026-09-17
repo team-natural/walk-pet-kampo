@@ -1,0 +1,42 @@
+---
+// SCR-48 通知設定 — PRD-04 §3-1（認証必要）
+// TODO(SCR-48): replace mockNotificationSettings with getNotificationSettings() and post
+// updateNotificationSettings() — F-02-05, F-13-03.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockNotificationSettings } from "$lib/mocks";
+import type { NotificationSettingView } from "$lib/view-models/notification";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/auth/login", 302);
+
+const settings: NotificationSettingView[] = mockNotificationSettings;
+---
+
+<Layout title="通知設定">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">通知設定</h1>
+
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/notification-settings">
+      {
+        settings.map((setting) => (
+          <fieldset class="grid gap-2 rounded border border-gray-200 p-4">
+            <legend class="px-1">{setting.type}</legend>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" name={`${setting.type}.email`} checked={setting.emailEnabled} />
+              <span>メールで受け取る</span>
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="checkbox" name={`${setting.type}.inApp`} checked={setting.inAppEnabled} />
+              <span>サイト内で受け取る</span>
+            </label>
+          </fieldset>
+        ))
+      }
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">保存する</button>
+    </form>
+  </main>
+</Layout>

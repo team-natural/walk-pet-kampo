@@ -1,0 +1,51 @@
+---
+// SYS-06 保護団体一覧 — PRD-04 §3-3
+// Reference skeleton for a PLATFORM screen. AdminUser is a single role, so a valid session is
+// the whole authorization check — there is no requireRole here (GOV-01 D-011).
+// TODO(SYS-06): replace mockOrganizations with listOrganizations() — F-15-04.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockOrganizations } from "$lib/mocks";
+import type { OrganizationSummary } from "$lib/view-models/organization";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const organizations: OrganizationSummary[] = mockOrganizations;
+---
+
+<Layout title="保護団体一覧 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-6xl flex-col gap-8 p-6">
+    <header class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">保護団体</h1>
+    </header>
+
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b">
+          <th class="py-2">団体名</th>
+          <th class="py-2">エリア</th>
+          <th class="py-2">ステータス</th>
+          <th class="py-2">登録日</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          organizations.map((organization) => (
+            <tr class="border-b">
+              <td class="py-2">
+                <a href={`/organizations/${organization.id}`}>{organization.name}</a>
+              </td>
+              <td class="py-2">{organization.activityArea}</td>
+              <td class="py-2">{organization.status}</td>
+              <td class="py-2">{organization.createdAt}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </main>
+</Layout>

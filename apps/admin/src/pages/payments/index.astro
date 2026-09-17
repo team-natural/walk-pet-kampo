@@ -1,0 +1,47 @@
+---
+// SYS-15 決済・返金一覧 — PRD-04 §3-3
+// TODO(SYS-15): replace mockPayments with listPayments() — F-15-08.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockPayments } from "$lib/mocks";
+import type { PaymentSummary } from "$lib/view-models/reservation";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const payments: PaymentSummary[] = mockPayments;
+---
+
+<Layout title="決済・返金 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">決済・返金</h1>
+
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b">
+          <th class="py-2">金額</th>
+          <th class="py-2">団体還元</th>
+          <th class="py-2">状態</th>
+          <th class="py-2">入金日</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          payments.map((payment) => (
+            <tr class="border-b">
+              <td class="py-2">
+                <a href={`/payments/${payment.id}`}>{payment.amount} 円</a>
+              </td>
+              <td class="py-2">{payment.organizationShareAmount} 円</td>
+              <td class="py-2">{payment.status}</td>
+              <td class="py-2">{payment.paidAt}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </main>
+</Layout>

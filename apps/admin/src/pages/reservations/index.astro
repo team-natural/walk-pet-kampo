@@ -1,0 +1,49 @@
+---
+// SYS-13 予約一覧 — PRD-04 §3-3
+// TODO(SYS-13): replace mockReservations with listReservations() — F-15-07.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockReservations } from "$lib/mocks";
+import type { ReservationSummary } from "$lib/view-models/reservation";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const reservations: ReservationSummary[] = mockReservations;
+---
+
+<Layout title="予約 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">予約</h1>
+
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b">
+          <th class="py-2">お散歩</th>
+          <th class="py-2">団体</th>
+          <th class="py-2">参加者</th>
+          <th class="py-2">人数</th>
+          <th class="py-2">状態</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          reservations.map((reservation) => (
+            <tr class="border-b">
+              <td class="py-2">
+                <a href={`/reservations/${reservation.id}`}>{reservation.walkSlotTitle}</a>
+              </td>
+              <td class="py-2">{reservation.organizationName}</td>
+              <td class="py-2">{reservation.walkerName}</td>
+              <td class="py-2">{reservation.participantCount}</td>
+              <td class="py-2">{reservation.status}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </main>
+</Layout>

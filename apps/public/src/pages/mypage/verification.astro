@@ -1,0 +1,36 @@
+---
+// SCR-23 本人・連絡先確認 — PRD-04 §3-1（認証必要）
+// TODO(SCR-23): replace mockWalkerProfile with getWalkerProfile() — F-01-01, F-01-02.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockWalkerProfile } from "$lib/mocks";
+import type { WalkerProfileView } from "$lib/view-models/walker";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/auth/login", 302);
+
+const profile: WalkerProfileView = mockWalkerProfile;
+---
+
+<Layout title="本人・連絡先の確認状況">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">本人・連絡先の確認状況</h1>
+
+    <dl class="grid gap-2 text-sm">
+      <div><dt class="inline text-gray-500">アカウント状態</dt> <dd class="inline">{profile.status}</dd></div>
+      <div><dt class="inline text-gray-500">電話番号の確認</dt> <dd class="inline">{profile.phoneVerifiedAt ? "確認済み" : "未確認"}</dd></div>
+      <div><dt class="inline text-gray-500">規約への同意</dt> <dd class="inline">{profile.termsAgreedVersion ?? "未同意"}</dd></div>
+    </dl>
+
+    {
+      !profile.phoneVerifiedAt && (
+        <a href="/mypage/profile" class="text-sm underline">
+          電話番号を登録する
+        </a>
+      )
+    }
+  </main>
+</Layout>

@@ -1,0 +1,59 @@
+---
+// SCR-03 保護団体詳細 — PRD-04 §3-1
+// TODO(SCR-03): replace the mocks with getOrganizationBySlug() / listDogs() / listWalkSlots() — F-07-01.
+import Layout from "../../layouts/Layout.astro";
+import { mockDogs, mockOrganizationDetail, mockWalkSlots } from "$lib/mocks";
+import type { DogSummary } from "$lib/view-models/dog";
+import type { OrganizationDetail } from "$lib/view-models/organization";
+import type { WalkSlotSummary } from "$lib/view-models/walk-slot";
+
+const { slug } = Astro.params;
+const organization: OrganizationDetail = mockOrganizationDetail;
+const dogs: DogSummary[] = mockDogs;
+const walkSlots: WalkSlotSummary[] = mockWalkSlots;
+---
+
+<Layout title={`${organization.name} — 保護団体`}>
+  <main class="mx-auto flex min-h-dvh max-w-4xl flex-col gap-8 p-6" data-slug={slug}>
+    <header class="grid gap-2">
+      <h1 class="text-2xl font-bold">{organization.name}</h1>
+      <p class="text-sm text-gray-600">{organization.activityArea}</p>
+    </header>
+
+    <section class="grid gap-2">
+      <h2 class="text-lg font-semibold">団体について</h2>
+      <p class="text-sm">{organization.introduction}</p>
+      <dl class="grid gap-1 text-sm">
+        <div><dt class="inline text-gray-500">代表者</dt> <dd class="inline">{organization.representativeName}</dd></div>
+        <div><dt class="inline text-gray-500">活動開始</dt> <dd class="inline">{organization.activityStartedOn}</dd></div>
+        <div><dt class="inline text-gray-500">譲渡実績</dt> <dd class="inline">{organization.adoptionTrackRecord}</dd></div>
+      </dl>
+    </section>
+
+    <section class="grid gap-2">
+      <h2 class="text-lg font-semibold">所属の保護犬</h2>
+      <ul class="grid gap-2 text-sm">
+        {
+          dogs.map((dog) => (
+            <li>
+              <a href={`/dogs/${dog.slug}`}>{dog.name}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="grid gap-2">
+      <h2 class="text-lg font-semibold">お散歩募集</h2>
+      <ul class="grid gap-2 text-sm">
+        {
+          walkSlots.map((slot) => (
+            <li>
+              <a href={`/walks/${slot.id}`}>{slot.title}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </main>
+</Layout>

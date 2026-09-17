@@ -1,0 +1,44 @@
+---
+// ADM-14 実施記録詳細・編集 — PRD-04 §3-2
+// TODO(ADM-14): replace mockWalkRecordDetail with getOwnWalkRecord() and post updateWalkRecord()
+// — F-10-01.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getOrganizationSession } from "$lib/server/auth/organization-session";
+import { mockWalkRecordDetail } from "$lib/mocks";
+import type { WalkRecordDetail } from "$lib/view-models/walk-record";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getOrganizationSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/organization/login", 302);
+
+const { publicId } = Astro.params;
+const record: WalkRecordDetail = mockWalkRecordDetail;
+---
+
+<Layout title="実施記録の登録">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{record.walkSlot.title}</h1>
+
+    <form class="grid gap-4 text-sm" method="post" action={`/api/v1/organization/walk-records/${record.id}`} enctype="multipart/form-data">
+      <label class="flex items-center gap-2">
+        <input type="checkbox" name="conducted" checked={record.conducted === 1} />
+        <span>実施した</span>
+      </label>
+      <label class="grid gap-1">
+        <span>一緒に歩いた犬</span>
+        <input type="text" name="dogsWalked" value={record.dogsWalked} class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>当日の様子</span>
+        <textarea name="staffComment" rows="5" class="rounded border border-gray-300 px-3 py-2">{record.staffComment}</textarea>
+      </label>
+      <label class="grid gap-1">
+        <span>写真</span>
+        <input type="file" name="photos" multiple class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">保存する</button>
+    </form>
+  </main>
+</Layout>

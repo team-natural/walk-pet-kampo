@@ -1,0 +1,42 @@
+---
+// SYS-16 決済・返金詳細 — PRD-04 §3-3
+// Refunding is a transition on an apps/public domain and calls Stripe, so it goes over the
+// Service Binding RPC (GOV-01 D-022). Double refunds are the failure this screen must not cause,
+// which is why the amount is shown alongside what has already been refunded.
+// TODO(SYS-16): replace mockPaymentSummary with getPayment() and post refundPayment() — F-15-08.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockPaymentSummary } from "$lib/mocks";
+import type { PaymentSummary } from "$lib/view-models/reservation";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const { publicId } = Astro.params;
+const payment: PaymentSummary = mockPaymentSummary;
+---
+
+<Layout title="決済の詳細 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{payment.amount} 円の決済</h1>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-muted-foreground">内訳</dt> <dd class="inline">団体還元 {payment.organizationShareAmount} 円 / システム利用料 {payment.platformFeeAmount} 円</dd></div>
+      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{payment.status}</dd></div>
+      <div><dt class="inline text-muted-foreground">Stripe</dt> <dd class="inline">{payment.stripePaymentIntentId}</dd></div>
+      <div><dt class="inline text-muted-foreground">入金日</dt> <dd class="inline">{payment.paidAt}</dd></div>
+      <div><dt class="inline text-muted-foreground">返金済み</dt> <dd class="inline">{payment.refundAmount ?? 0} 円</dd></div>
+    </dl>
+
+    <form class="grid gap-3 text-sm" method="post" action={`/api/v1/payments/${payment.id}/refund`}>
+      <label class="grid gap-1">
+        <span>返金額（空欄で全額）</span>
+        <input type="number" name="amount" max={payment.amount} class="rounded border px-3 py-2" />
+      </label>
+      <button type="submit" class="w-fit rounded border border-red-300 px-3 py-2 text-red-700">返金する</button>
+    </form>
+  </main>
+</Layout>

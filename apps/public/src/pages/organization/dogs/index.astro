@@ -1,0 +1,52 @@
+---
+// ADM-05 保護犬一覧 — PRD-04 §3-2
+// TODO(ADM-05): replace mockDogs with listOwnDogs() — F-05-01.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getOrganizationSession } from "$lib/server/auth/organization-session";
+import { mockDogs } from "$lib/mocks";
+import type { DogSummary } from "$lib/view-models/dog";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getOrganizationSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/organization/login", 302);
+
+const dogs: DogSummary[] = mockDogs;
+---
+
+<Layout title="保護犬">
+  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
+    <header class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">保護犬</h1>
+      <a href="/organization/dogs/add" class="text-sm underline">保護犬を登録する</a>
+    </header>
+
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b">
+          <th class="py-2">名前</th>
+          <th class="py-2">犬種</th>
+          <th class="py-2">サイズ</th>
+          <th class="py-2">譲渡状況</th>
+          <th class="py-2">お散歩</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          dogs.map((dog) => (
+            <tr class="border-b">
+              <td class="py-2">
+                <a href={`/organization/dogs/${dog.id}`}>{dog.name}</a>
+              </td>
+              <td class="py-2">{dog.breed}</td>
+              <td class="py-2">{dog.size}</td>
+              <td class="py-2">{dog.adoptionStatus}</td>
+              <td class="py-2">{dog.walkEligible ? "可" : "不可"}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </main>
+</Layout>

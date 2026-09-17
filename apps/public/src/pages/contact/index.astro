@@ -1,0 +1,37 @@
+---
+// SCR-41 お問い合わせ — PRD-04 §3-1
+// The API route already exists (apps/public/src/pages/api/v1/inquiries/index.ts), so this screen
+// only needs the form.
+// TODO(SCR-41): wire the form to POST /api/v1/inquiries and show validation errors — F-14-03.
+import Layout from "../../layouts/Layout.astro";
+---
+
+<Layout title="お問い合わせ">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">お問い合わせ</h1>
+
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/inquiries">
+      <label class="grid gap-1">
+        <span>お問い合わせ種別</span>
+        <select name="type" class="rounded border border-gray-300 px-3 py-2">
+          <option value="general">サービスについて</option>
+          <option value="reservation">予約について</option>
+          <option value="organization">保護団体の登録について</option>
+        </select>
+      </label>
+      <label class="grid gap-1">
+        <span>お名前</span>
+        <input type="text" name="name" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>メールアドレス</span>
+        <input type="email" name="email" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>お問い合わせ内容</span>
+        <textarea name="message" rows="6" required class="rounded border border-gray-300 px-3 py-2"></textarea>
+      </label>
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">送信する</button>
+    </form>
+  </main>
+</Layout>

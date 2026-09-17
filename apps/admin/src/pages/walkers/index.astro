@@ -1,0 +1,47 @@
+---
+// SYS-02 お散歩参加者一覧 — PRD-04 §3-3
+// TODO(SYS-02): replace mockWalkers with listWalkers() — F-15-02.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockWalkers } from "$lib/mocks";
+import type { WalkerSummary } from "$lib/view-models/walker";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const walkers: WalkerSummary[] = mockWalkers;
+---
+
+<Layout title="お散歩参加者 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">お散歩参加者</h1>
+
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b">
+          <th class="py-2">氏名</th>
+          <th class="py-2">メールアドレス</th>
+          <th class="py-2">状態</th>
+          <th class="py-2">登録日</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          walkers.map((walker) => (
+            <tr class="border-b">
+              <td class="py-2">
+                <a href={`/walkers/${walker.id}`}>{walker.name}</a>
+              </td>
+              <td class="py-2">{walker.email}</td>
+              <td class="py-2">{walker.profileStatus}</td>
+              <td class="py-2">{walker.createdAt}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </main>
+</Layout>

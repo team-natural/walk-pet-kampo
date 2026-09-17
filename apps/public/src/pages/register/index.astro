@@ -1,0 +1,31 @@
+---
+// SCR-08 参加者登録 — PRD-04 §3-1
+// TODO(SCR-08): post to registerWalker() and redirect to /register/complete — F-02-01.
+import Layout from "../../layouts/Layout.astro";
+---
+
+<Layout title="参加者登録">
+  <main class="mx-auto flex min-h-dvh max-w-md flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">参加者登録</h1>
+
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/walkers">
+      <label class="grid gap-1">
+        <span>お名前</span>
+        <input type="text" name="name" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>メールアドレス</span>
+        <input type="email" name="email" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>パスワード</span>
+        <input type="password" name="password" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="flex items-start gap-2">
+        <input type="checkbox" name="termsAgreed" required />
+        <span><a href="/terms" class="underline">利用規約</a>と<a href="/privacy" class="underline">プライバシーポリシー</a>に同意します</span>
+      </label>
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">登録する</button>
+    </form>
+  </main>
+</Layout>

@@ -1,0 +1,46 @@
+---
+// SYS-20 事故・トラブル詳細 — PRD-04 §3-3
+// TODO(SYS-20): replace mockIncidentDetail with getIncident() and post transitionIncident()
+// — F-15-10, F-12-03.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockIncidentDetail } from "$lib/mocks";
+import type { IncidentDetail } from "$lib/view-models/incident";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const { publicId } = Astro.params;
+const incident: IncidentDetail = mockIncidentDetail;
+---
+
+<Layout title="事故・トラブルの詳細 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{incident.category}（{incident.severity}）</h1>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-muted-foreground">団体</dt> <dd class="inline">{incident.organizationName}</dd></div>
+      <div><dt class="inline text-muted-foreground">発生日時</dt> <dd class="inline">{incident.occurredAt}</dd></div>
+      <div><dt class="inline text-muted-foreground">報告者</dt> <dd class="inline">{incident.reportedByName}</dd></div>
+      <div><dt class="inline text-muted-foreground">参加者 / 犬</dt> <dd class="inline">{incident.walkerName} / {incident.dogName}</dd></div>
+      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{incident.status}</dd></div>
+    </dl>
+
+    <p class="text-sm whitespace-pre-wrap">{incident.description}</p>
+
+    <form class="grid gap-3 text-sm" method="post" action={`/api/v1/incidents/${incident.id}/transition`}>
+      <label class="grid gap-1">
+        <span>再発防止策</span>
+        <textarea name="preventionMeasures" rows="3" class="rounded border px-3 py-2">{incident.preventionMeasures}</textarea>
+      </label>
+      <div class="flex gap-2">
+        <button type="submit" name="to" value="investigating" class="rounded border px-3 py-2">調査中にする</button>
+        <button type="submit" name="to" value="resolved" class="rounded border px-3 py-2">対応完了にする</button>
+        <button type="submit" name="to" value="closed" class="rounded border px-3 py-2">クローズする</button>
+      </div>
+    </form>
+  </main>
+</Layout>

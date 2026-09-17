@@ -1,0 +1,27 @@
+---
+// SCR-19 予約・決済完了 — PRD-04 §3-1（認証必要）
+// The reservation is not confirmed here: Stripe's webhook moves it to confirmed (DEV-10 §2-2),
+// so this screen reports that payment was accepted, not that the booking is final.
+// TODO(SCR-19): replace mockReservationDetail with getReservationByPublicId() — F-08-02.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockReservationDetail } from "$lib/mocks";
+import type { ReservationDetail } from "$lib/view-models/reservation";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/auth/login", 302);
+
+const reservation: ReservationDetail = mockReservationDetail;
+---
+
+<Layout title="お支払いが完了しました">
+  <main class="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
+    <h1 class="text-2xl font-bold">お支払いが完了しました</h1>
+    <p class="text-sm text-gray-600">{reservation.walkSlot.title} / {reservation.walkSlot.startAt}</p>
+    <p class="text-sm text-gray-600">予約の確定処理が完了しだい、メールでお知らせします。</p>
+    <a href={`/mypage/reservations/${reservation.id}`} class="underline">予約の詳細を見る</a>
+  </main>
+</Layout>

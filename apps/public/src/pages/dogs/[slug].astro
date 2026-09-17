@@ -1,0 +1,30 @@
+---
+// SCR-05 保護犬詳細 — PRD-04 §3-1
+// TODO(SCR-05): replace mockDogDetail with getDogBySlug() — F-07-02, F-11-01.
+import Layout from "../../layouts/Layout.astro";
+import { mockDogDetail } from "$lib/mocks";
+import type { DogDetail } from "$lib/view-models/dog";
+
+const { slug } = Astro.params;
+const dog: DogDetail = mockDogDetail;
+---
+
+<Layout title={`${dog.name} — 保護犬`}>
+  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 p-6" data-slug={slug}>
+    <header class="grid gap-2">
+      <h1 class="text-2xl font-bold">{dog.name}</h1>
+      <p class="text-sm text-gray-600">{dog.breed} / {dog.size} / {dog.gender} / {dog.estimatedAge}</p>
+    </header>
+
+    <section class="grid gap-2 text-sm">
+      <p>{dog.introduction}</p>
+      <dl class="grid gap-1">
+        <div><dt class="inline text-gray-500">性格</dt> <dd class="inline">{dog.temperament}</dd></div>
+        <div><dt class="inline text-gray-500">散歩の注意</dt> <dd class="inline">{dog.walkNotes}</dd></div>
+        <div><dt class="inline text-gray-500">必要な経験</dt> <dd class="inline">{dog.requiredExperience}</dd></div>
+      </dl>
+    </section>
+
+    <a href={`/dogs/${dog.slug}/adoption-inquiry`} class="underline">里親について相談する</a>
+  </main>
+</Layout>

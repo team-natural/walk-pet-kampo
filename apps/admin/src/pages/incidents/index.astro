@@ -1,0 +1,49 @@
+---
+// SYS-19 事故・トラブル一覧（横断） — PRD-04 §3-3
+// TODO(SYS-19): replace mockIncidents with listIncidents() — F-15-10.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockIncidents } from "$lib/mocks";
+import type { IncidentSummary } from "$lib/view-models/incident";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const incidents: IncidentSummary[] = mockIncidents;
+---
+
+<Layout title="事故・トラブル — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">事故・トラブル</h1>
+
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b">
+          <th class="py-2">発生日時</th>
+          <th class="py-2">団体</th>
+          <th class="py-2">重大度</th>
+          <th class="py-2">種別</th>
+          <th class="py-2">状態</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          incidents.map((incident) => (
+            <tr class="border-b">
+              <td class="py-2">
+                <a href={`/incidents/${incident.id}`}>{incident.occurredAt}</a>
+              </td>
+              <td class="py-2">{incident.organizationName}</td>
+              <td class="py-2">{incident.severity}</td>
+              <td class="py-2">{incident.category}</td>
+              <td class="py-2">{incident.status}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </main>
+</Layout>

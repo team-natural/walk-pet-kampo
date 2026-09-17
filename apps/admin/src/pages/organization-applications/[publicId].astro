@@ -1,0 +1,49 @@
+---
+// SYS-05 申請詳細・審査 — PRD-04 §3-3
+// Organization review is the one transition that lives in apps/admin rather than apps/public
+// (DEV-09 §2-1-5), so this screen calls a local Service, not the RPC.
+// TODO(SYS-05): replace mockOrganizationDetail with getOrganizationApplication() and post
+// transitionOrganization() — F-15-03.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockOrganizationDetail } from "$lib/mocks";
+import type { OrganizationDetail } from "$lib/view-models/organization";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const { publicId } = Astro.params;
+const organization: OrganizationDetail = mockOrganizationDetail;
+---
+
+<Layout title="申請の審査 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{organization.name}</h1>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-muted-foreground">代表者</dt> <dd class="inline">{organization.representativeName}</dd></div>
+      <div><dt class="inline text-muted-foreground">法人格</dt> <dd class="inline">{organization.hasCorporateStatus ? "あり" : "なし"}</dd></div>
+      <div><dt class="inline text-muted-foreground">所在地</dt> <dd class="inline">{organization.address}</dd></div>
+      <div><dt class="inline text-muted-foreground">連絡先</dt> <dd class="inline">{organization.email} / {organization.phone}</dd></div>
+      <div><dt class="inline text-muted-foreground">活動開始</dt> <dd class="inline">{organization.activityStartedOn}</dd></div>
+      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{organization.status}</dd></div>
+    </dl>
+
+    <p class="text-sm whitespace-pre-wrap">{organization.introduction}</p>
+
+    <form class="grid gap-3 text-sm" method="post" action={`/api/v1/organizations/${organization.id}/transition`}>
+      <label class="grid gap-1">
+        <span>差し戻し・否認の理由</span>
+        <textarea name="reason" rows="3" class="rounded border px-3 py-2"></textarea>
+      </label>
+      <div class="flex gap-2">
+        <button type="submit" name="to" value="approved" class="rounded border px-3 py-2">承認する</button>
+        <button type="submit" name="to" value="needs_more_info" class="rounded border px-3 py-2">差し戻す</button>
+        <button type="submit" name="to" value="rejected" class="rounded border border-red-300 px-3 py-2 text-red-700">否認する</button>
+      </div>
+    </form>
+  </main>
+</Layout>

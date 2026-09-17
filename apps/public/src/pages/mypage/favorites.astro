@@ -1,0 +1,52 @@
+---
+// SCR-29 お気に入り — PRD-04 §3-1（認証必要）
+// favorites is polymorphic (favoritable_type / favoritable_id — DEV-07 §5-17), so the Service
+// returns each kind already resolved rather than the screen branching on the raw pair.
+// TODO(SCR-29): replace the mocks with listWalkerFavorites() — F-02-04.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockDogs, mockOrganizations } from "$lib/mocks";
+import type { DogSummary } from "$lib/view-models/dog";
+import type { OrganizationSummary } from "$lib/view-models/organization";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/auth/login", 302);
+
+const dogs: DogSummary[] = mockDogs;
+const organizations: OrganizationSummary[] = mockOrganizations;
+---
+
+<Layout title="お気に入り">
+  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 p-6">
+    <h1 class="text-2xl font-bold">お気に入り</h1>
+
+    <section class="grid gap-2">
+      <h2 class="text-lg font-semibold">保護犬</h2>
+      <ul class="grid gap-2 text-sm">
+        {
+          dogs.map((dog) => (
+            <li>
+              <a href={`/dogs/${dog.slug}`}>{dog.name}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="grid gap-2">
+      <h2 class="text-lg font-semibold">保護団体</h2>
+      <ul class="grid gap-2 text-sm">
+        {
+          organizations.map((organization) => (
+            <li>
+              <a href={`/organizations/${organization.slug}`}>{organization.name}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </main>
+</Layout>

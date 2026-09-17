@@ -1,0 +1,57 @@
+---
+// ADM-18 事故・トラブル報告 — PRD-04 §3-2
+// A high severity report is shared with the operator immediately, and the form says so before
+// submission rather than after (PRD-03 F-12-02).
+// TODO(ADM-18): post to createIncident() — F-12-01.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getOrganizationSession } from "$lib/server/auth/organization-session";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getOrganizationSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/organization/login", 302);
+---
+
+<Layout title="事故・トラブルの報告">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">事故・トラブルの報告</h1>
+
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/incidents" enctype="multipart/form-data">
+      <label class="grid gap-1">
+        <span>重大度</span>
+        <select name="severity" class="rounded border border-gray-300 px-3 py-2">
+          <option value="P0">P0（重大・即時対応）</option>
+          <option value="P1">P1</option>
+          <option value="P2">P2</option>
+          <option value="P3">P3</option>
+        </select>
+      </label>
+      <label class="grid gap-1">
+        <span>種別</span>
+        <select name="category" class="rounded border border-gray-300 px-3 py-2">
+          <option value="bite">咬傷</option>
+          <option value="escape">脱走</option>
+          <option value="injury">怪我</option>
+          <option value="dog_condition">犬の体調</option>
+          <option value="walker_condition">参加者の体調</option>
+          <option value="other">その他</option>
+        </select>
+      </label>
+      <label class="grid gap-1">
+        <span>発生日時</span>
+        <input type="datetime-local" name="occurredAt" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>状況</span>
+        <textarea name="description" rows="6" required class="rounded border border-gray-300 px-3 py-2"></textarea>
+      </label>
+      <label class="grid gap-1">
+        <span>添付</span>
+        <input type="file" name="attachments" multiple class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <p class="text-gray-600">重大度の高い報告は、送信と同時に運営へ共有されます。</p>
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">報告する</button>
+    </form>
+  </main>
+</Layout>

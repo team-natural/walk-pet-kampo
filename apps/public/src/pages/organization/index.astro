@@ -1,0 +1,51 @@
+---
+// ADM-01 団体ダッシュボード — PRD-04 §3-2
+// Reference skeleton for an ORGANIZATION screen: guarded, and the guard redirects rather than
+// answering 401 because this is a page, not an API route (DEV-01 §5).
+// TODO(ADM-01): replace mockOrganizationDashboard with getOrganizationDashboard() — F-15-01.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getOrganizationSession } from "$lib/server/auth/organization-session";
+import { mockOrganizationDashboard } from "$lib/mocks";
+import type { OrganizationDashboardView } from "$lib/view-models/dashboard";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getOrganizationSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/organization/login", 302);
+
+const dashboard: OrganizationDashboardView = mockOrganizationDashboard;
+---
+
+<Layout title="団体ダッシュボード">
+  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-8 p-6">
+    <header class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">ダッシュボード</h1>
+      <p class="text-sm text-gray-600">{session.name}</p>
+    </header>
+
+    <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {
+        dashboard.tiles.map((tile) => (
+          <article class="rounded border border-gray-200 p-4">
+            <p class="text-sm text-gray-600">{tile.label}</p>
+            <p class="text-2xl font-bold">{tile.value}</p>
+          </article>
+        ))
+      }
+    </section>
+
+    <section class="grid gap-2">
+      <h2 class="text-lg font-semibold">直近のお散歩枠</h2>
+      <ul class="grid gap-2 text-sm">
+        {
+          dashboard.upcomingWalks.map((walk) => (
+            <li>
+              <a href={`/organization/walks/${walk.id}`}>{walk.title}</a> — {walk.reservedCount} / {walk.capacity} 名
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </main>
+</Layout>

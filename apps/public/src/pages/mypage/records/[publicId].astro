@@ -1,0 +1,29 @@
+---
+// SCR-27 お散歩記録詳細 — PRD-04 §3-1（認証必要）
+// TODO(SCR-27): replace mockWalkRecordDetail with getWalkerRecord() — F-10-02.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockWalkRecordDetail } from "$lib/mocks";
+import type { WalkRecordDetail } from "$lib/view-models/walk-record";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/auth/login", 302);
+
+const { publicId } = Astro.params;
+const record: WalkRecordDetail = mockWalkRecordDetail;
+---
+
+<Layout title="お散歩の記録">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{record.walkSlot.title}</h1>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-gray-500">実施日</dt> <dd class="inline">{record.conductedAt}</dd></div>
+      <div><dt class="inline text-gray-500">一緒に歩いた犬</dt> <dd class="inline">{record.dogsWalked}</dd></div>
+      <div><dt class="inline text-gray-500">スタッフより</dt> <dd class="inline">{record.staffComment}</dd></div>
+    </dl>
+  </main>
+</Layout>

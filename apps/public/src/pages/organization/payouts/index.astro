@@ -1,0 +1,50 @@
+---
+// ADM-15 団体還元・振込履歴 — PRD-04 §3-2（org_admin のみ）
+// TODO(ADM-15): replace mockPayouts with listOwnPayouts() — F-09-02, F-09-04.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getOrganizationSession, isOrganizationAdmin } from "$lib/server/auth/organization-session";
+import { mockPayouts } from "$lib/mocks";
+import type { PayoutSummary } from "$lib/view-models/payout";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getOrganizationSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/organization/login", 302);
+if (!isOrganizationAdmin(session)) return Astro.redirect("/organization", 302);
+
+const payouts: PayoutSummary[] = mockPayouts;
+---
+
+<Layout title="還元・振込">
+  <main class="mx-auto flex min-h-dvh max-w-4xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">還元・振込</h1>
+
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b">
+          <th class="py-2">対象期間</th>
+          <th class="py-2">還元額</th>
+          <th class="py-2">状態</th>
+          <th class="py-2">振込日</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          payouts.map((payout) => (
+            <tr class="border-b">
+              <td class="py-2">
+                <a href={`/organization/payouts/${payout.id}`}>
+                  {payout.periodStart} 〜 {payout.periodEnd}
+                </a>
+              </td>
+              <td class="py-2">{payout.payoutAmount} 円</td>
+              <td class="py-2">{payout.status}</td>
+              <td class="py-2">{payout.paidAt}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </main>
+</Layout>

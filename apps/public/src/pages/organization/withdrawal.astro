@@ -1,0 +1,32 @@
+---
+// ADM-23 団体退会・掲載終了申請 — PRD-04 §3-2（org_admin のみ）
+// TODO(ADM-23): post to requestOrganizationWithdrawal() — F-04-05.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getOrganizationSession, isOrganizationAdmin } from "$lib/server/auth/organization-session";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getOrganizationSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/organization/login", 302);
+if (!isOrganizationAdmin(session)) return Astro.redirect("/organization", 302);
+---
+
+<Layout title="掲載終了・退会の申請">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">掲載終了・退会の申請</h1>
+    <p class="text-sm text-gray-600">公開中のお散歩募集は非公開になり、予約済みの参加者には中止の連絡が送られます。未振込の還元額がある場合は、退会後もお振り込みします。</p>
+
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/withdrawal">
+      <label class="grid gap-1">
+        <span>理由</span>
+        <textarea name="reason" rows="4" class="rounded border border-gray-300 px-3 py-2"></textarea>
+      </label>
+      <label class="flex items-start gap-2">
+        <input type="checkbox" name="confirmed" required />
+        <span>予約済みの参加者に中止の連絡が送られることを理解しました</span>
+      </label>
+      <button type="submit" class="rounded border border-red-300 px-3 py-2 text-red-700">申請する</button>
+    </form>
+  </main>
+</Layout>

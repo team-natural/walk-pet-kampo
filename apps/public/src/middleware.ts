@@ -1,8 +1,12 @@
 import { defineMiddleware } from "astro:middleware";
 
-// Walker-only areas. Astro.response.headers does not reach a Response returned from a page —
-// a redirect — so the no-store marking lives here rather than in each page's frontmatter.
-const PRIVATE_ROUTES = ["/login", "/mypage", "/api/v1/auth"];
+// Signed-in areas, across all three account systems this app serves. Astro.response.headers does
+// not reach a Response returned from a page — a redirect — so the no-store marking lives here
+// rather than in each page's frontmatter.
+//
+// `/auth` and `/organization` cover their own login and password-reset screens too: those carry
+// single-use tokens in the URL, which must not sit in a shared cache either.
+const PRIVATE_ROUTES = ["/auth", "/mypage", "/checkout", "/organization", "/api/v1/auth"];
 
 // Security headers only. Authentication is checked per route, not here.
 export const onRequest = defineMiddleware(async (context, next) => {

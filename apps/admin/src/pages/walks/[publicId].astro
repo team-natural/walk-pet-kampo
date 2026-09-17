@@ -1,0 +1,36 @@
+---
+// SYS-12 お散歩募集詳細・編集 — PRD-04 §3-3
+// TODO(SYS-12): replace mockWalkSlotDetail with getWalkSlot() and post updateWalkSlotByPlatform()
+// — F-15-06.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockWalkSlotDetail } from "$lib/mocks";
+import type { WalkSlotDetail } from "$lib/view-models/walk-slot";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const { publicId } = Astro.params;
+const slot: WalkSlotDetail = mockWalkSlotDetail;
+---
+
+<Layout title="お散歩募集の詳細 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{slot.title}</h1>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-muted-foreground">団体</dt> <dd class="inline">{slot.organizationName}</dd></div>
+      <div><dt class="inline text-muted-foreground">開催</dt> <dd class="inline">{slot.startAt}（{slot.durationMinutes} 分）</dd></div>
+      <div><dt class="inline text-muted-foreground">集合</dt> <dd class="inline">{slot.meetingPlace}</dd></div>
+      <div><dt class="inline text-muted-foreground">予約</dt> <dd class="inline">{slot.reservedCount} / {slot.capacity}</dd></div>
+      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{slot.status}</dd></div>
+    </dl>
+
+    <form method="post" action={`/api/v1/walk-slots/${slot.id}/unpublish`}>
+      <button type="submit" class="rounded border border-red-300 px-3 py-2 text-sm text-red-700">掲載を取り下げる</button>
+    </form>
+  </main>
+</Layout>

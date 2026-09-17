@@ -1,0 +1,48 @@
+---
+// SYS-04 保護団体登録申請一覧 — PRD-04 §3-3
+// The same organizations table as SYS-06, filtered to the statuses still under review.
+// TODO(SYS-04): replace mockOrganizations with listOrganizationApplications() — F-15-03.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockOrganizations } from "$lib/mocks";
+import type { OrganizationSummary } from "$lib/view-models/organization";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const applications: OrganizationSummary[] = mockOrganizations;
+---
+
+<Layout title="保護団体登録申請 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">保護団体登録申請</h1>
+
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b">
+          <th class="py-2">団体名</th>
+          <th class="py-2">エリア</th>
+          <th class="py-2">状態</th>
+          <th class="py-2">申請日</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          applications.map((application) => (
+            <tr class="border-b">
+              <td class="py-2">
+                <a href={`/organization-applications/${application.id}`}>{application.name}</a>
+              </td>
+              <td class="py-2">{application.activityArea}</td>
+              <td class="py-2">{application.status}</td>
+              <td class="py-2">{application.createdAt}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </main>
+</Layout>

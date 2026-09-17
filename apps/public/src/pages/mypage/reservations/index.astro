@@ -1,0 +1,36 @@
+---
+// SCR-24 予約履歴一覧 — PRD-04 §3-1（認証必要）
+// TODO(SCR-24): replace mockReservations with listWalkerReservations() — F-08-07.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockReservations } from "$lib/mocks";
+import type { ReservationSummary } from "$lib/view-models/reservation";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/auth/login", 302);
+
+const reservations: ReservationSummary[] = mockReservations;
+---
+
+<Layout title="予約履歴">
+  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">予約履歴</h1>
+    <ul class="grid gap-3 text-sm">
+      {
+        reservations.map((reservation) => (
+          <li class="rounded border border-gray-200 p-4">
+            <a href={`/mypage/reservations/${reservation.id}`} class="font-semibold">
+              {reservation.walkSlot.title}
+            </a>
+            <p class="text-gray-600">
+              {reservation.walkSlot.startAt} / {reservation.participantCount} 名 / {reservation.status}
+            </p>
+          </li>
+        ))
+      }
+    </ul>
+  </main>
+</Layout>

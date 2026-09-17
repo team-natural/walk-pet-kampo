@@ -1,0 +1,34 @@
+---
+// SYS-22 里親相談詳細 — PRD-04 §3-3
+// Read-only: the operator receives and records, but does not mediate (GOV-02 TBD-32).
+// TODO(SYS-22): replace mockAdoptionInquiryDetail with getAdoptionInquiry() — F-15-11.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockAdoptionInquiryDetail } from "$lib/mocks";
+import type { AdoptionInquiryDetail } from "$lib/view-models/adoption-inquiry";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const { publicId } = Astro.params;
+const inquiry: AdoptionInquiryDetail = mockAdoptionInquiryDetail;
+---
+
+<Layout title="里親相談の詳細 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{inquiry.dogName} への相談</h1>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-muted-foreground">団体</dt> <dd class="inline">{inquiry.organizationName}</dd></div>
+      <div><dt class="inline text-muted-foreground">参加者</dt> <dd class="inline">{inquiry.walkerName}</dd></div>
+      <div><dt class="inline text-muted-foreground">受付日</dt> <dd class="inline">{inquiry.createdAt}</dd></div>
+      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{inquiry.status}</dd></div>
+      <div><dt class="inline text-muted-foreground">団体の連絡日</dt> <dd class="inline">{inquiry.organizationContactedAt ?? "未連絡"}</dd></div>
+    </dl>
+
+    <p class="text-sm whitespace-pre-wrap">{inquiry.motivation}</p>
+  </main>
+</Layout>

@@ -1,0 +1,15 @@
+---
+// SCR-10 メールアドレス確認 — PRD-04 §3-1
+// TODO(SCR-10): verify the token with consumeEmailVerificationToken() and show the outcome — F-01-01.
+import Layout from "../../../layouts/Layout.astro";
+
+const { token } = Astro.params;
+---
+
+<Layout title="メールアドレスの確認">
+  <main class="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 p-6 text-center" data-token={token}>
+    <h1 class="text-2xl font-bold">メールアドレスを確認しました</h1>
+    <p class="text-sm text-gray-600">ログインしてお散歩をさがしてみましょう。</p>
+    <a href="/auth/login" class="underline">ログインする</a>
+  </main>
+</Layout>

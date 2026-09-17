@@ -1,10 +1,48 @@
 ---
+// SCR-01 トップページ — PRD-04 §3-1
+// TODO(SCR-01): replace the mocks with searchWalkSlots() / listOrganizations() — F-07-01〜03.
 import Layout from "../layouts/Layout.astro";
-import Counter from "../lib/components/counter.svelte";
+import { mockOrganizations, mockWalkSlots } from "$lib/mocks";
+import type { OrganizationSummary } from "$lib/view-models/organization";
+import type { WalkSlotSummary } from "$lib/view-models/walk-slot";
+
+const walkSlots: WalkSlotSummary[] = mockWalkSlots;
+const organizations: OrganizationSummary[] = mockOrganizations;
 ---
 
-<Layout title="apps/public">
-  <img src="/logo.svg" alt="ロゴ" width="211" height="55" />
-  <h1>apps/public</h1>
-  <Counter client:visible />
+<Layout title="保護犬おさんぽマッチング">
+  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-10 p-6">
+    <section class="grid gap-3">
+      <h1 class="text-3xl font-bold">保護犬とおさんぽに行く</h1>
+      <p class="text-sm text-gray-600">参加費はそのまま保護団体の活動費になります。</p>
+      <a href="/walks" class="underline">お散歩を探す</a>
+    </section>
+
+    <section class="grid gap-2">
+      <h2 class="text-lg font-semibold">募集中のお散歩</h2>
+      <ul class="grid gap-2 text-sm">
+        {
+          walkSlots.map((slot) => (
+            <li>
+              <a href={`/walks/${slot.id}`}>{slot.title}</a> — {slot.areaPrefecture}
+              {slot.areaCity} / 残り {slot.remainingCapacity} 名
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="grid gap-2">
+      <h2 class="text-lg font-semibold">参加保護団体</h2>
+      <ul class="grid gap-2 text-sm">
+        {
+          organizations.map((organization) => (
+            <li>
+              <a href={`/organizations/${organization.slug}`}>{organization.name}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+  </main>
 </Layout>

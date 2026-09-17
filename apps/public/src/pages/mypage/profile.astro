@@ -1,0 +1,59 @@
+---
+// SCR-22 プロフィール編集 — PRD-04 §3-1（認証必要）
+// TODO(SCR-22): replace mockWalkerProfile with getWalkerProfile() and post updateWalkerProfile()
+// — F-02-02, F-02-03.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockWalkerProfile } from "$lib/mocks";
+import type { WalkerProfileView } from "$lib/view-models/walker";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/auth/login", 302);
+
+const profile: WalkerProfileView = mockWalkerProfile;
+---
+
+<Layout title="プロフィール編集">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">プロフィール編集</h1>
+
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/walker-profile">
+      <label class="grid gap-1">
+        <span>お名前（カナ）</span>
+        <input type="text" name="nameKana" value={profile.nameKana} class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>生年月日</span>
+        <input type="date" name="birthdate" value={profile.birthdate} class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>郵便番号</span>
+        <input type="text" name="postalCode" value={profile.postalCode} class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>住所</span>
+        <input type="text" name="address" value={profile.address} class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>電話番号</span>
+        <input type="tel" name="phone" value={profile.phone} class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>緊急連絡先（氏名）</span>
+        <input type="text" name="emergencyContactName" value={profile.emergencyContactName} class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>緊急連絡先（電話番号）</span>
+        <input type="tel" name="emergencyContactPhone" value={profile.emergencyContactPhone} class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>希望エリア</span>
+        <input type="text" name="preferredArea" value={profile.preferredArea} class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">保存する</button>
+    </form>
+  </main>
+</Layout>

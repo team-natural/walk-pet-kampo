@@ -1,0 +1,46 @@
+---
+// ADM-07 保護犬詳細・編集 — PRD-04 §3-2
+// internalNotes is staff-only (PRD-04 §4-3) and appears here but never on SCR-05. The public
+// DogDetail view model cannot express it, so this screen reads it separately once the Service
+// exists.
+// TODO(ADM-07): replace mockDogDetail with getOwnDog() and post updateDog() — F-05-02, F-05-03.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getOrganizationSession } from "$lib/server/auth/organization-session";
+import { mockDogDetail } from "$lib/mocks";
+import type { DogDetail } from "$lib/view-models/dog";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getOrganizationSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/organization/login", 302);
+
+const { publicId } = Astro.params;
+const dog: DogDetail = mockDogDetail;
+---
+
+<Layout title={`${dog.name} の編集`}>
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{dog.name}</h1>
+
+    <form class="grid gap-4 text-sm" method="post" action={`/api/v1/organization/dogs/${dog.id}`}>
+      <label class="grid gap-1">
+        <span>名前</span>
+        <input type="text" name="name" value={dog.name} class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>散歩時の注意</span>
+        <textarea name="walkNotes" rows="4" class="rounded border border-gray-300 px-3 py-2">{dog.walkNotes}</textarea>
+      </label>
+      <label class="grid gap-1">
+        <span>紹介文</span>
+        <textarea name="introduction" rows="5" class="rounded border border-gray-300 px-3 py-2">{dog.introduction}</textarea>
+      </label>
+      <label class="flex items-center gap-2">
+        <input type="checkbox" name="walkEligible" checked={dog.walkEligible === 1} />
+        <span>お散歩に参加できる</span>
+      </label>
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">保存する</button>
+    </form>
+  </main>
+</Layout>

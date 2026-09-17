@@ -1,0 +1,32 @@
+---
+// SCR-31 里親相談詳細 — PRD-04 §3-1（認証必要）
+// TODO(SCR-31): replace mockAdoptionInquiryDetail with getWalkerAdoptionInquiry() — F-11-03.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockAdoptionInquiryDetail } from "$lib/mocks";
+import type { AdoptionInquiryDetail } from "$lib/view-models/adoption-inquiry";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/auth/login", 302);
+
+const { publicId } = Astro.params;
+const inquiry: AdoptionInquiryDetail = mockAdoptionInquiryDetail;
+---
+
+<Layout title={`${inquiry.dog.name} の里親相談`}>
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{inquiry.dog.name} の里親相談</h1>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-gray-500">相談先</dt> <dd class="inline">{inquiry.organization.name}</dd></div>
+      <div><dt class="inline text-gray-500">状態</dt> <dd class="inline">{inquiry.status}</dd></div>
+      <div><dt class="inline text-gray-500">希望理由</dt> <dd class="inline">{inquiry.motivation}</dd></div>
+      <div><dt class="inline text-gray-500">飼育環境</dt> <dd class="inline">{inquiry.livingEnvironment}</dd></div>
+    </dl>
+
+    <p class="text-sm text-gray-600">団体からの連絡はサービス外で直接行われます。</p>
+  </main>
+</Layout>

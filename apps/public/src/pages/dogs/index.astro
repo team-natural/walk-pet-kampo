@@ -1,0 +1,29 @@
+---
+// SCR-04 保護犬一覧 — PRD-04 §3-1
+// TODO(SCR-04): replace mockDogs with listDogs() — F-07-02.
+import Layout from "../../layouts/Layout.astro";
+import { mockDogs } from "$lib/mocks";
+import type { DogSummary } from "$lib/view-models/dog";
+
+const dogs: DogSummary[] = mockDogs;
+---
+
+<Layout title="保護犬をさがす">
+  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-8 p-6">
+    <h1 class="text-2xl font-bold">保護犬をさがす</h1>
+    <ul class="grid gap-4">
+      {
+        dogs.map((dog) => (
+          <li class="rounded border border-gray-200 p-4">
+            <a href={`/dogs/${dog.slug}`} class="font-semibold">
+              {dog.name}
+            </a>
+            <p class="text-sm text-gray-600">
+              {dog.breed} / {dog.size} / {dog.estimatedAge}
+            </p>
+          </li>
+        ))
+      }
+    </ul>
+  </main>
+</Layout>

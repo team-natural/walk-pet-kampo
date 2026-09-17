@@ -1,0 +1,36 @@
+---
+// SCR-39 利用規約 — PRD-04 §3-1
+// Written directly in the page, with only the version in lib/legal.ts (GOV-01 D-016).
+// TODO(SCR-39): replace the placeholder articles with the reviewed text and bump TERMS_VERSION in
+// the same commit — OPS-01.
+import Layout from "../layouts/Layout.astro";
+import { TERMS_VERSION } from "$lib/legal";
+---
+
+<Layout title="利用規約">
+  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 p-6">
+    <header class="grid gap-1">
+      <h1 class="text-2xl font-bold">利用規約</h1>
+      <p class="text-sm text-gray-600">制定日: {TERMS_VERSION}</p>
+    </header>
+
+    <section class="grid gap-4 text-sm">
+      <article class="grid gap-1">
+        <h2 class="font-semibold">第 1 条（適用）</h2>
+        <p>本規約は、本サービスの提供条件および当社と利用者との間の権利義務関係を定めるものです。</p>
+      </article>
+      <article class="grid gap-1">
+        <h2 class="font-semibold">第 2 条（利用登録）</h2>
+        <p>利用者は、本規約に同意のうえ、所定の方法により利用登録を行うものとします。</p>
+      </article>
+      <article class="grid gap-1">
+        <h2 class="font-semibold">第 3 条（お散歩への参加）</h2>
+        <p>お散歩への参加にあたっては、保護団体の指示に従うものとします。</p>
+      </article>
+      <article class="grid gap-1">
+        <h2 class="font-semibold">第 4 条（免責事項）</h2>
+        <p>事故発生時の責任分担については、確定後に本条へ反映します。</p>
+      </article>
+    </section>
+  </main>
+</Layout>

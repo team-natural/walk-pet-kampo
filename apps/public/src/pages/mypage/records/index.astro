@@ -1,0 +1,34 @@
+---
+// SCR-26 お散歩記録一覧 — PRD-04 §3-1（認証必要）
+// TODO(SCR-26): replace mockWalkRecords with listWalkerRecords() — F-10-02.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockWalkRecords } from "$lib/mocks";
+import type { WalkRecordSummary } from "$lib/view-models/walk-record";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/auth/login", 302);
+
+const records: WalkRecordSummary[] = mockWalkRecords;
+---
+
+<Layout title="お散歩の記録">
+  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">お散歩の記録</h1>
+    <ul class="grid gap-3 text-sm">
+      {
+        records.map((record) => (
+          <li class="rounded border border-gray-200 p-4">
+            <a href={`/mypage/records/${record.id}`} class="font-semibold">
+              {record.walkSlot.title}
+            </a>
+            <p class="text-gray-600">{record.conductedAt}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </main>
+</Layout>

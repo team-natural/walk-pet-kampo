@@ -1,0 +1,27 @@
+---
+// ADM-00 団体ログイン — PRD-04 §3-2
+// A separate screen from the Walker login (SCR-11): different table, different cookie, different
+// code path (DEV-02 §1-4). Issuing the session is blocked on GOV-01 D-021.
+// TODO(ADM-00): post to the organization login endpoint once scoped lockout keys land — F-01-03 相当.
+import Layout from "../../layouts/Layout.astro";
+---
+
+<Layout title="団体ログイン">
+  <main class="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 p-6">
+    <h1 class="text-2xl font-bold">団体ログイン</h1>
+
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/auth/login">
+      <label class="grid gap-1">
+        <span>メールアドレス</span>
+        <input type="email" name="email" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>パスワード</span>
+        <input type="password" name="password" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">ログイン</button>
+    </form>
+
+    <a href="/organization/forgot-password" class="text-sm underline">パスワードをお忘れの方</a>
+  </main>
+</Layout>

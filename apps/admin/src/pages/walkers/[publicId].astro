@@ -1,0 +1,40 @@
+---
+// SYS-03 参加者詳細・編集 — PRD-04 §3-3
+// Restricting or suspending a walker changes WalkerProfile.status, whose transition function
+// lives in apps/public. This screen calls it over the Service Binding RPC (GOV-01 D-022).
+// TODO(SYS-03): replace mockWalkerDetail with getWalker() and post transitionWalkerProfile()
+// — F-15-02.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockWalkerDetail } from "$lib/mocks";
+import type { WalkerDetail } from "$lib/view-models/walker";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const { publicId } = Astro.params;
+const walker: WalkerDetail = mockWalkerDetail;
+---
+
+<Layout title="参加者の詳細 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{walker.name}</h1>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-muted-foreground">メールアドレス</dt> <dd class="inline">{walker.email}</dd></div>
+      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{walker.profileStatus}</dd></div>
+      <div><dt class="inline text-muted-foreground">電話番号</dt> <dd class="inline">{walker.phone}（{walker.phoneVerifiedAt ? "確認済み" : "未確認"}）</dd></div>
+      <div><dt class="inline text-muted-foreground">予約件数</dt> <dd class="inline">{walker.reservationCount} 件</dd></div>
+      <div><dt class="inline text-muted-foreground">規約同意</dt> <dd class="inline">{walker.termsAgreedVersion}</dd></div>
+    </dl>
+
+    <form class="flex gap-2 text-sm" method="post" action={`/api/v1/walkers/${walker.id}/transition`}>
+      <button type="submit" name="to" value="restricted" class="rounded border px-3 py-2">利用制限</button>
+      <button type="submit" name="to" value="suspended" class="rounded border border-red-300 px-3 py-2 text-red-700">利用停止</button>
+      <button type="submit" name="to" value="active" class="rounded border px-3 py-2">復帰</button>
+    </form>
+  </main>
+</Layout>

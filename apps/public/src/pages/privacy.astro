@@ -1,0 +1,35 @@
+---
+// SCR-40 プライバシーポリシー — PRD-04 §3-1
+// TODO(SCR-40): replace the placeholder sections with the reviewed text and bump PRIVACY_VERSION
+// in the same commit — DEV-02 §8, OPS-01.
+import Layout from "../layouts/Layout.astro";
+import { PRIVACY_VERSION } from "$lib/legal";
+---
+
+<Layout title="プライバシーポリシー">
+  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 p-6">
+    <header class="grid gap-1">
+      <h1 class="text-2xl font-bold">プライバシーポリシー</h1>
+      <p class="text-sm text-gray-600">制定日: {PRIVACY_VERSION}</p>
+    </header>
+
+    <section class="grid gap-4 text-sm">
+      <article class="grid gap-1">
+        <h2 class="font-semibold">取得する情報</h2>
+        <p>氏名、メールアドレス、電話番号、住所、緊急連絡先、お散歩の参加履歴を取得します。</p>
+      </article>
+      <article class="grid gap-1">
+        <h2 class="font-semibold">利用目的</h2>
+        <p>お散歩の予約・実施、安全管理、決済および保護団体への還元のために利用します。</p>
+      </article>
+      <article class="grid gap-1">
+        <h2 class="font-semibold">第三者提供</h2>
+        <p>緊急連絡先は、予約が確定したお散歩の担当スタッフにのみ開示します。</p>
+      </article>
+      <article class="grid gap-1">
+        <h2 class="font-semibold">保存期間</h2>
+        <p>退会後、一定期間を経過した情報は削除します。</p>
+      </article>
+    </section>
+  </main>
+</Layout>

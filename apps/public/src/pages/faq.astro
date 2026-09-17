@@ -1,0 +1,31 @@
+---
+// SCR-36 よくある質問 — PRD-04 §3-1
+// The entries come from lib/faq.ts, not D1 (GOV-01 D-016), so there is no Service to swap in and
+// no TODO here — this screen is complete apart from its visual design.
+import Layout from "../layouts/Layout.astro";
+import { FAQ } from "$lib/faq";
+
+const categories = [...new Set(FAQ.map((entry) => entry.category))];
+---
+
+<Layout title="よくある質問">
+  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 p-6">
+    <h1 class="text-2xl font-bold">よくある質問</h1>
+
+    {
+      categories.map((category) => (
+        <section class="grid gap-3">
+          <h2 class="text-lg font-semibold">{category}</h2>
+          <dl class="grid gap-4 text-sm">
+            {FAQ.filter((entry) => entry.category === category).map((entry) => (
+              <div class="grid gap-1">
+                <dt class="font-semibold">{entry.question}</dt>
+                <dd class="text-gray-600">{entry.answer}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ))
+    }
+  </main>
+</Layout>

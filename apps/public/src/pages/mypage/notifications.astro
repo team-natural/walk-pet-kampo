@@ -1,0 +1,36 @@
+---
+// SCR-32 通知一覧 — PRD-04 §3-1（認証必要）
+// TODO(SCR-32): replace mockNotifications with listWalkerNotifications() — F-13-01.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockNotifications } from "$lib/mocks";
+import type { NotificationView } from "$lib/view-models/notification";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/auth/login", 302);
+
+const notifications: NotificationView[] = mockNotifications;
+---
+
+<Layout title="お知らせ">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
+    <header class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">お知らせ</h1>
+      <a href="/mypage/notification-settings" class="text-sm underline">通知設定</a>
+    </header>
+
+    <ul class="grid gap-3 text-sm">
+      {
+        notifications.map((notification) => (
+          <li class="rounded border border-gray-200 p-4">
+            <p class={notification.readAt ? "text-gray-600" : "font-semibold"}>{notification.body}</p>
+            <p class="text-gray-500">{notification.createdAt}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </main>
+</Layout>

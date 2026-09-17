@@ -1,0 +1,33 @@
+---
+// ADM-16 還元・振込詳細 — PRD-04 §3-2（org_admin のみ）
+// TODO(ADM-16): replace mockPayoutDetail with getOwnPayout() — F-09-02.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getOrganizationSession, isOrganizationAdmin } from "$lib/server/auth/organization-session";
+import { mockPayoutDetail } from "$lib/mocks";
+import type { PayoutDetail } from "$lib/view-models/payout";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getOrganizationSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/organization/login", 302);
+if (!isOrganizationAdmin(session)) return Astro.redirect("/organization", 302);
+
+const { publicId } = Astro.params;
+const payout: PayoutDetail = mockPayoutDetail;
+---
+
+<Layout title="還元の明細">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{payout.periodStart} 〜 {payout.periodEnd} の還元</h1>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-gray-500">対象予約</dt> <dd class="inline">{payout.totalReservations} 件 / {payout.totalParticipants} 名</dd></div>
+      <div><dt class="inline text-gray-500">還元対象額</dt> <dd class="inline">{payout.grossAmount} 円</dd></div>
+      <div><dt class="inline text-gray-500">調整額</dt> <dd class="inline">{payout.adjustmentAmount} 円</dd></div>
+      <div><dt class="inline text-gray-500">振込額</dt> <dd class="inline">{payout.payoutAmount} 円</dd></div>
+      <div><dt class="inline text-gray-500">状態</dt> <dd class="inline">{payout.status}</dd></div>
+      <div><dt class="inline text-gray-500">振込予定</dt> <dd class="inline">{payout.scheduledAt}</dd></div>
+    </dl>
+  </main>
+</Layout>

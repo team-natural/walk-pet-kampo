@@ -1,0 +1,41 @@
+---
+// SCR-17 お散歩予約入力 — PRD-04 §3-1（認証必要）
+// TODO(SCR-17): replace mockWalkSlotDetail with getWalkSlotByPublicId() and post to
+// createReservation() — F-07-06.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockWalkSlotDetail } from "$lib/mocks";
+import type { WalkSlotDetail } from "$lib/view-models/walk-slot";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/auth/login", 302);
+
+const { publicId } = Astro.params;
+const slot: WalkSlotDetail = mockWalkSlotDetail;
+---
+
+<Layout title={`${slot.title} — 予約`}>
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">予約内容の入力</h1>
+    <p class="text-sm text-gray-600">{slot.title} / {slot.startAt}</p>
+
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/reservations">
+      <label class="grid gap-1">
+        <span>参加人数</span>
+        <input type="number" name="participantCount" min="1" max={slot.remainingCapacity} value="1" class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>緊急連絡先（氏名）</span>
+        <input type="text" name="emergencyContactName" class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>緊急連絡先（電話番号）</span>
+        <input type="tel" name="emergencyContactPhone" class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">確認へ進む</button>
+    </form>
+  </main>
+</Layout>

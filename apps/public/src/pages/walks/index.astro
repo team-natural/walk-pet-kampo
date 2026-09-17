@@ -1,0 +1,37 @@
+---
+// SCR-06 お散歩募集一覧 — PRD-04 §3-1
+// TODO(SCR-06): replace mockWalkSlots with searchWalkSlots() — F-07-03, F-07-04.
+import Layout from "../../layouts/Layout.astro";
+import { mockWalkSlots } from "$lib/mocks";
+import type { WalkSlotSummary } from "$lib/view-models/walk-slot";
+
+const walkSlots: WalkSlotSummary[] = mockWalkSlots;
+---
+
+<Layout title="お散歩をさがす">
+  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-8 p-6">
+    <h1 class="text-2xl font-bold">お散歩をさがす</h1>
+
+    <form class="flex flex-wrap gap-2 text-sm" method="get">
+      <input type="search" name="area" placeholder="エリア" class="rounded border border-gray-300 px-3 py-2" />
+      <input type="date" name="date" class="rounded border border-gray-300 px-3 py-2" />
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">さがす</button>
+    </form>
+
+    <ul class="grid gap-4">
+      {
+        walkSlots.map((slot) => (
+          <li class="rounded border border-gray-200 p-4">
+            <a href={`/walks/${slot.id}`} class="font-semibold">
+              {slot.title}
+            </a>
+            <p class="text-sm text-gray-600">
+              {slot.areaPrefecture}
+              {slot.areaCity} / {slot.startAt} / 残り {slot.remainingCapacity} 名 / {slot.feePerPerson} 円
+            </p>
+          </li>
+        ))
+      }
+    </ul>
+  </main>
+</Layout>

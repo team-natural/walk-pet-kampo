@@ -1,0 +1,46 @@
+---
+// SCR-07 お散歩募集詳細 — PRD-04 §3-1
+// TODO(SCR-07): replace mockWalkSlotDetail with getWalkSlotByPublicId() — F-07-05.
+import Layout from "../../layouts/Layout.astro";
+import { mockWalkSlotDetail } from "$lib/mocks";
+import type { WalkSlotDetail } from "$lib/view-models/walk-slot";
+
+const { publicId } = Astro.params;
+const slot: WalkSlotDetail = mockWalkSlotDetail;
+---
+
+<Layout title={slot.title}>
+  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 p-6" data-public-id={publicId}>
+    <header class="grid gap-2">
+      <h1 class="text-2xl font-bold">{slot.title}</h1>
+      <p class="text-sm text-gray-600">
+        <a href={`/organizations/${slot.organization.slug}`}>{slot.organization.name}</a>
+      </p>
+    </header>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-gray-500">開催</dt> <dd class="inline">{slot.startAt}（{slot.durationMinutes} 分）</dd></div>
+      <div><dt class="inline text-gray-500">集合</dt> <dd class="inline">{slot.meetingPlace}</dd></div>
+      <div><dt class="inline text-gray-500">参加費</dt> <dd class="inline">{slot.feePerPerson} 円 / 名</dd></div>
+      <div><dt class="inline text-gray-500">残り</dt> <dd class="inline">{slot.remainingCapacity} / {slot.capacity} 名</dd></div>
+      <div><dt class="inline text-gray-500">持ち物・服装</dt> <dd class="inline">{slot.clothingNotes}</dd></div>
+      <div><dt class="inline text-gray-500">注意事項</dt> <dd class="inline">{slot.precautions}</dd></div>
+      <div><dt class="inline text-gray-500">キャンセル</dt> <dd class="inline">{slot.cancellationPolicy}</dd></div>
+    </dl>
+
+    <section class="grid gap-2">
+      <h2 class="text-lg font-semibold">参加する保護犬</h2>
+      <ul class="grid gap-2 text-sm">
+        {
+          slot.dogs.map((dog) => (
+            <li>
+              <a href={`/dogs/${dog.slug}`}>{dog.name}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <a href={`/walks/${slot.id}/reserve`} class="underline">このお散歩を予約する</a>
+  </main>
+</Layout>

@@ -1,0 +1,54 @@
+---
+// ADM-06 保護犬追加 — PRD-04 §3-2
+// TODO(ADM-06): post to createDog() — F-05-02.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getOrganizationSession } from "$lib/server/auth/organization-session";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getOrganizationSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/organization/login", 302);
+---
+
+<Layout title="保護犬の登録">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">保護犬の登録</h1>
+
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/dogs" enctype="multipart/form-data">
+      <label class="grid gap-1">
+        <span>名前</span>
+        <input type="text" name="name" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>犬種</span>
+        <input type="text" name="breed" class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>サイズ</span>
+        <select name="size" class="rounded border border-gray-300 px-3 py-2">
+          <option value="small">小型</option>
+          <option value="medium">中型</option>
+          <option value="large">大型</option>
+        </select>
+      </label>
+      <label class="grid gap-1">
+        <span>必要な経験</span>
+        <select name="requiredExperience" class="rounded border border-gray-300 px-3 py-2">
+          <option value="none">不問</option>
+          <option value="some">多少あると安心</option>
+          <option value="experienced">経験者のみ</option>
+        </select>
+      </label>
+      <label class="grid gap-1">
+        <span>紹介文</span>
+        <textarea name="introduction" rows="5" class="rounded border border-gray-300 px-3 py-2"></textarea>
+      </label>
+      <label class="grid gap-1">
+        <span>写真</span>
+        <input type="file" name="photo" class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">登録する</button>
+    </form>
+  </main>
+</Layout>

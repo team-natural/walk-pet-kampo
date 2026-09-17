@@ -1,0 +1,35 @@
+---
+// ADM-04 団体スタッフ追加 — PRD-04 §3-2（org_admin のみ）
+// Sends an invitation; the invitee sets their own password on ADM-26. No password is entered here.
+// TODO(ADM-04): post to createInvitation() — F-04-03.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getOrganizationSession, isOrganizationAdmin } from "$lib/server/auth/organization-session";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getOrganizationSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/organization/login", 302);
+if (!isOrganizationAdmin(session)) return Astro.redirect("/organization", 302);
+---
+
+<Layout title="スタッフの招待">
+  <main class="mx-auto flex min-h-dvh max-w-xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">スタッフの招待</h1>
+
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/invitations">
+      <label class="grid gap-1">
+        <span>メールアドレス</span>
+        <input type="email" name="email" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>権限</span>
+        <select name="role" class="rounded border border-gray-300 px-3 py-2">
+          <option value="org_staff">スタッフ</option>
+          <option value="org_admin">管理者</option>
+        </select>
+      </label>
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">招待メールを送る</button>
+    </form>
+  </main>
+</Layout>

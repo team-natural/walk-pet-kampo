@@ -1,0 +1,23 @@
+---
+// SCR-43 特定商取引法に基づく表示 — PRD-04 §3-1
+// TODO(SCR-43): fill in the operator's legal name, address and contact once the operating entity
+// is registered — GOV-02 TBD-35, OPS-01.
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="特定商取引法に基づく表示">
+  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">特定商取引法に基づく表示</h1>
+
+    <dl class="grid gap-3 text-sm">
+      <div><dt class="font-semibold">販売事業者</dt> <dd class="text-gray-600">（確定後に記載）</dd></div>
+      <div><dt class="font-semibold">運営責任者</dt> <dd class="text-gray-600">（確定後に記載）</dd></div>
+      <div><dt class="font-semibold">所在地</dt> <dd class="text-gray-600">（確定後に記載）</dd></div>
+      <div><dt class="font-semibold">お問い合わせ</dt> <dd class="text-gray-600"><a href="/contact" class="underline">お問い合わせフォーム</a></dd></div>
+      <div><dt class="font-semibold">販売価格</dt> <dd class="text-gray-600">各お散歩募集のページに表示します。</dd></div>
+      <div><dt class="font-semibold">お支払い方法</dt> <dd class="text-gray-600">クレジットカード決済</dd></div>
+      <div><dt class="font-semibold">役務の提供時期</dt> <dd class="text-gray-600">各お散歩募集に記載の開催日時</dd></div>
+      <div><dt class="font-semibold">キャンセル・返金</dt> <dd class="text-gray-600">各お散歩募集のキャンセル規定に従います。</dd></div>
+    </dl>
+  </main>
+</Layout>

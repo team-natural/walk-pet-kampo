@@ -1,0 +1,51 @@
+---
+// SYS-17 団体還元・振込一覧 — PRD-04 §3-3
+// The chart is LayerChart (DEV-01 §2) and belongs to the design phase; the skeleton renders the
+// same figures as a table so the totals are verifiable before any chart exists.
+// TODO(SYS-17): replace mockPayouts with listPayouts() — F-15-09.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockPayouts } from "$lib/mocks";
+import type { PayoutSummary } from "$lib/view-models/payout";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const payouts: PayoutSummary[] = mockPayouts;
+---
+
+<Layout title="団体還元・振込 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">団体還元・振込</h1>
+
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b">
+          <th class="py-2">団体</th>
+          <th class="py-2">対象期間</th>
+          <th class="py-2">振込額</th>
+          <th class="py-2">状態</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          payouts.map((payout) => (
+            <tr class="border-b">
+              <td class="py-2">
+                <a href={`/payouts/${payout.id}`}>{payout.organizationName}</a>
+              </td>
+              <td class="py-2">
+                {payout.periodStart} 〜 {payout.periodEnd}
+              </td>
+              <td class="py-2">{payout.payoutAmount} 円</td>
+              <td class="py-2">{payout.status}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </main>
+</Layout>

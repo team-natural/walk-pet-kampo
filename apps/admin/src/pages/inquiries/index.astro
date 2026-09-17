@@ -1,0 +1,47 @@
+---
+// SYS-23 お問い合わせ一覧 — PRD-04 §3-3
+// No mock: inquiries is the reference resource and its Service already exists, so this screen is
+// wired to real data from the start.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { listInquiries } from "$lib/server/services/inquiries";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const { items } = await listInquiries(db, {});
+---
+
+<Layout title="お問い合わせ — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">お問い合わせ</h1>
+
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b">
+          <th class="py-2">受付日</th>
+          <th class="py-2">種別</th>
+          <th class="py-2">お名前</th>
+          <th class="py-2">状態</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          items.map((inquiry) => (
+            <tr class="border-b">
+              <td class="py-2">
+                <a href={`/inquiries/${inquiry.id}`}>{inquiry.createdAt}</a>
+              </td>
+              <td class="py-2">{inquiry.type}</td>
+              <td class="py-2">{inquiry.name}</td>
+              <td class="py-2">{inquiry.status}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </main>
+</Layout>

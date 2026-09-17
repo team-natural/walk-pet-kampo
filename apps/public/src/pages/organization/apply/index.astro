@@ -1,0 +1,40 @@
+---
+// SCR-15 保護団体登録申請 — PRD-04 §3-1
+// TODO(SCR-15): post to createOrganizationApplication() — F-03-01, F-03-02.
+import Layout from "../../../layouts/Layout.astro";
+---
+
+<Layout title="保護団体の登録申請">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">保護団体の登録申請</h1>
+    <p class="text-sm text-gray-600">運営による審査のうえ、登録の可否をご連絡します。</p>
+
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization-applications" enctype="multipart/form-data">
+      <label class="grid gap-1">
+        <span>団体名</span>
+        <input type="text" name="name" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>代表者名</span>
+        <input type="text" name="representativeName" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>連絡先メールアドレス</span>
+        <input type="email" name="email" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>活動エリア</span>
+        <input type="text" name="activityArea" class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>活動内容</span>
+        <textarea name="introduction" rows="5" class="rounded border border-gray-300 px-3 py-2"></textarea>
+      </label>
+      <label class="grid gap-1">
+        <span>提出書類</span>
+        <input type="file" name="documents" multiple class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">申請する</button>
+    </form>
+  </main>
+</Layout>

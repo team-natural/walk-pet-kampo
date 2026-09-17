@@ -1,0 +1,41 @@
+---
+// SYS-07 保護団体詳細・編集 — PRD-04 §3-3
+// TODO(SYS-07): replace mockOrganizationDetail with getOrganization() and post
+// transitionOrganization() — F-15-04.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockOrganizationDetail } from "$lib/mocks";
+import type { OrganizationDetail } from "$lib/view-models/organization";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const { publicId } = Astro.params;
+const organization: OrganizationDetail = mockOrganizationDetail;
+---
+
+<Layout title="保護団体の詳細 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <header class="flex items-center justify-between gap-4">
+      <h1 class="text-2xl font-bold">{organization.name}</h1>
+      <a href={`/organizations/${organization.id}/members`} class="text-sm underline">スタッフ</a>
+    </header>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{organization.status}</dd></div>
+      <div><dt class="inline text-muted-foreground">代表者</dt> <dd class="inline">{organization.representativeName}</dd></div>
+      <div><dt class="inline text-muted-foreground">エリア</dt> <dd class="inline">{organization.activityArea}</dd></div>
+      <div><dt class="inline text-muted-foreground">Stripe Connect</dt> <dd class="inline">{organization.stripeConnectAccountId ?? "未連携"}</dd></div>
+      <div><dt class="inline text-muted-foreground">審査日</dt> <dd class="inline">{organization.reviewedAt}</dd></div>
+    </dl>
+
+    <form class="flex gap-2 text-sm" method="post" action={`/api/v1/organizations/${organization.id}/transition`}>
+      <button type="submit" name="to" value="suspended" class="rounded border border-red-300 px-3 py-2 text-red-700">掲載停止</button>
+      <button type="submit" name="to" value="deactivated" class="rounded border border-red-300 px-3 py-2 text-red-700">活動停止</button>
+      <button type="submit" name="to" value="approved" class="rounded border px-3 py-2">再開</button>
+    </form>
+  </main>
+</Layout>

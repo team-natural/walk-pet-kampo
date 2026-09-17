@@ -1,0 +1,38 @@
+---
+// ADM-21 里親相談詳細 — PRD-04 §3-2
+// Only the enquiry text and contact details are disclosed; the walker's address is not
+// (GOV-02 TBD-34). The Service decides that, not this template.
+// TODO(ADM-21): replace mockAdoptionInquiryDetail with getOwnAdoptionInquiry() and post
+// transitionAdoptionInquiry() — F-11-02, F-11-03.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getOrganizationSession } from "$lib/server/auth/organization-session";
+import { mockAdoptionInquiryDetail } from "$lib/mocks";
+import type { AdoptionInquiryDetail } from "$lib/view-models/adoption-inquiry";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getOrganizationSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/organization/login", 302);
+
+const { publicId } = Astro.params;
+const inquiry: AdoptionInquiryDetail = mockAdoptionInquiryDetail;
+---
+
+<Layout title="里親相談の詳細">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{inquiry.dog.name} への相談</h1>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-gray-500">受付日</dt> <dd class="inline">{inquiry.createdAt}</dd></div>
+      <div><dt class="inline text-gray-500">状態</dt> <dd class="inline">{inquiry.status}</dd></div>
+      <div><dt class="inline text-gray-500">希望理由</dt> <dd class="inline">{inquiry.motivation}</dd></div>
+      <div><dt class="inline text-gray-500">飼育環境</dt> <dd class="inline">{inquiry.livingEnvironment}</dd></div>
+    </dl>
+
+    <form class="flex gap-2 text-sm" method="post" action={`/api/v1/organization/adoption-inquiries/${inquiry.id}/transition`}>
+      <button type="submit" name="to" value="contacted" class="rounded border border-gray-300 px-3 py-2">連絡済みにする</button>
+      <button type="submit" name="to" value="closed" class="rounded border border-gray-300 px-3 py-2">終了にする</button>
+    </form>
+  </main>
+</Layout>

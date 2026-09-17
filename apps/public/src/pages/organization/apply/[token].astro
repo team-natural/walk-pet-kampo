@@ -1,0 +1,32 @@
+---
+// SCR-51 保護団体登録申請の状況確認・再提出 — PRD-04 §3-1
+// The applicant has no account yet, so the URL token in organization_application_tokens is what
+// establishes who this is (GOV-01 D-020). There is no session guard here on purpose.
+// TODO(SCR-51): resolve the token with getApplicationByToken() and post the resubmission — F-03-05.
+import Layout from "../../../layouts/Layout.astro";
+import { mockOrganizationDetail } from "$lib/mocks";
+import type { OrganizationDetail } from "$lib/view-models/organization";
+
+const { token } = Astro.params;
+const organization: OrganizationDetail = mockOrganizationDetail;
+---
+
+<Layout title="申請状況の確認">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">申請状況の確認</h1>
+    <p class="text-sm text-gray-600">{organization.name} / 現在のステータス: {organization.status}</p>
+
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization-applications/resubmit" enctype="multipart/form-data">
+      <input type="hidden" name="token" value={token} />
+      <label class="grid gap-1">
+        <span>追加のご説明</span>
+        <textarea name="note" rows="5" class="rounded border border-gray-300 px-3 py-2"></textarea>
+      </label>
+      <label class="grid gap-1">
+        <span>追加書類</span>
+        <input type="file" name="documents" multiple class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">再提出する</button>
+    </form>
+  </main>
+</Layout>

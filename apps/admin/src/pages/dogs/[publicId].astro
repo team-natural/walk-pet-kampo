@@ -1,0 +1,38 @@
+---
+// SYS-10 保護犬詳細・編集 — PRD-04 §3-3
+// The cross-organization edit goes through the RPC, like the other apps/public domains
+// (GOV-01 D-022, DEV-04 §5-15).
+// TODO(SYS-10): replace mockDogDetail with getDog() and post updateDogByPlatform() — F-15-05.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockDogDetail } from "$lib/mocks";
+import type { DogDetail } from "$lib/view-models/dog";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const { publicId } = Astro.params;
+const dog: DogDetail = mockDogDetail;
+---
+
+<Layout title="保護犬の詳細 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{dog.name}</h1>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-muted-foreground">団体</dt> <dd class="inline">{dog.organizationName}</dd></div>
+      <div><dt class="inline text-muted-foreground">犬種 / サイズ</dt> <dd class="inline">{dog.breed} / {dog.size}</dd></div>
+      <div><dt class="inline text-muted-foreground">譲渡状況</dt> <dd class="inline">{dog.adoptionStatus}</dd></div>
+      <div><dt class="inline text-muted-foreground">お散歩</dt> <dd class="inline">{dog.walkEligible ? "可" : "不可"}</dd></div>
+      <div><dt class="inline text-muted-foreground">団体内メモ</dt> <dd class="inline">{dog.internalNotes}</dd></div>
+    </dl>
+
+    <form class="flex gap-2 text-sm" method="post" action={`/api/v1/dogs/${dog.id}`}>
+      <button type="submit" name="isPublished" value="0" class="rounded border border-red-300 px-3 py-2 text-red-700">非公開にする</button>
+      <button type="submit" name="isPublished" value="1" class="rounded border px-3 py-2">公開する</button>
+    </form>
+  </main>
+</Layout>

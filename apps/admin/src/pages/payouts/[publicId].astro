@@ -1,0 +1,48 @@
+---
+// SYS-18 団体還元・振込詳細 — PRD-04 §3-3
+// Payout is the one marketplace domain whose transitions live in apps/admin (DEV-09 §2-9), so
+// this screen calls a local Service rather than the RPC. A double Stripe Connect Transfer is the
+// failure to avoid, so the already-sent transfer id is shown next to the action.
+// TODO(SYS-18): replace mockPayoutDetail with getPayout() and post transitionPayout() — F-15-09.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockPayoutDetail } from "$lib/mocks";
+import type { PayoutDetail } from "$lib/view-models/payout";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const { publicId } = Astro.params;
+const payout: PayoutDetail = mockPayoutDetail;
+---
+
+<Layout title="振込の詳細 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
+    <h1 class="text-2xl font-bold">{payout.organizationName}</h1>
+
+    <dl class="grid gap-1 text-sm">
+      <div><dt class="inline text-muted-foreground">対象期間</dt> <dd class="inline">{payout.periodStart} 〜 {payout.periodEnd}</dd></div>
+      <div><dt class="inline text-muted-foreground">対象予約</dt> <dd class="inline">{payout.totalReservations} 件 / {payout.totalParticipants} 名</dd></div>
+      <div><dt class="inline text-muted-foreground">還元対象額</dt> <dd class="inline">{payout.grossAmount} 円</dd></div>
+      <div><dt class="inline text-muted-foreground">調整額</dt> <dd class="inline">{payout.adjustmentAmount} 円</dd></div>
+      <div><dt class="inline text-muted-foreground">振込額</dt> <dd class="inline">{payout.payoutAmount} 円</dd></div>
+      <div><dt class="inline text-muted-foreground">Stripe Transfer</dt> <dd class="inline">{payout.stripeTransferId ?? "未送金"}</dd></div>
+      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{payout.status}</dd></div>
+    </dl>
+
+    <form class="grid gap-3 text-sm" method="post" action={`/api/v1/payouts/${payout.id}/transition`}>
+      <label class="grid gap-1">
+        <span>調整額（円）</span>
+        <input type="number" name="adjustmentAmount" value={payout.adjustmentAmount} class="rounded border px-3 py-2" />
+      </label>
+      <div class="flex gap-2">
+        <button type="submit" name="to" value="confirmed" class="rounded border px-3 py-2">確定する</button>
+        <button type="submit" name="to" value="paid" class="rounded border px-3 py-2">振込を実行する</button>
+        <button type="submit" name="to" value="on_hold" class="rounded border border-red-300 px-3 py-2 text-red-700">保留にする</button>
+      </div>
+    </form>
+  </main>
+</Layout>

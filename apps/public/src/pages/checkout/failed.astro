@@ -1,0 +1,26 @@
+---
+// SCR-20 決済失敗・キャンセル — PRD-04 §3-1（認証必要）
+// The reservation stays awaiting_payment and is not cancelled here — the walker is invited to pay
+// again, and the slot is released by expires_at if they do not (GOV-01 D-025, DEV-10 §2-2).
+// TODO(SCR-20): replace mockReservationDetail with getReservationByPublicId() — F-08-01.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockReservationDetail } from "$lib/mocks";
+import type { ReservationDetail } from "$lib/view-models/reservation";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/auth/login", 302);
+
+const reservation: ReservationDetail = mockReservationDetail;
+---
+
+<Layout title="お支払いが完了しませんでした">
+  <main class="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
+    <h1 class="text-2xl font-bold">お支払いが完了しませんでした</h1>
+    <p class="text-sm text-gray-600">{reservation.walkSlot.title} の予約はまだ確定していません。お手数ですがもう一度お試しください。</p>
+    <a href="/checkout" class="underline">お支払いをやり直す</a>
+  </main>
+</Layout>

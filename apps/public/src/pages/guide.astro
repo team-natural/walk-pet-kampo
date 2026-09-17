@@ -1,0 +1,37 @@
+---
+// SCR-37 利用ガイド — PRD-04 §3-1
+// Written directly in the page. If this grows long enough that a non-engineer wants to edit it,
+// move it to packages/content (GOV-02 TBD-44) rather than growing the markup here.
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="利用ガイド">
+  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 p-6">
+    <h1 class="text-2xl font-bold">利用ガイド</h1>
+
+    <ol class="grid gap-4 text-sm">
+      <li class="grid gap-1">
+        <h2 class="font-semibold">1. 参加者登録をする</h2>
+        <p>メールアドレスとパスワードを登録し、確認メールのリンクから登録を完了します。</p>
+      </li>
+      <li class="grid gap-1">
+        <h2 class="font-semibold">2. お散歩をさがす</h2>
+        <p>エリアや日付で絞り込み、参加できるお散歩枠を選びます。</p>
+      </li>
+      <li class="grid gap-1">
+        <h2 class="font-semibold">3. 予約してお支払い</h2>
+        <p>参加人数と緊急連絡先を入力し、クレジットカードでお支払いいただきます。</p>
+      </li>
+      <li class="grid gap-1">
+        <h2 class="font-semibold">4. 当日、集合場所へ</h2>
+        <p>集合場所でスタッフと合流します。動きやすい服装でお越しください。</p>
+      </li>
+      <li class="grid gap-1">
+        <h2 class="font-semibold">5. 記録を振り返る</h2>
+        <p>お散歩の記録と支援実績はマイページで確認できます。</p>
+      </li>
+    </ol>
+
+    <p class="text-sm text-gray-600">安全上の注意は<a href="/safety" class="underline">安全に利用するために</a>をご覧ください。</p>
+  </main>
+</Layout>

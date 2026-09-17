@@ -1,0 +1,45 @@
+---
+// ADM-20 里親相談一覧 — PRD-04 §3-2
+// TODO(ADM-20): replace mockAdoptionInquiries with listOwnAdoptionInquiries() — F-11-02.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getOrganizationSession } from "$lib/server/auth/organization-session";
+import { mockAdoptionInquiries } from "$lib/mocks";
+import type { AdoptionInquirySummary } from "$lib/view-models/adoption-inquiry";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getOrganizationSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/organization/login", 302);
+
+const inquiries: AdoptionInquirySummary[] = mockAdoptionInquiries;
+---
+
+<Layout title="里親相談">
+  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">里親相談</h1>
+
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b">
+          <th class="py-2">保護犬</th>
+          <th class="py-2">受付日</th>
+          <th class="py-2">状態</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          inquiries.map((inquiry) => (
+            <tr class="border-b">
+              <td class="py-2">
+                <a href={`/organization/adoption-inquiries/${inquiry.id}`}>{inquiry.dog.name}</a>
+              </td>
+              <td class="py-2">{inquiry.createdAt}</td>
+              <td class="py-2">{inquiry.status}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </main>
+</Layout>

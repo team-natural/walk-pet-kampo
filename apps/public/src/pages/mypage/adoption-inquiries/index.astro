@@ -1,0 +1,36 @@
+---
+// SCR-30 里親相談一覧 — PRD-04 §3-1（認証必要）
+// TODO(SCR-30): replace mockAdoptionInquiries with listWalkerAdoptionInquiries() — F-11-03.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockAdoptionInquiries } from "$lib/mocks";
+import type { AdoptionInquirySummary } from "$lib/view-models/adoption-inquiry";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/auth/login", 302);
+
+const inquiries: AdoptionInquirySummary[] = mockAdoptionInquiries;
+---
+
+<Layout title="里親相談">
+  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">里親相談</h1>
+    <ul class="grid gap-3 text-sm">
+      {
+        inquiries.map((inquiry) => (
+          <li class="rounded border border-gray-200 p-4">
+            <a href={`/mypage/adoption-inquiries/${inquiry.id}`} class="font-semibold">
+              {inquiry.dog.name}
+            </a>
+            <p class="text-gray-600">
+              {inquiry.createdAt} / {inquiry.status}
+            </p>
+          </li>
+        ))
+      }
+    </ul>
+  </main>
+</Layout>

@@ -13,17 +13,17 @@ async function login(page: Page, email: string, password: string) {
 
 test.describe("walker login", () => {
   test("wrong credentials stay on the login screen and reveal nothing", async ({ page }) => {
-    await page.goto("/login");
+    await page.goto("/auth/login");
     await login(page, E2E_WALKER.email, "not-the-password");
 
     const alert = page.getByRole("alert");
     await expect(alert).toBeVisible();
     await expect(alert).not.toContainText(E2E_WALKER.email);
-    expect(new URL(page.url()).pathname).toBe("/login");
+    expect(new URL(page.url()).pathname).toBe("/auth/login");
   });
 
   test("correct credentials reach the mypage screen with an HttpOnly session cookie", async ({ page, context }) => {
-    await page.goto("/login");
+    await page.goto("/auth/login");
     await login(page, E2E_WALKER.email, E2E_WALKER.password);
 
     await page.waitForURL("**/mypage");
@@ -36,7 +36,7 @@ test.describe("walker login", () => {
 
   test("walker-only pages are never handed to a shared cache", async ({ page }) => {
     // Unlike the admin subdomain, this origin is cacheable by default.
-    await page.goto("/login");
+    await page.goto("/auth/login");
     await login(page, E2E_WALKER.email, E2E_WALKER.password);
     await page.waitForURL("**/mypage");
 
@@ -47,7 +47,7 @@ test.describe("walker login", () => {
   test("the mypage screen redirects when unauthenticated, uncacheably", async ({ page, request }) => {
     // Guarded in the page frontmatter, so this holds regardless of client-side JS.
     await page.goto("/mypage");
-    expect(new URL(page.url()).pathname).toBe("/login");
+    expect(new URL(page.url()).pathname).toBe("/auth/login");
 
     // The redirect itself must not be cacheable either — a shared cache would otherwise pin
     // one visitor's authenticated/anonymous answer for everyone.
@@ -62,11 +62,11 @@ test.describe("walker login", () => {
     await context.addCookies([{ name: "admin_session", value: "some-admin-token", url: baseURL! }]);
     await page.goto("/mypage");
 
-    expect(new URL(page.url()).pathname).toBe("/login");
+    expect(new URL(page.url()).pathname).toBe("/auth/login");
   });
 
   test("logging out revokes the session, not just the cookie", async ({ page }) => {
-    await page.goto("/login");
+    await page.goto("/auth/login");
     await login(page, E2E_WALKER.email, E2E_WALKER.password);
     await page.waitForURL("**/mypage");
 
@@ -74,19 +74,20 @@ test.describe("walker login", () => {
     await page.waitForURL(/\/$/);
 
     await page.goto("/mypage");
-    expect(new URL(page.url()).pathname).toBe("/login");
+    expect(new URL(page.url()).pathname).toBe("/auth/login");
   });
 });
 
 test.describe("public site", () => {
-  test("the top page renders and its island hydrates", async ({ page }) => {
+  test("the top page renders and its search entry point routes", async ({ page }) => {
+    // SCR-01 carries no island of its own, so the hydration check lives in the login flow above
+    // rather than here — a missing client:* directive still renders server-side, and only an
+    // interaction catches it.
     await page.goto("/");
 
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    // A missing client:* directive still renders server-side, so only an interaction catches it.
-    const counter = page.getByRole("button", { name: /カウント/ });
-    await counter.click();
-    await expect(counter).toHaveText(/カウント: 1/);
+    await page.getByRole("link", { name: "お散歩を探す" }).click();
+    await expect(page).toHaveURL(/\/walks$/);
   });
 
   test("the middleware's security headers are present", async ({ page }) => {

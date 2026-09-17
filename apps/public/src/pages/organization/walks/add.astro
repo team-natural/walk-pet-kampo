@@ -1,0 +1,57 @@
+---
+// ADM-09 お散歩募集追加 — PRD-04 §3-2
+// TODO(ADM-09): post to createWalkSlot() — F-06-01.
+import { env } from "cloudflare:workers";
+import Layout from "../../../layouts/Layout.astro";
+import { getOrganizationSession } from "$lib/server/auth/organization-session";
+import { mockDogs } from "$lib/mocks";
+import type { DogSummary } from "$lib/view-models/dog";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getOrganizationSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/organization/login", 302);
+
+const dogs: DogSummary[] = mockDogs;
+---
+
+<Layout title="お散歩募集の作成">
+  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">お散歩募集の作成</h1>
+
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/walk-slots">
+      <label class="grid gap-1">
+        <span>タイトル</span>
+        <input type="text" name="title" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>開催日時</span>
+        <input type="datetime-local" name="startAt" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>所要時間（分）</span>
+        <input type="number" name="durationMinutes" value="60" class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>集合場所</span>
+        <input type="text" name="meetingPlace" required class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <label class="grid gap-1">
+        <span>定員</span>
+        <input type="number" name="capacity" min="1" value="4" class="rounded border border-gray-300 px-3 py-2" />
+      </label>
+      <fieldset class="grid gap-2 rounded border border-gray-200 p-4">
+        <legend class="px-1">参加する保護犬</legend>
+        {
+          dogs.map((dog) => (
+            <label class="flex items-center gap-2">
+              <input type="checkbox" name="dogIds" value={dog.id} />
+              <span>{dog.name}</span>
+            </label>
+          ))
+        }
+      </fieldset>
+      <button type="submit" class="rounded border border-gray-300 px-3 py-2">作成する</button>
+    </form>
+  </main>
+</Layout>

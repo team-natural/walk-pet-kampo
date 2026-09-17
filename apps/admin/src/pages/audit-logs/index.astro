@@ -1,0 +1,51 @@
+---
+// SYS-25 管理操作履歴 — PRD-04 §3-3
+// activity_log is append-only, so this screen has no action of any kind — a delete here would
+// defeat the record it displays.
+// TODO(SYS-25): replace mockAuditLog with listActivityLog() — F-15-13.
+import { env } from "cloudflare:workers";
+import Layout from "../../layouts/Layout.astro";
+import { getSession } from "$lib/server/auth/session";
+import { mockAuditLog } from "$lib/mocks";
+import type { AuditLogEntry } from "$lib/view-models/audit-log";
+import { createDb } from "@app/schema/client";
+
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect("/", 302);
+
+const entries: AuditLogEntry[] = mockAuditLog;
+---
+
+<Layout title="管理操作履歴 — Admin console">
+  <main class="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 p-6">
+    <h1 class="text-2xl font-bold">管理操作履歴</h1>
+
+    <table class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b">
+          <th class="py-2">日時</th>
+          <th class="py-2">操作者</th>
+          <th class="py-2">対象</th>
+          <th class="py-2">内容</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          entries.map((entry) => (
+            <tr class="border-b">
+              <td class="py-2">{entry.createdAt}</td>
+              <td class="py-2">
+                {entry.causerName}（{entry.causerType}）
+              </td>
+              <td class="py-2">
+                {entry.subjectType} #{entry.subjectId}
+              </td>
+              <td class="py-2">{entry.description}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </main>
+</Layout>
