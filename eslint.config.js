@@ -10,6 +10,35 @@ import tseslint from "typescript-eslint";
 import adminSvelteConfig from "./apps/admin/svelte.config.js";
 import publicSvelteConfig from "./apps/public/svelte.config.js";
 
+// CLAUDE.md requires English comments in source. Prose cannot enforce that, so it lives here —
+// the UI text is Japanese and sits inches away in the same files, which is exactly why a comment
+// slips into Japanese without anyone noticing in review.
+const localPlugin = {
+  rules: {
+    "english-comments": {
+      meta: {
+        type: "problem",
+        docs: { description: "Source comments must be written in English." },
+        schema: [],
+      },
+      create(context) {
+        const JAPANESE = /[぀-ゟ゠-ヿ一-鿿]/;
+        return {
+          Program() {
+            for (const comment of context.sourceCode.getAllComments()) {
+              if (!JAPANESE.test(comment.value)) continue;
+              context.report({
+                loc: comment.loc,
+                message: "Write comments in English. Refer to a spec item by its id (SCR-17, D-022) rather than translating its Japanese name — CLAUDE.md.",
+              });
+            }
+          },
+        };
+      },
+    },
+  },
+};
+
 export default tseslint.config(
   {
     ignores: ["**/dist/", "**/.astro/", "**/.wrangler/", "**/.turbo/", "**/node_modules/", "**/worker-configuration.d.ts"],
@@ -22,6 +51,8 @@ export default tseslint.config(
     languageOptions: {
       globals: { ...globals.browser, ...globals.node },
     },
+    plugins: { local: localPlugin },
+    rules: { "local/english-comments": "error" },
   },
   // Each app has its own svelte.config.js; passing it to the parser is what makes
   // preprocessor-aware rules (svelte/valid-compile etc.) accurate.

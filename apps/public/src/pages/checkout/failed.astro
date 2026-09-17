@@ -1,5 +1,5 @@
 ---
-// SCR-20 決済失敗・キャンセル — PRD-04 §3-1（認証必要）
+// SCR-20 — PRD-04 §3-1 (guarded)
 // The reservation stays awaiting_payment and is not cancelled here — the walker is invited to pay
 // again, and the slot is released by expires_at if they do not (GOV-01 D-025, DEV-10 §2-2).
 // TODO(SCR-20): replace mockReservationDetail with getReservationByPublicId() — F-08-01.

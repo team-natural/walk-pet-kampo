@@ -22,7 +22,7 @@ interface Screen {
 }
 
 // ADM-00/24/25/26 are the ways in for someone who has no session yet: login, the two password
-// reset steps, and invitation acceptance (PRD-04 §3-2). Every other 保護団体ページ is guarded.
+// reset steps, and invitation acceptance (PRD-04 §3-2). Every other ADM screen is guarded.
 const UNGUARDED_ADM = new Set(["ADM-00", "ADM-24", "ADM-25", "ADM-26"]);
 
 function parseScreens(markdown: string): Screen[] {
@@ -33,7 +33,7 @@ function parseScreens(markdown: string): Screen[] {
     const [, id, name, , component, ...rest] = cells;
     if (!id || !/^(SCR|ADM|SYS)-\d+$/.test(id)) continue;
 
-    // Strip the `（実装済み）` annotation and the backticks around the path.
+    // Strip the parenthesised annotation the doc adds to shipped screens, and the backticks.
     const path = component
       ?.replace(/（[^）]*）/g, "")
       .replace(/`/g, "")

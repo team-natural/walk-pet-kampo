@@ -7,7 +7,7 @@ import { isPrivateRoute } from "./src/lib/private-routes";
 
 export default defineConfig({
   output: "server",
-  // Placeholder until the brand domain is registered (GOV-02 TBD-35・TBD-37). It must not be
+  // Placeholder until the brand domain is registered (GOV-02 TBD-35, TBD-37). It must not be
   // empty: canonical and OGP would fall back to relative URLs, and a shared link would then
   // resolve to nothing.
   //

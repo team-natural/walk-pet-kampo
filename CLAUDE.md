@@ -176,6 +176,18 @@ this team's own.
 `shadcn-svelte` components are added with `npx shadcn-svelte add <component>` from inside
 `apps/admin`. The CLI writes tab-indented files, so run `pnpm format` afterwards.
 
+## Committing
+
+**Ask before every commit, every time.** Do not run `git commit`, `git push`, `git reset`, or
+anything else that writes or rewrites history until the user has confirmed that specific commit.
+
+- Approval of one commit is not approval of the next one. A stated intention to commit later
+  ("あとでコミットする") is not approval either.
+- The default is: propose the message, say what would be staged, and stop.
+- `git add` and read-only commands (`status`, `diff`, `log`) need no confirmation.
+- Creating or switching branches also needs confirmation — it changes what the next commit lands
+  on.
+
 ## Editing files
 
 Always create/modify files with the `Edit` / `Write` tools, never `Bash` (`sed`, `echo >`,
@@ -184,7 +196,20 @@ heredocs). The PostToolUse hook (`.claude/hooks/format-and-check.sh`) only fires
 
 ## Comments
 
-Write the code first with no comments, then add back only the ones that survive this test:
+**Every comment in source is English** — `.ts`, `.astro` frontmatter, `.svelte`, tests, config
+files, shell scripts. The UI text and everything under `docs/` is Japanese; comments are not.
+
+Refer to a spec item by its id (`SCR-17`, `ADM-09`, `F-08-04`, `D-022`, `TBD-58`) instead of
+translating its Japanese name. A translated name is a second name for the same thing, and it
+drifts from `docs/` the first time the spec is reworded.
+
+`eslint.config.js` enforces this (`local/english-comments`) for `.ts`, `.astro` frontmatter and
+`.svelte`. CSS, `.jsonc` and shell scripts are outside what ESLint parses here — the rule still
+applies to them, nothing checks it. Quoting a Japanese string the code actually matches on is a
+literal, not a comment; if one has to sit inside a comment, disable the rule on that line and say
+why.
+
+Then: write the code first with no comments, and add back only the ones that survive this test:
 
 **Name the specific mistake the comment prevents. If you cannot name one, delete it.**
 

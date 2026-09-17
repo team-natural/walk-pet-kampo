@@ -31,7 +31,7 @@ function parseScreens(markdown: string): Screen[] {
     const [, id, name, , component] = cells;
     if (!id || !/^SYS-\d+$/.test(id)) continue;
 
-    // Strip the `（実装済み）` annotation and the backticks around the path.
+    // Strip the parenthesised annotation the doc adds to shipped screens, and the backticks.
     const path = component
       ?.replace(/（[^）]*）/g, "")
       .replace(/`/g, "")

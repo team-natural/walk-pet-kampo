@@ -1,6 +1,6 @@
-// Money and the cancellation rules, in one place (GOV-01 D-016, DEV-06 §1-1). SCR-18 決済確認,
-// SCR-25 キャンセル and SCR-43 特定商取引法に基づく表示 must all state the same figures, and a
-// number typed into a template is how they stop matching.
+// Money and the cancellation rules, in one place (GOV-01 D-016, DEV-06 §1-1). SCR-18, SCR-25 and
+// SCR-43 must all state the same figures, and a number typed into a template is how they stop
+// matching.
 //
 // A walk slot carries its own `fee_per_person` (DEV-07 §5-9), so a screen showing a specific
 // slot reads that column — these are the defaults and the values shown where no slot is in

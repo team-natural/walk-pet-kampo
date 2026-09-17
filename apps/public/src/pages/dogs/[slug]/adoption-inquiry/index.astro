@@ -1,7 +1,7 @@
 ---
-// SCR-49 里親相談フォーム — PRD-04 §3-1（認証必要）
+// SCR-49 — PRD-04 §3-1 (guarded)
 // An independent page rather than a modal on SCR-05, so a signed-out visitor can be redirected
-// here after logging in (PRD-04 §3-1 の注記).
+// here after logging in (PRD-04 §3-1, note).
 // TODO(SCR-49): replace mockDogDetail with getDogBySlug() and post createAdoptionInquiry() — F-11-01.
 import { env } from "cloudflare:workers";
 import Layout from "../../../../layouts/Layout.astro";
