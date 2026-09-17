@@ -125,6 +125,12 @@ Two rules that look like implementation details but are not:
 page frontmatter: `Astro.response.headers` does not reach a `Response` returned from a page, so
 redirects would go out cacheable. The admin subdomain needs no equivalent.
 
+**`apps/admin` sits behind Cloudflare Access**, attached to the Worker by name so it covers
+production and Preview deployments with no per-route config and no `workers.dev` bypass. Its
+middleware returns 403 when `ctx.access` is missing — built output only, so `pnpm dev` and the
+e2e suite are unaffected. Access is a gate, not authorization: `admin_sessions` still decides who
+may do what, and `ctx.access` does not cross the service binding into `apps/public`.
+
 Lockout counts per IP as well as per account, and locally every request arrives from `127.0.0.1` —
 so five failed attempts lock every account for 15 minutes, and the symptom is a 429 on a password
 that is correct. Clear it from `apps/admin`, where both the binary and the relative path resolve:

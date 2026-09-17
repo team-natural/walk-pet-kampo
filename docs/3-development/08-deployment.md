@@ -66,6 +66,8 @@ PRD-02 §3 の 3 面構成に対応する。環境分離は `apps/public`/`apps/
 
 変更されたアプリのみをデプロイするパスフィルタは、Workers Builds の **Build Watch Paths**（Worker ごとに include/exclude を指定）で実現する。`apps/public` の変更で `apps/admin` を再デプロイしない。
 
+**`apps/admin` は staging / production とも Cloudflare Access の背後に置く**（`Decided` — GOV-01 D-031、設定の正本は DEV-02 §1-1）。Access アプリケーションは Worker 名で作成し、Preview deployments も対象に含めるため、**環境ごとに個別のルート設定は不要**であり、`workers.dev` や Preview URL 経由の迂回も発生しない。local は対象外で、`wrangler.jsonc` の `access.dev` ブロックが擬似 identity を注入する。
+
 ---
 
 ## 3. CI/CD パイプライン
@@ -202,6 +204,10 @@ flowchart TD
 - [ ] ロール別権限（DEV-02 §2-3）が正しく動作
 - [ ] SAST / 依存スキャンで High 以上 0 件
 - [ ] Google Maps Geocoding API キーの本番用制限（API 制限・リファラ/IP 制限）が設定済み（DEV-02 §7 相当、DEV-10 §9）
+- [ ] **`apps/admin` の Cloudflare Access アプリケーションが Worker 名で作成済み**（Preview deployments を含む。GOV-01 D-031、DEV-02 §1-1）
+- [ ] **Access ポリシーの ID プロバイダで MFA が必須になっている**（AdminUser 側にはパスワード以外の要素が無いため、ここが唯一の第 2 要素）
+- [ ] **ブレークグラス用の第 2 ポリシー**（別 IdP またはサービストークン）が用意され、運営者全員が締め出されない（OPS-02 §2-6）
+- [ ] Access を一時的に外した状態で `apps/admin` に到達すると 403 になる（`ctx.access` の fail-closed が効いている）
 
 **決済 / Payout**
 
@@ -224,6 +230,10 @@ flowchart TD
 ## 8. 環境変数（主要）
 
 Cloudflare のバインディング（D1 / R2）は `wrangler.jsonc` で設定するため本節には記載しない。本節に記載するのは、非機密の環境変数（`wrangler.jsonc` の `vars`）と、Workers Secrets（`wrangler secret put`）または `.dev.vars`（ローカルのみ、gitignore 対象）で管理する機密値のみ。チャット・AI 機能は不採用（`Decided` — GOV-01 D-005）のため、LLM プロバイダ向けの環境変数は本プロジェクトでは持たない。
+
+> **Cloudflare Access は環境変数を必要としない**（GOV-01 D-031）。`POLICY_AUD` / `TEAM_DOMAIN` は
+> `Cf-Access-Jwt-Assertion` を `jose` + JWKS で手動検証する方式のための変数であり、本プロジェクトは
+> `ctx.access` を使うため不要。チュートリアル由来でこの 2 つを足さないこと。
 
 ```bash
 # アプリケーション（wrangler.jsonc の vars、非機密）

@@ -1,0 +1,5 @@
+# The operator console. Nothing here is ever a search result.
+# Cloudflare Access already stops crawlers before they reach the Worker (GOV-01 D-031); this is
+# what still applies during the window where the Access application is being set up or replaced.
+User-agent: *
+Disallow: /

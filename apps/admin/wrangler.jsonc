@@ -12,6 +12,21 @@
     "enabled": true,
   },
 
+  // This Worker sits behind Cloudflare Access (GOV-01 D-031). The application is created in the
+  // Zero Trust dashboard against the Worker *name* — not a hostname or route — so it covers
+  // production and Preview deployments without per-route configuration, and there is no
+  // workers.dev bypass to remember. Nothing about that lives in this file.
+  //
+  // `access.dev` only affects local runs: it injects the identity that `ctx.access` would
+  // otherwise carry, so the authenticated path can be exercised without deploying. Removing the
+  // block simulates an unauthenticated request.
+  "access": {
+    "dev": {
+      "aud": "local-dev",
+      "identity": { "email": "admin@example.test" },
+    },
+  },
+
   // vars is non-inheritable, so it's repeated in each env block below.
   "vars": {
     "SESSION_TTL_DAYS": "30",

@@ -407,6 +407,18 @@ related-docs:
 | 決定者 | Tech Lead |
 | 関連 TBD | GOV-02 TBD-45（解決済み・未実装） |
 
+### D-031：`apps/admin` を Cloudflare Access で保護する（Worker 名指定・`ctx.access` で fail-closed）
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-17 |
+| カテゴリ | 設計 / 運用 |
+| 決定内容 | プラットフォーム管理画面（`apps/admin`）を Cloudflare Access（Zero Trust）の self-hosted アプリケーションで保護する。**対象はホスト名やルートではなく Worker 名で指定**し、Preview deployments も含める。アプリ側は `ctx.access`（Astro からは `Astro.locals.cfContext.access`）の存在を**本番でのみ** fail-closed に検証する。`Cf-Access-Jwt-Assertion` を `jose` + JWKS で手動検証する方式は**採らない**。**AdminUser の D1 セッション（`admin_sessions`）は廃止せず**、認可と監査の正本であり続ける。公開サイトと保護団体ページ（`apps/public`）は対象外 |
+| 背景 | `apps/admin` は返金（F-08-06）と Stripe Connect Transfer による団体振込（F-15-09）を実行でき、Walker の住所・緊急連絡先を横断閲覧できる。DEV-08 §5 は二重課金・送金誤りを即時ロールバック対象の重大インシデントに分類している。一方 AdminUser の認証はパスワードのみで MFA が無い（DEV-02 §1-1）。Access なら SSO と MFA をアプリ側の実装ゼロで得られ、利用者は招待制の運営者のみなので Zero Trust の無料枠に収まる。**Worker 名指定**を選ぶのは、Cloudflare 公式がこれを「Worker の前に認証を置く最も安全で素直な方法」と明記しており、ルート単位の設定漏れと `workers.dev` / Preview URL からの迂回を構造的に潰せるため。**手動 JWT 検証を採らない**のは、Access 有効時は `ctx.access` が公式に提供され「manual JWT validation は不要」とされているため。これにより DEV-02 §1-1 の「`jose` / JWT は不採用」という既存判断も崩さずに済む。**Access を認可の正本にはできない**: `ctx.access` は Service Binding 越しに伝播しないと公式に明記があり（D-022 の RPC は Access の外側を通る）、`activity_log.causer_id` に実行者を残す以上 D1 セッションは必須。**`apps/public` を対象外**にするのは、保護団体スタッフと Walker が外部利用者であり、かつ両者が同一 Worker に同居しているため — 2 Worker に分けた構成（D-007）が admin だけを塞げる前提になっている |
+| 影響範囲 | DEV-02 §1-1、DEV-08 §4・§7、OPS-02 §2、CLAUDE.md、`apps/admin/src/middleware.ts`、`apps/admin/wrangler.jsonc`、`apps/admin/public/robots.txt`、`apps/admin/src/layouts/Layout.astro` |
+| 決定者 | Tech Lead |
+| 関連 TBD | — |
+
 ---
 
 ## 3. 記録すべき意思決定の種別
