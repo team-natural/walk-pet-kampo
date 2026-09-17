@@ -20,7 +20,7 @@ const settings: NotificationSettingView[] = mockNotificationSettings;
   <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
     <h1 class="text-2xl font-bold">通知設定</h1>
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/notification-settings">
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/me/notification-settings">
       {
         settings.map((setting) => (
           <fieldset class="grid gap-2 rounded border border-gray-200 p-4">

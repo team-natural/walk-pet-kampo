@@ -33,15 +33,16 @@ const payout: PayoutDetail = mockPayoutDetail;
       <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{payout.status}</dd></div>
     </dl>
 
-    <form class="grid gap-3 text-sm" method="post" action={`/api/v1/payouts/${payout.id}/transition`}>
+    {/* One route per transition, as DEV-04 §5-4-1 defines them — not a PATCH on status. */}
+    <form class="grid gap-3 text-sm" method="post">
       <label class="grid gap-1">
         <span>調整額（円）</span>
         <input type="number" name="adjustmentAmount" value={payout.adjustmentAmount} class="rounded border px-3 py-2" />
       </label>
       <div class="flex gap-2">
-        <button type="submit" name="to" value="confirmed" class="rounded border px-3 py-2">確定する</button>
-        <button type="submit" name="to" value="paid" class="rounded border px-3 py-2">振込を実行する</button>
-        <button type="submit" name="to" value="on_hold" class="rounded border border-red-300 px-3 py-2 text-red-700">保留にする</button>
+        <button type="submit" formaction={`/api/v1/payouts/${payout.id}/confirm`} class="rounded border px-3 py-2">集計を確定する</button>
+        <button type="submit" formaction={`/api/v1/payouts/${payout.id}/schedule`} class="rounded border px-3 py-2">振込予定日を確定する</button>
+        <button type="submit" formaction={`/api/v1/payouts/${payout.id}/hold`} class="rounded border border-red-300 px-3 py-2 text-red-700">保留にする</button>
       </div>
     </form>
   </main>

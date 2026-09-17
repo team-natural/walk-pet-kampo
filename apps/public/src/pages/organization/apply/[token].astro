@@ -16,7 +16,7 @@ const organization: OrganizationDetail = mockOrganizationDetail;
     <h1 class="text-2xl font-bold">申請状況の確認</h1>
     <p class="text-sm text-gray-600">{organization.name} / 現在のステータス: {organization.status}</p>
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization-applications/resubmit" enctype="multipart/form-data">
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/resubmit" enctype="multipart/form-data">
       <input type="hidden" name="token" value={token} />
       <label class="grid gap-1">
         <span>追加のご説明</span>

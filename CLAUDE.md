@@ -25,7 +25,7 @@ What comes out for each feature:
 
 | No… | Delete |
 | --- | --- |
-| public-side login | `walkers` / `walker_sessions`; public's `lib/server/{auth,services/auth.ts,services/walkers.ts,validation/auth.ts}`, `pages/{login.astro,mypage,api/v1/auth}`, `lib/components/{login-form,logout-button}.svelte`; public's KV binding and its `SESSION_TTL_DAYS` / `AUTH_LOCKOUT_*` vars |
+| public-side login | `walkers` / `walker_sessions`; public's `lib/server/{auth,services/auth.ts,services/walkers.ts,validation/auth.ts}`, `pages/{auth,mypage,api/v1/auth}`, `lib/components/{login-form,logout-button}.svelte`; public's KV binding and its `SESSION_TTL_DAYS` / `AUTH_LOCKOUT_*` vars |
 | contact form | `inquiries`; both apps' `inquiries` services, validation, routes and tests |
 | file uploads | `media`; admin's `media` service, validation, routes and tests; the `BUCKET` binding in both apps and `r2Buckets` in admin's `vitest.config.ts` |
 | password reset | `password_reset_tokens` |

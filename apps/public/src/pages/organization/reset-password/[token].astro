@@ -10,7 +10,7 @@ const { token } = Astro.params;
   <main class="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 p-6">
     <h1 class="text-2xl font-bold">新しいパスワードの設定</h1>
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/auth/reset-password">
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/auth/password/reset">
       <input type="hidden" name="token" value={token} />
       <label class="grid gap-1">
         <span>新しいパスワード</span>

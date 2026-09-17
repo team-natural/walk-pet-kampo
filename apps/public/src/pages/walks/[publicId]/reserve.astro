@@ -22,7 +22,7 @@ const slot: WalkSlotDetail = mockWalkSlotDetail;
     <h1 class="text-2xl font-bold">予約内容の入力</h1>
     <p class="text-sm text-gray-600">{slot.title} / {slot.startAt}</p>
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/reservations">
+    <form class="grid gap-4 text-sm" method="post" action={`/api/v1/walk-slots/${publicId}/reservations`}>
       <label class="grid gap-1">
         <span>参加人数</span>
         <input type="number" name="participantCount" min="1" max={slot.remainingCapacity} value="1" class="rounded border border-gray-300 px-3 py-2" />

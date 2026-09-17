@@ -29,7 +29,7 @@ const reservation: ReservationDetail = mockReservationDetail;
       <div><dt class="inline text-gray-500">キャンセル規定</dt> <dd class="inline">{reservation.walkSlot.title} のページをご確認ください</dd></div>
     </dl>
 
-    <form method="post" action={`/api/v1/reservations/${reservation.id}/cancel`}>
+    <form method="post" action={`/api/v1/me/reservations/${reservation.id}/cancel`}>
       <button type="submit" class="rounded border border-red-300 px-3 py-2 text-sm text-red-700">予約をキャンセルする</button>
     </form>
   </main>

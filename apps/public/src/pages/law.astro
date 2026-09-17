@@ -3,6 +3,7 @@
 // TODO(SCR-43): fill in the operator's legal name, address and contact once the operating entity
 // is registered — GOV-02 TBD-35, OPS-01.
 import Layout from "../layouts/Layout.astro";
+import { CANCELLATION, formatYen, PARTICIPATION_FEE } from "$lib/pricing";
 ---
 
 <Layout title="特定商取引法に基づく表示">
@@ -14,10 +15,13 @@ import Layout from "../layouts/Layout.astro";
       <div><dt class="font-semibold">運営責任者</dt> <dd class="text-gray-600">（確定後に記載）</dd></div>
       <div><dt class="font-semibold">所在地</dt> <dd class="text-gray-600">（確定後に記載）</dd></div>
       <div><dt class="font-semibold">お問い合わせ</dt> <dd class="text-gray-600"><a href="/contact" class="underline">お問い合わせフォーム</a></dd></div>
-      <div><dt class="font-semibold">販売価格</dt> <dd class="text-gray-600">各お散歩募集のページに表示します。</dd></div>
+      <div><dt class="font-semibold">販売価格</dt> <dd class="text-gray-600">お散歩 1 回あたり {formatYen(PARTICIPATION_FEE)}（税込・1 名につき）。個別の金額は各お散歩募集のページに表示します。</dd></div>
       <div><dt class="font-semibold">お支払い方法</dt> <dd class="text-gray-600">クレジットカード決済</dd></div>
       <div><dt class="font-semibold">役務の提供時期</dt> <dd class="text-gray-600">各お散歩募集に記載の開催日時</dd></div>
-      <div><dt class="font-semibold">キャンセル・返金</dt> <dd class="text-gray-600">各お散歩募集のキャンセル規定に従います。</dd></div>
+      <div>
+        <dt class="font-semibold">キャンセル・返金</dt>
+        <dd class="text-gray-600">開催の {CANCELLATION.freeCancellationHours} 時間前までのキャンセルは全額返金します。それ以降のキャンセルおよび無断不参加の場合は返金いたしません。</dd>
+      </div>
     </dl>
   </main>
 </Layout>

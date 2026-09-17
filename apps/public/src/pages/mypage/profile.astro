@@ -20,7 +20,7 @@ const profile: WalkerProfileView = mockWalkerProfile;
   <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
     <h1 class="text-2xl font-bold">プロフィール編集</h1>
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/walker-profile">
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/me/profile">
       <label class="grid gap-1">
         <span>お名前（カナ）</span>
         <input type="text" name="nameKana" value={profile.nameKana} class="rounded border border-gray-300 px-3 py-2" />

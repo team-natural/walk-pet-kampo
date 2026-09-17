@@ -16,7 +16,7 @@ if (!session) return Astro.redirect("/auth/login", 302);
     <h1 class="text-2xl font-bold">退会のお手続き</h1>
     <p class="text-sm text-gray-600">確定済みの予約が残っている場合は、退会の前にキャンセルのお手続きが必要です。退会後、登録情報は一定期間の後に削除されます。</p>
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/walkers/withdrawal">
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/me/withdrawal">
       <label class="grid gap-1">
         <span>退会の理由（任意）</span>
         <textarea name="reason" rows="4" class="rounded border border-gray-300 px-3 py-2"></textarea>

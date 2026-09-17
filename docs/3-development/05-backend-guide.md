@@ -71,6 +71,10 @@ apps/admin/src/
 │   └── **/*.astro                   # 管理画面ページ（src/layouts/Layout.astro。`/admin` 接頭辞は付けない）
 ├── lib/
 │   ├── components/                  # Svelte island + shadcn-svelte（$lib エイリアス）
+│   ├── view-models/                 # 画面が描画する型。テーブル行から Pick で導出（GOV-01 D-029）。
+│   │                                #   apps/public とは別物 — 運営コンソールは internalNotes 等の
+│   │                                #   スタッフ専用列も描画するため、型を共有しない
+│   ├── mocks/                       # スケルトンの仮データ（index.ts 1 本）。Service 実装で置き換わり消える
 │   ├── server/
 │   │   ├── services/                #   ドメイン別ファイル。inquiries.ts / activity-log.ts /
 │   │   │                            #   admin-users.ts / media.ts / auth.ts（既存）
@@ -106,16 +110,22 @@ apps/public/src/
 │   └── **/*.astro                   # 未認証の公開ページ（検索・団体/保護犬/お散歩枠の一覧・詳細等）
 └── lib/
     ├── components/                  # Svelte island（公開・マイページ・団体管理で共通のもの含む）
+    │   └── organization/            #   団体ページの共通部品 5 種（GOV-01 D-019）
+    ├── view-models/                 # 画面が描画する型。テーブル行から Pick で導出（GOV-01 D-029）
+    ├── mocks/                       # スケルトンの仮データ（index.ts 1 本）。Service 実装で置き換わり消える
+    ├── faq.ts                       # 開発者管理の FAQ（GOV-01 D-016、DEV-06 §1-1）
+    ├── legal.ts                     # 規約・ポリシーの版番号（同上）
+    ├── pricing.ts                   # 参加費・団体還元額・キャンセル規定（同上）
     └── server/                      # 本プロジェクト固有の新設レイヤー（`Decided` — GOV-01 D-007）
         ├── services/                #   ドメイン別ファイル。reservations.ts / walk-slots.ts / payments.ts /
         │                            #   dogs.ts / incidents.ts / adoption-inquiries.ts / notifications.ts /
         │                            #   geocoding.ts（DEV-10 §9） 等
         │                            #   + organizations.ts（団体自身の操作のみ。審査系は apps/admin 側、§2-1-5）
         │                            #   + payouts.ts（org_admin 向けの参照専用クエリのみ。集計・確定は apps/admin 側、§7）
-        ├── walker/                  #   Walker 専用セッション検証・requireWalker・requireActiveWalkerProfile
-        │                            #   （DEV-02 §1-2・§3-2。例: session.ts）
-        ├── organization/            #   OrganizationMember 専用セッション検証・requireOrganizationMember・
-        │                            #   requireRole（DEV-02 §1-3・§3-2。例: session.ts）
+        ├── auth/                    #   系統ごとのセッション検証。session.ts〈Walker〉/
+        │                            #   organization-session.ts〈OrganizationMember〉。apps/admin と同じ
+        │                            #   `auth/` の並びに揃えるが、テーブル・クッキー・コードパスは
+        │                            #   系統間で一切共有しない（DEV-02 §1-4）
         └── validation/              #   drizzle-zod で導出した Zod スキーマ
 ```
 
@@ -133,7 +143,9 @@ apps/public/src/
 > `apps/admin/src/middleware.ts` に認証を集約しない — いずれもセキュリティヘッダー専用（CLAUDE.md
 > 参照）。各ルートは系統ごとのセッション検証関数（`requireSession`〈AdminUser〉/
 > `requireWalkerSession`〈Walker〉/ `requireOrganizationSession`〈OrganizationMember〉）を呼んでセッ
-> ションを取得し、必要に応じて認可チェック関数（§5）を続けて呼ぶ。
+> ションを取得し、必要に応じて認可チェック関数（§5）を続けて呼ぶ。関数名はアプリ内で重複しないため
+`apps/public` の Walker 側は `requireSession`、OrganizationMember 側は `requireOrganizationSession`
+を使う（同一ファイルに同居しないので接頭辞は付けない）。
 
 > Cloudflare バインディング（`env.DB` 等）は `Astro.locals.runtime.env` ではなく
 > `import { env } from "cloudflare:workers"` で取得する（`Astro.locals.runtime.env` は Astro v6 で

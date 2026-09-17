@@ -1,0 +1,11 @@
+# Members-only, transactional and shelter-console routes. This mirrors SITEMAP_EXCLUDED in
+# astro.config.mjs — a route added to one belongs in the other.
+User-agent: *
+Disallow: /auth/
+Disallow: /mypage/
+Disallow: /checkout/
+Disallow: /register
+Disallow: /verify/
+Disallow: /organization/
+
+Sitemap: https://replace-with-domain.example/sitemap-index.xml

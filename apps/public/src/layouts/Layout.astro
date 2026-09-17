@@ -1,11 +1,24 @@
 ---
+// Canonical and OGP are built from `site` in astro.config.mjs, never from a URL written in a
+// page (DEV-06 §11-1). Defaults live here rather than in a settings table (GOV-01 D-016).
 import "../styles/global.css";
 
 interface Props {
   title: string;
+  description?: string;
+  ogImage?: string;
+  /** Members-only and transactional screens. Keeps them out of an index even if a link leaks. */
+  noindex?: boolean;
 }
 
-const { title } = Astro.props;
+const SITE_NAME = "保護犬おさんぽマッチング";
+const DEFAULT_DESCRIPTION = "保護犬とのお散歩を予約できるサービスです。参加費はそのまま保護団体の活動費になります。";
+const DEFAULT_OG_IMAGE = "/logo.svg";
+
+const { title, description = DEFAULT_DESCRIPTION, ogImage = DEFAULT_OG_IMAGE, noindex = false } = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const ogImageUrl = new URL(ogImage, Astro.site);
 ---
 
 <!doctype html>
@@ -15,6 +28,18 @@ const { title } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <slot name="head" />
   </head>
   <body>
     <slot />

@@ -1,1 +1,21 @@
 @import "tailwindcss";
+
+/* Brand colours only (GOV-01 D-018, PRD-04 §8). Nothing else belongs in @theme: spacing and
+   typography stay as per-use Tailwind utilities, because a token layer nobody asked for is
+   harder to undo than the utilities are.
+
+   Provisional values, warm-toned per PRD-04 §8 `[Assumed]`. The brand is not decided yet
+   (GOV-02 TBD-35) — when it is, this block is the only place that changes, which is the whole
+   reason screens must use `brand-*` rather than a literal Tailwind colour. */
+@theme {
+  --color-brand-50: #fdf6f0;
+  --color-brand-100: #f8e7d8;
+  --color-brand-200: #f0ccae;
+  --color-brand-300: #e5ab7e;
+  --color-brand-400: #d98d55;
+  --color-brand-500: #c97238;
+  --color-brand-600: #ad5a29;
+  --color-brand-700: #8a4621;
+  --color-brand-800: #66341a;
+  --color-brand-900: #442313;
+}

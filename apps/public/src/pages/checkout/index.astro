@@ -28,7 +28,7 @@ const reservation: ReservationDetail = mockReservationDetail;
       <div><dt class="inline text-gray-500">緊急連絡先</dt> <dd class="inline">{reservation.emergencyContactNameSnapshot}（{reservation.emergencyContactPhoneSnapshot}）</dd></div>
     </dl>
 
-    <form method="post" action="/api/v1/payments/checkout-session">
+    <form method="post" action={`/api/v1/reservations/${reservation.id}/checkout-session`}>
       <button type="submit" class="rounded border border-gray-300 px-3 py-2 text-sm">お支払いに進む</button>
     </form>
   </main>

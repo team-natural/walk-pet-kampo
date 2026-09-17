@@ -17,7 +17,7 @@ if (!isOrganizationAdmin(session)) return Astro.redirect("/organization", 302);
   <main class="mx-auto flex min-h-dvh max-w-xl flex-col gap-6 p-6">
     <h1 class="text-2xl font-bold">スタッフの招待</h1>
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/invitations">
+    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/members/invite">
       <label class="grid gap-1">
         <span>メールアドレス</span>
         <input type="email" name="email" required class="rounded border border-gray-300 px-3 py-2" />

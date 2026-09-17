@@ -22,8 +22,7 @@ const dog: DogDetail = mockDogDetail;
   <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
     <h1 class="text-2xl font-bold">{dog.name} の里親について相談する</h1>
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/adoption-inquiries">
-      <input type="hidden" name="dogSlug" value={slug} />
+    <form class="grid gap-4 text-sm" method="post" action={`/api/v1/dogs/${slug}/adoption-inquiries`}>
       <label class="grid gap-1">
         <span>希望理由</span>
         <textarea name="motivation" rows="5" required class="rounded border border-gray-300 px-3 py-2"></textarea>
