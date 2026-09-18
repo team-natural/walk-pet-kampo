@@ -1,13 +1,19 @@
 ---
 // SYS-14 — PRD-04 §3-3
-// Cancelling on the walker's behalf is a transition on an apps/public domain, so it goes over the
-// Service Binding RPC rather than a local Service (GOV-01 D-022).
+// Reservation transitions live in apps/public, so a cancellation here goes over the Service
+// Binding RPC (GOV-01 D-022).
 // TODO(SYS-14): replace mockReservationDetail with getReservation() and post
-// cancelReservationByPlatform() — F-15-07, F-08-04.
+// transitionReservation() — F-15-07.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import ConfirmAction from "$lib/components/confirm-action.svelte";
+import DetailCard from "$lib/components/detail-card.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import { Button } from "$lib/components/ui/button/index.js";
+import { formatDateTime, formatYen } from "$lib/format";
 import { mockReservationDetail } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
 import type { ReservationDetail } from "$lib/view-models/reservation";
 import { createDb } from "@app/schema/client";
 
@@ -19,24 +25,66 @@ const { publicId } = Astro.params;
 const reservation: ReservationDetail = mockReservationDetail;
 ---
 
-<Layout title="予約の詳細 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{reservation.walkSlotTitle}</h1>
+<ConsoleLayout title={`${reservation.walkerName} の予約`} user={session} breadcrumbs={[{ label: "予約", href: "/reservations" }, { label: reservation.walkerName }]}>
+  <div data-public-id={publicId} class="contents">
+    <PageHeader title={reservation.walkSlotTitle} description={`${reservation.walkerName} さん / ${reservation.organizationName}`}>
+      <Fragment slot="meta">
+        <p class="pt-1"><StatusBadge client:load domain="reservation" value={reservation.status} /></p>
+      </Fragment>
+      <Fragment slot="actions">
+        {
+          reservation.payment && (
+            <Button href={`/payments/${reservation.payment.id}`} variant="outline" size="sm">
+              決済を見る
+            </Button>
+          )
+        }
+        <ConfirmAction client:load action={`/api/v1/reservations/${reservation.id}/transition`} name="to" value="cancelled_by_platform" destructive triggerLabel="キャンセル代行" title="運営としてこの予約をキャンセルしますか？" message="参加者と団体の双方に通知が送られ、決済済みの参加費は返金の対象になります。この操作は取り消せません。" confirmLabel="キャンセルする" reasonLabel="キャンセルの理由（必須・双方に通知されます）" reasonRequired />
+      </Fragment>
+    </PageHeader>
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-muted-foreground">団体</dt> <dd class="inline">{reservation.organizationName}</dd></div>
-      <div><dt class="inline text-muted-foreground">参加者</dt> <dd class="inline">{reservation.walkerName}</dd></div>
-      <div><dt class="inline text-muted-foreground">人数</dt> <dd class="inline">{reservation.participantCount} 名</dd></div>
-      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{reservation.status}</dd></div>
-      <div><dt class="inline text-muted-foreground">決済</dt> <dd class="inline">{reservation.payment?.status} / {reservation.payment?.amount} 円</dd></div>
-    </dl>
+    <div class="grid items-start gap-6 xl:grid-cols-2">
+      <DetailCard title="予約内容">
+        <div><dt>参加者</dt><dd>{reservation.walkerName}</dd></div>
+        <div><dt>参加人数</dt><dd class="tabular-nums">{reservation.participantCount} 名</dd></div>
+        <div><dt>おさんぽ</dt><dd>{reservation.walkSlotTitle}</dd></div>
+        <div><dt>団体</dt><dd>{reservation.organizationName}</dd></div>
+        <div><dt>予約日時</dt><dd class="tabular-nums">{formatDateTime(reservation.createdAt)}</dd></div>
+        <div><dt>仮押さえ期限</dt><dd class="tabular-nums">{reservation.expiresAt ? formatDateTime(reservation.expiresAt) : "—"}</dd></div>
+        <div><dt>最終更新</dt><dd class="tabular-nums">{formatDateTime(reservation.updatedAt)}</dd></div>
+      </DetailCard>
 
-    <form class="grid gap-3 text-sm" method="post" action={`/api/v1/reservations/${reservation.id}/cancel-by-platform`}>
-      <label class="grid gap-1">
-        <span>キャンセル理由</span>
-        <textarea name="reason" rows="3" class="rounded border px-3 py-2"></textarea>
-      </label>
-      <button type="submit" class="w-fit rounded border border-red-300 px-3 py-2 text-red-700">運営判断でキャンセルする</button>
-    </form>
-  </main>
-</Layout>
+      <DetailCard title="緊急連絡先" description="予約時点の控えです。参加者が後から変更しても、この記録は変わりません。">
+        <div><dt>お名前</dt><dd>{reservation.emergencyContactNameSnapshot ?? "—"}</dd></div>
+        <div><dt>電話番号</dt><dd class="tabular-nums">{reservation.emergencyContactPhoneSnapshot ?? "—"}</dd></div>
+        <div><dt>キャンセル日時</dt><dd class="tabular-nums">{reservation.cancelledAt ? formatDateTime(reservation.cancelledAt) : "—"}</dd></div>
+        <div><dt>キャンセル理由</dt><dd class="whitespace-pre-wrap">{reservation.cancelledReason ?? "—"}</dd></div>
+      </DetailCard>
+    </div>
+
+    {
+      reservation.payment && (
+        <DetailCard title="決済">
+          <div>
+            <dt>状態</dt>
+            <dd>
+              <StatusBadge client:load domain="payment" value={reservation.payment.status} />
+            </dd>
+          </div>
+          <div>
+            <dt>参加費</dt>
+            <dd class="whitespace-nowrap tabular-nums">{formatYen(reservation.payment.amount)}</dd>
+          </div>
+          <div>
+            <dt>団体への還元</dt>
+            <dd class="whitespace-nowrap tabular-nums">{formatYen(reservation.payment.organizationShareAmount)}</dd>
+          </div>
+          <div>
+            <dt>決済日時</dt>
+            <dd class="tabular-nums">{reservation.payment.paidAt ? formatDateTime(reservation.payment.paidAt) : "—"}</dd>
+          </div>
+        </DetailCard>
+      )
+    }
+  </div>
+</ConsoleLayout>

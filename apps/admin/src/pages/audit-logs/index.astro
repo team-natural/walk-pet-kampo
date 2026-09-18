@@ -4,9 +4,14 @@
 // defeat the record it displays.
 // TODO(SYS-25): replace mockAuditLog with listActivityLog() — F-15-13.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import DataTable from "$lib/components/data-table.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import { Badge } from "$lib/components/ui/badge/index.js";
+import * as Table from "$lib/components/ui/table/index.js";
+import { formatDateTime } from "$lib/format";
 import { mockAuditLog } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
 import type { AuditLogEntry } from "$lib/view-models/audit-log";
 import { createDb } from "@app/schema/client";
 
@@ -17,35 +22,29 @@ if (!session) return Astro.redirect("/", 302);
 const entries: AuditLogEntry[] = mockAuditLog;
 ---
 
-<Layout title="管理操作履歴 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">管理操作履歴</h1>
+<ConsoleLayout title="管理操作履歴" user={session} breadcrumbs={[{ label: "管理操作履歴" }]}>
+  <PageHeader title="管理操作履歴" description="状態変更と管理操作の記録です。追記のみで、消すことはできません。" />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">日時</th>
-          <th class="py-2">操作者</th>
-          <th class="py-2">対象</th>
-          <th class="py-2">内容</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          entries.map((entry) => (
-            <tr class="border-b">
-              <td class="py-2">{entry.createdAt}</td>
-              <td class="py-2">
-                {entry.causerName}（{entry.causerType}）
-              </td>
-              <td class="py-2">
-                {entry.subjectType} #{entry.subjectId}
-              </td>
-              <td class="py-2">{entry.description}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+  <DataTable caption="管理操作履歴の一覧" columns={["日時", "操作者", "対象", "操作", "内容"]} rowCount={entries.length} emptyTitle="記録がありません" emptyDescription="状態変更や管理操作が行われるとここに残ります。">
+    {
+      entries.map((entry) => (
+        <Table.Row>
+          <Table.Cell class="whitespace-nowrap text-muted-foreground tabular-nums">{formatDateTime(entry.createdAt)}</Table.Cell>
+          <Table.Cell>
+            {entry.causerName}
+            <span class="ms-1 text-xs text-muted-foreground">{entry.causerType}</span>
+          </Table.Cell>
+          <Table.Cell class="whitespace-nowrap">
+            <span class="font-mono text-xs">
+              {entry.subjectType} #{entry.subjectId}
+            </span>
+          </Table.Cell>
+          <Table.Cell>
+            <Badge variant="outline">{entry.event}</Badge>
+          </Table.Cell>
+          <Table.Cell class="text-muted-foreground">{entry.description}</Table.Cell>
+        </Table.Row>
+      ))
+    }
+  </DataTable>
+</ConsoleLayout>

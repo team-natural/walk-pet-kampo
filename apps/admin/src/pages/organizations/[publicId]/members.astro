@@ -4,9 +4,15 @@
 // key rather than their own (DEV-07 §5-5).
 // TODO(SYS-08): replace mockOrganizationMembers with listOrganizationMembers() — F-15-04.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import ConsoleLayout from "../../../layouts/ConsoleLayout.astro";
+import DataTable from "$lib/components/data-table.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import * as Table from "$lib/components/ui/table/index.js";
+import { formatDate } from "$lib/format";
+import { mockOrganizationMembers, mockOrganizationSummary } from "$lib/mocks";
 import { getSession } from "$lib/server/auth/session";
-import { mockOrganizationMembers } from "$lib/mocks";
+import { label } from "$lib/status";
 import type { OrganizationMemberView } from "$lib/view-models/organization-member";
 import { createDb } from "@app/schema/client";
 
@@ -15,34 +21,31 @@ const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
+const organization = mockOrganizationSummary;
 const members: OrganizationMemberView[] = mockOrganizationMembers;
 ---
 
-<Layout title="団体スタッフ — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-4xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">団体スタッフ</h1>
+<ConsoleLayout title={`${organization.name} のスタッフ`} user={session} breadcrumbs={[{ label: "保護団体", href: "/organizations" }, { label: organization.name, href: `/organizations/${publicId}` }, { label: "スタッフ" }]}>
+  <div data-public-id={publicId} class="contents">
+    <PageHeader title="団体スタッフ" description={`${organization.name} に所属するスタッフの一覧です。追加・削除は団体側で行います。`} />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">氏名</th>
-          <th class="py-2">メールアドレス</th>
-          <th class="py-2">権限</th>
-          <th class="py-2">状態</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          members.map((member) => (
-            <tr class="border-b">
-              <td class="py-2">{member.name}</td>
-              <td class="py-2">{member.email}</td>
-              <td class="py-2">{member.role}</td>
-              <td class="py-2">{member.status}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+    <DataTable caption="団体スタッフの一覧" columns={["氏名", "メールアドレス", "権限", "状態", "参加日"]} rowCount={members.length} emptyTitle="スタッフが登録されていません" emptyDescription="団体管理者が招待するとここに表示されます。" emptyActionHref={`/organizations/${publicId}`} emptyActionLabel="団体の詳細へ戻る">
+      {
+        members.map((member) => (
+          <Table.Row>
+            <Table.Cell class="font-medium">{member.name}</Table.Cell>
+            <Table.Cell class="text-muted-foreground">{member.email}</Table.Cell>
+            <Table.Cell>{label("memberRole", member.role)}</Table.Cell>
+            <Table.Cell>
+              <StatusBadge domain="organizationMember" value={member.status} />
+            </Table.Cell>
+            <Table.Cell class="whitespace-nowrap text-muted-foreground tabular-nums">
+              {member.joinedAt ? formatDate(member.joinedAt) : "—"}
+              {member.leftAt && <span class="ms-2">退出 {formatDate(member.leftAt)}</span>}
+            </Table.Cell>
+          </Table.Row>
+        ))
+      }
+    </DataTable>
+  </div>
+</ConsoleLayout>

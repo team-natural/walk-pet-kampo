@@ -91,8 +91,11 @@ test.describe("login flow", () => {
     await login(page, E2E_ADMIN.email, E2E_ADMIN.password);
     await page.waitForURL("**/dashboard");
 
-    // Logout lives behind the sidebar's user menu, so this also covers the shell hydrating.
-    await page.getByRole("button", { name: E2E_ADMIN.email }).click();
+    // Logout lives behind the sidebar's user menu, so this also covers the shell hydrating —
+    // console-user-menu.svelte keeps the trigger disabled until onMount, same as the login form.
+    const userMenu = page.getByRole("button", { name: E2E_ADMIN.email });
+    await expect(userMenu).toBeEnabled();
+    await userMenu.click();
     await page.getByRole("menuitem", { name: "ログアウト" }).click();
     await page.waitForURL(/\/$/);
 

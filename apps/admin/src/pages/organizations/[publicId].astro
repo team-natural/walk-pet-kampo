@@ -3,9 +3,16 @@
 // TODO(SYS-07): replace mockOrganizationDetail with getOrganization() and post
 // transitionOrganization() — F-15-04.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import ConfirmAction from "$lib/components/confirm-action.svelte";
+import DetailCard from "$lib/components/detail-card.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import { Button } from "$lib/components/ui/button/index.js";
+import { formatDate, formatDateTime, formatPostalCode } from "$lib/format";
 import { mockOrganizationDetail } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
+import { label, yesNo } from "$lib/status";
 import type { OrganizationDetail } from "$lib/view-models/organization";
 import { createDb } from "@app/schema/client";
 
@@ -15,27 +22,51 @@ if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
 const organization: OrganizationDetail = mockOrganizationDetail;
+const transitionAction = `/api/v1/organizations/${organization.id}/transition`;
 ---
 
-<Layout title="保護団体の詳細 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <header class="flex items-center justify-between gap-4">
-      <h1 class="text-2xl font-bold">{organization.name}</h1>
-      <a href={`/organizations/${organization.id}/members`} class="text-sm underline">スタッフ</a>
-    </header>
+<ConsoleLayout title={organization.name} user={session} breadcrumbs={[{ label: "保護団体", href: "/organizations" }, { label: organization.name }]}>
+  <div data-public-id={publicId} class="contents">
+    <PageHeader title={organization.name} description={organization.activityArea ?? undefined}>
+      <Fragment slot="meta">
+        <p class="pt-1"><StatusBadge client:load domain="organization" value={organization.status} /></p>
+      </Fragment>
+      <Fragment slot="actions">
+        <Button href={`/organizations/${organization.id}/members`} variant="outline" size="sm">スタッフを見る</Button>
+        <ConfirmAction client:load action={transitionAction} name="to" value="suspended" destructive triggerLabel="掲載停止" title="この団体を掲載停止にしますか？" message="公開中のおさんぽ募集と保護犬がすべて非公開になります。予約済みの参加者には中止の連絡が送られます。" confirmLabel="掲載停止にする" reasonLabel="理由（必須）" reasonRequired />
+        <ConfirmAction client:load action={transitionAction} name="to" value="deactivated" triggerLabel="活動停止" title="この団体を活動停止にしますか？" message="長期休止の扱いになります。掲載は止まりますが、未振込の還元額はそのままお支払いします。" confirmLabel="活動停止にする" reasonLabel="理由" />
+        <ConfirmAction client:load action={transitionAction} name="to" value="approved" triggerLabel="掲載再開" title="掲載を再開しますか？" message="団体ページとおさんぽ募集の公開が再び可能になります。" confirmLabel="再開する" />
+      </Fragment>
+    </PageHeader>
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{organization.status}</dd></div>
-      <div><dt class="inline text-muted-foreground">代表者</dt> <dd class="inline">{organization.representativeName}</dd></div>
-      <div><dt class="inline text-muted-foreground">エリア</dt> <dd class="inline">{organization.activityArea}</dd></div>
-      <div><dt class="inline text-muted-foreground">Stripe Connect</dt> <dd class="inline">{organization.stripeConnectAccountId ?? "未連携"}</dd></div>
-      <div><dt class="inline text-muted-foreground">審査日</dt> <dd class="inline">{organization.reviewedAt}</dd></div>
-    </dl>
+    <div class="grid items-start gap-6 xl:grid-cols-2">
+      <DetailCard title="団体情報">
+        <div><dt>団体名（かな）</dt><dd>{organization.nameKana ?? "—"}</dd></div>
+        <div><dt>団体種別</dt><dd>{label("orgType", organization.orgType)}</dd></div>
+        <div><dt>法人格</dt><dd>{yesNo(organization.hasCorporateStatus)}</dd></div>
+        <div><dt>代表者</dt><dd>{organization.representativeName}</dd></div>
+        <div><dt>担当者</dt><dd>{organization.contactName}</dd></div>
+        <div><dt>所在地</dt><dd>{formatPostalCode(organization.postalCode)} {organization.address}</dd></div>
+        <div><dt>住所の公開範囲</dt><dd>{label("addressVisibility", organization.addressVisibility)}</dd></div>
+        <div><dt>連絡先</dt><dd>{organization.email}<span class="ms-2 tabular-nums">{organization.phone}</span></dd></div>
+      </DetailCard>
 
-    <form class="flex gap-2 text-sm" method="post" action={`/api/v1/organizations/${organization.id}/transition`}>
-      <button type="submit" name="to" value="suspended" class="rounded border border-red-300 px-3 py-2 text-red-700">掲載停止</button>
-      <button type="submit" name="to" value="deactivated" class="rounded border border-red-300 px-3 py-2 text-red-700">活動停止</button>
-      <button type="submit" name="to" value="approved" class="rounded border px-3 py-2">再開</button>
-    </form>
-  </main>
-</Layout>
+      <DetailCard title="運用状況">
+        <div><dt>公開 URL</dt><dd><a href={`/organizations/${organization.slug}`} class="rounded-sm underline underline-offset-4">/organizations/{organization.slug}</a></dd></div>
+        <div><dt>活動開始</dt><dd class="tabular-nums">{organization.activityStartedOn ? formatDate(organization.activityStartedOn) : "—"}</dd></div>
+        <div><dt>保護頭数</dt><dd class="tabular-nums">{organization.protectedDogCount === null ? "—" : `${organization.protectedDogCount} 頭`}</dd></div>
+        <div><dt>譲渡実績</dt><dd>{organization.adoptionTrackRecord ?? "—"}</dd></div>
+        <div>
+          <dt>Stripe Connect</dt>
+          <dd>{organization.stripeConnectAccountId ? <span class="font-mono text-xs">{organization.stripeConnectAccountId}</span> : <span class="text-muted-foreground">未連携（還元の振込ができません）</span>}</dd>
+        </div>
+        <div><dt>審査担当</dt><dd>{organization.reviewedByName ?? "—"}{organization.reviewedAt ? `（${formatDateTime(organization.reviewedAt)}）` : ""}</dd></div>
+        <div><dt>最終更新</dt><dd class="tabular-nums">{formatDateTime(organization.updatedAt)}</dd></div>
+      </DetailCard>
+    </div>
+
+    <DetailCard title="団体紹介" list={false}>
+      <p class="text-sm whitespace-pre-wrap">{organization.introduction ?? "—"}</p>
+    </DetailCard>
+  </div>
+</ConsoleLayout>

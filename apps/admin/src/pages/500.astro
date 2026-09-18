@@ -1,13 +1,14 @@
 ---
 // SYS-27 500 — PRD-04 §3-3
 import Layout from "../layouts/Layout.astro";
+import { Button } from "$lib/components/ui/button/index.js";
 ---
 
-<Layout title="Something went wrong — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col items-center justify-center gap-4 px-4 text-center">
+<Layout title="エラーが発生しました | 運営管理">
+  <main class="mx-auto flex min-h-dvh max-w-lg flex-col items-center justify-center gap-4 px-4 text-center">
     <p translate="no" class="font-mono text-sm font-medium tracking-widest text-muted-foreground">500</p>
-    <h1 class="text-3xl font-bold">Something went wrong</h1>
-    <p class="text-muted-foreground">An unexpected error occurred. Please try again later.</p>
-    <a href="/" class="rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground transition hover:opacity-90">Back to sign in</a>
+    <h1 class="text-2xl font-semibold">エラーが発生しました</h1>
+    <p class="text-sm text-muted-foreground">予期しないエラーです。時間をおいてもう一度お試しください。繰り返す場合は開発チームにご連絡ください。</p>
+    <Button href="/dashboard">ダッシュボードへ</Button>
   </main>
 </Layout>

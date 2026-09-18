@@ -1,11 +1,15 @@
 ---
 // SYS-04 — PRD-04 §3-3
-// The same organizations table as SYS-06, filtered to the statuses still under review.
 // TODO(SYS-04): replace mockOrganizations with listOrganizationApplications() — F-15-03.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import DataTable from "$lib/components/data-table.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import * as Table from "$lib/components/ui/table/index.js";
+import { formatDate } from "$lib/format";
 import { mockOrganizations } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
 import type { OrganizationSummary } from "$lib/view-models/organization";
 import { createDb } from "@app/schema/client";
 
@@ -16,33 +20,25 @@ if (!session) return Astro.redirect("/", 302);
 const applications: OrganizationSummary[] = mockOrganizations;
 ---
 
-<Layout title="保護団体登録申請 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">保護団体登録申請</h1>
+<ConsoleLayout title="登録申請" user={session} breadcrumbs={[{ label: "登録申請" }]}>
+  <PageHeader title="登録申請" description="保護団体からの登録申請を審査します。申請の古い順に並びます。" />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">団体名</th>
-          <th class="py-2">エリア</th>
-          <th class="py-2">状態</th>
-          <th class="py-2">申請日</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          applications.map((application) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/organization-applications/${application.id}`}>{application.name}</a>
-              </td>
-              <td class="py-2">{application.activityArea}</td>
-              <td class="py-2">{application.status}</td>
-              <td class="py-2">{application.createdAt}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+  <DataTable caption="保護団体の登録申請一覧" columns={["団体名", "活動地域", "状態", "申請日"]} rowCount={applications.length} emptyTitle="審査待ちの申請はありません" emptyDescription="新しい申請が届くとここに表示されます。" emptyActionHref="/organizations" emptyActionLabel="保護団体一覧を見る">
+    {
+      applications.map((application) => (
+        <Table.Row>
+          <Table.Cell>
+            <a href={`/organization-applications/${application.id}`} class="rounded-sm font-medium underline-offset-4 hover:underline">
+              {application.name}
+            </a>
+          </Table.Cell>
+          <Table.Cell class="text-muted-foreground">{application.activityArea ?? "—"}</Table.Cell>
+          <Table.Cell>
+            <StatusBadge domain="organization" value={application.status} />
+          </Table.Cell>
+          <Table.Cell class="whitespace-nowrap text-muted-foreground tabular-nums">{formatDate(application.createdAt)}</Table.Cell>
+        </Table.Row>
+      ))
+    }
+  </DataTable>
+</ConsoleLayout>

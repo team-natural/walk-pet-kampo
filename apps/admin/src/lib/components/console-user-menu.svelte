@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import ChevronsUpDownIcon from "@lucide/svelte/icons/chevrons-up-down";
   import LogOutIcon from "@lucide/svelte/icons/log-out";
   import * as Avatar from "$lib/components/ui/avatar/index.js";
@@ -13,6 +14,13 @@
   // would be triggerable by any <img> pointed at it.
   let submitting = $state(false);
   let error = $state("");
+
+  // The console shell is a large island, so there is a real window where this markup exists and
+  // its JS does not. A click in that window opens nothing and reads as a dead button.
+  let hydrated = $state(false);
+  onMount(() => {
+    hydrated = true;
+  });
 
   async function handleLogout() {
     if (submitting) return;
@@ -43,7 +51,7 @@
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
         {#snippet child({ props })}
-          <Sidebar.MenuButton {...props} size="lg">
+          <Sidebar.MenuButton {...props} size="lg" disabled={!hydrated}>
             <!-- The initial is decoration next to the name it was cut from; announcing it twice adds nothing. -->
             <Avatar.Root class="size-8 rounded-lg" aria-hidden="true">
               <Avatar.Fallback class="rounded-lg">{user.name.slice(0, 1)}</Avatar.Fallback>

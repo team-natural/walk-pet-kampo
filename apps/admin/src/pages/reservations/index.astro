@@ -2,9 +2,14 @@
 // SYS-13 — PRD-04 §3-3
 // TODO(SYS-13): replace mockReservations with listReservations() — F-15-07.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import DataTable from "$lib/components/data-table.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import * as Table from "$lib/components/ui/table/index.js";
+import { formatDateTime } from "$lib/format";
 import { mockReservations } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
 import type { ReservationSummary } from "$lib/view-models/reservation";
 import { createDb } from "@app/schema/client";
 
@@ -15,35 +20,27 @@ if (!session) return Astro.redirect("/", 302);
 const reservations: ReservationSummary[] = mockReservations;
 ---
 
-<Layout title="予約 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-6xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">予約</h1>
+<ConsoleLayout title="予約" user={session} breadcrumbs={[{ label: "予約" }]}>
+  <PageHeader title="予約" description="全団体の予約を横断して確認し、必要に応じてキャンセルを代行します。" />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">お散歩</th>
-          <th class="py-2">団体</th>
-          <th class="py-2">参加者</th>
-          <th class="py-2">人数</th>
-          <th class="py-2">状態</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          reservations.map((reservation) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/reservations/${reservation.id}`}>{reservation.walkSlotTitle}</a>
-              </td>
-              <td class="py-2">{reservation.organizationName}</td>
-              <td class="py-2">{reservation.walkerName}</td>
-              <td class="py-2">{reservation.participantCount}</td>
-              <td class="py-2">{reservation.status}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+  <DataTable caption="予約の一覧" columns={["参加者", "お散歩", "団体", "人数", "状態", "予約日時"]} rowCount={reservations.length} emptyTitle="予約がありません" emptyDescription="参加者が予約するとここに表示されます。" emptyActionHref="/walks" emptyActionLabel="お散歩募集を見る">
+    {
+      reservations.map((reservation) => (
+        <Table.Row>
+          <Table.Cell>
+            <a href={`/reservations/${reservation.id}`} class="rounded-sm font-medium underline-offset-4 hover:underline">
+              {reservation.walkerName}
+            </a>
+          </Table.Cell>
+          <Table.Cell>{reservation.walkSlotTitle}</Table.Cell>
+          <Table.Cell class="text-muted-foreground">{reservation.organizationName}</Table.Cell>
+          <Table.Cell class="tabular-nums">{reservation.participantCount} 名</Table.Cell>
+          <Table.Cell>
+            <StatusBadge domain="reservation" value={reservation.status} />
+          </Table.Cell>
+          <Table.Cell class="whitespace-nowrap text-muted-foreground tabular-nums">{formatDateTime(reservation.createdAt)}</Table.Cell>
+        </Table.Row>
+      ))
+    }
+  </DataTable>
+</ConsoleLayout>

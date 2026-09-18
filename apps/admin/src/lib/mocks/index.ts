@@ -80,7 +80,9 @@ export const mockWalkerDetail: WalkerDetail = {
   termsAgreedVersion: "2026-09-01",
 };
 
-export const mockWalkers: WalkerSummary[] = [mockWalkerSummary];
+// A second row so the list screens render as a table rather than a single line — row striping and
+// column alignment are invisible with one row.
+export const mockWalkers: WalkerSummary[] = [mockWalkerSummary, { id: "01HZZWALKER0000000000002", name: "佐藤 花子", email: "walker2@example.test", profileStatus: "restricted", createdAt: "2026-08-02T01:30:00.000Z" }, { id: "01HZZWALKER0000000000003", name: "鈴木 次郎", email: "walker3@example.test", profileStatus: "suspended", createdAt: "2026-07-21T23:05:00.000Z" }];
 
 export const mockDogSummary: DogSummary = {
   id: "01HZZDOG00000000000000001",

@@ -1,13 +1,21 @@
 ---
 // SYS-18 — PRD-04 §3-3
-// Payout is the one marketplace domain whose transitions live in apps/admin (DEV-09 §2-9), so
-// this screen calls a local Service rather than the RPC. A double Stripe Connect Transfer is the
-// failure to avoid, so the already-sent transfer id is shown next to the action.
-// TODO(SYS-18): replace mockPayoutDetail with getPayout() and post transitionPayout() — F-15-09.
+// Payout is the one transactional entity whose transitions live in apps/admin rather than
+// apps/public (DEV-09 §2-9), so these are local routes, not RPC. The Stripe Connect transfer
+// itself is driven by the monthly Cron run — there is no "execute transfer" route to call here
+// (DEV-04 §5-4-1, DEV-05 §7-2).
+// TODO(SYS-18): replace mockPayoutDetail with getPayout() and post confirm/schedule/hold
+// — F-15-09.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import ConfirmAction from "$lib/components/confirm-action.svelte";
+import DetailCard from "$lib/components/detail-card.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import PayoutConfirmSheet from "$lib/components/payout-confirm-sheet.svelte";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import { formatDate, formatDateTime, formatYen } from "$lib/format";
 import { mockPayoutDetail } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
 import type { PayoutDetail } from "$lib/view-models/payout";
 import { createDb } from "@app/schema/client";
 
@@ -17,33 +25,47 @@ if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
 const payout: PayoutDetail = mockPayoutDetail;
+const period = `${formatDate(payout.periodStart)} 〜 ${formatDate(payout.periodEnd)}`;
+const route = (step: string) => `/api/v1/payouts/${payout.id}/${step}`;
+// The allowed moves, straight from DEV-09 §2-9 — a button for a transition the Service will
+// refuse is worse than no button.
+const confirmable = payout.status === "aggregating";
+const schedulable = payout.status === "confirmed";
+const holdable = payout.status === "aggregating" || payout.status === "confirmed";
 ---
 
-<Layout title="振込の詳細 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{payout.organizationName}</h1>
+<ConsoleLayout title={`${payout.organizationName} の還元`} user={session} breadcrumbs={[{ label: "還元・振込", href: "/payouts" }, { label: payout.organizationName }]}>
+  <div data-public-id={publicId} class="contents">
+    <PageHeader title={payout.organizationName} description={period}>
+      <Fragment slot="meta">
+        <p class="pt-1"><StatusBadge client:load domain="payout" value={payout.status} /></p>
+      </Fragment>
+      <Fragment slot="actions">
+        {confirmable && <PayoutConfirmSheet client:load payout={payout} action={route("confirm")} />}
+        {schedulable && <ConfirmAction client:load action={route("schedule")} triggerLabel="振込予定にする" title="振込予定にしますか？" message={`${formatYen(payout.payoutAmount)} が次回の振込対象に入ります。送金そのものは月次のバッチが実行します。`} confirmLabel="振込予定にする" />}
+        {holdable && <ConfirmAction client:load action={route("hold")} destructive triggerLabel="保留にする" title="この還元を保留にしますか？" message="集計に異常がある場合に使います。保留の間は振込対象から外れます。" confirmLabel="保留にする" reasonLabel="保留の理由（必須）" reasonRequired />}
+      </Fragment>
+    </PageHeader>
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-muted-foreground">対象期間</dt> <dd class="inline">{payout.periodStart} 〜 {payout.periodEnd}</dd></div>
-      <div><dt class="inline text-muted-foreground">対象予約</dt> <dd class="inline">{payout.totalReservations} 件 / {payout.totalParticipants} 名</dd></div>
-      <div><dt class="inline text-muted-foreground">還元対象額</dt> <dd class="inline">{payout.grossAmount} 円</dd></div>
-      <div><dt class="inline text-muted-foreground">調整額</dt> <dd class="inline">{payout.adjustmentAmount} 円</dd></div>
-      <div><dt class="inline text-muted-foreground">振込額</dt> <dd class="inline">{payout.payoutAmount} 円</dd></div>
-      <div><dt class="inline text-muted-foreground">Stripe Transfer</dt> <dd class="inline">{payout.stripeTransferId ?? "未送金"}</dd></div>
-      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{payout.status}</dd></div>
-    </dl>
+    <div class="grid items-start gap-6 xl:grid-cols-2">
+      <DetailCard title="集計">
+        <div><dt>対象期間</dt><dd class="tabular-nums">{period}</dd></div>
+        <div><dt>対象予約</dt><dd class="tabular-nums">{payout.totalReservations} 件 / {payout.totalParticipants} 名</dd></div>
+        <div><dt>還元対象額</dt><dd class="whitespace-nowrap tabular-nums">{formatYen(payout.grossAmount)}</dd></div>
+        <div><dt>調整額</dt><dd class="whitespace-nowrap tabular-nums">{formatYen(payout.adjustmentAmount)}</dd></div>
+        <div><dt>振込額</dt><dd class="text-base font-semibold whitespace-nowrap tabular-nums">{formatYen(payout.payoutAmount)}</dd></div>
+      </DetailCard>
 
-    {/* One route per transition, as DEV-04 §5-4-1 defines them — not a PATCH on status. */}
-    <form class="grid gap-3 text-sm" method="post">
-      <label class="grid gap-1">
-        <span>調整額（円）</span>
-        <input type="number" name="adjustmentAmount" value={payout.adjustmentAmount} class="rounded border px-3 py-2" />
-      </label>
-      <div class="flex gap-2">
-        <button type="submit" formaction={`/api/v1/payouts/${payout.id}/confirm`} class="rounded border px-3 py-2">集計を確定する</button>
-        <button type="submit" formaction={`/api/v1/payouts/${payout.id}/schedule`} class="rounded border px-3 py-2">振込予定日を確定する</button>
-        <button type="submit" formaction={`/api/v1/payouts/${payout.id}/hold`} class="rounded border border-red-300 px-3 py-2 text-red-700">保留にする</button>
-      </div>
-    </form>
-  </main>
-</Layout>
+      <DetailCard title="振込">
+        <div><dt>振込予定日</dt><dd class="tabular-nums">{payout.scheduledAt ? formatDateTime(payout.scheduledAt) : "—"}</dd></div>
+        <div><dt>振込日</dt><dd class="tabular-nums">{payout.paidAt ? formatDateTime(payout.paidAt) : "—"}</dd></div>
+        <div>
+          <dt>Stripe Transfer</dt>
+          <dd>{payout.stripeTransferId ? <span class="font-mono text-xs break-all">{payout.stripeTransferId}</span> : "—"}</dd>
+        </div>
+        <div><dt>備考</dt><dd class="whitespace-pre-wrap">{payout.notes ?? "—"}</dd></div>
+        <div><dt>最終更新</dt><dd class="tabular-nums">{formatDateTime(payout.updatedAt)}</dd></div>
+      </DetailCard>
+    </div>
+  </div>
+</ConsoleLayout>

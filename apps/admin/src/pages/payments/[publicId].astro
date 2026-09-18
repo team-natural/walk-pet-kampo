@@ -1,13 +1,17 @@
 ---
 // SYS-16 — PRD-04 §3-3
-// Refunding is a transition on an apps/public domain and calls Stripe, so it goes over the
-// Service Binding RPC (GOV-01 D-022). Double refunds are the failure this screen must not cause,
-// which is why the amount is shown alongside what has already been refunded.
+// Refund runs through `refundPayment` on apps/public's AdminOps entrypoint (DEV-04 §5-15); the
+// admin-side HTTP wrapper this form posts to is still TBD-58.
 // TODO(SYS-16): replace mockPaymentSummary with getPayment() and post refundPayment() — F-15-08.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import DetailCard from "$lib/components/detail-card.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import PaymentRefundSheet from "$lib/components/payment-refund-sheet.svelte";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import { formatDateTime, formatYen } from "$lib/format";
 import { mockPaymentSummary } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
 import type { PaymentSummary } from "$lib/view-models/reservation";
 import { createDb } from "@app/schema/client";
 
@@ -17,26 +21,40 @@ if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
 const payment: PaymentSummary = mockPaymentSummary;
+const refundable = payment.status === "paid";
 ---
 
-<Layout title="決済の詳細 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{payment.amount} 円の決済</h1>
+<ConsoleLayout title="決済の詳細" user={session} breadcrumbs={[{ label: "決済・返金", href: "/payments" }, { label: "決済の詳細" }]}>
+  <div data-public-id={publicId} class="contents">
+    <PageHeader title={formatYen(payment.amount)} description="参加費の決済 1 件">
+      <Fragment slot="meta">
+        <p class="pt-1"><StatusBadge client:load domain="payment" value={payment.status} /></p>
+      </Fragment>
+      <Fragment slot="actions">
+        {refundable && <PaymentRefundSheet client:load payment={payment} action={`/api/v1/payments/${payment.id}/refund`} />}
+      </Fragment>
+    </PageHeader>
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-muted-foreground">内訳</dt> <dd class="inline">団体還元 {payment.organizationShareAmount} 円 / システム利用料 {payment.platformFeeAmount} 円</dd></div>
-      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{payment.status}</dd></div>
-      <div><dt class="inline text-muted-foreground">Stripe</dt> <dd class="inline">{payment.stripePaymentIntentId}</dd></div>
-      <div><dt class="inline text-muted-foreground">入金日</dt> <dd class="inline">{payment.paidAt}</dd></div>
-      <div><dt class="inline text-muted-foreground">返金済み</dt> <dd class="inline">{payment.refundAmount ?? 0} 円</dd></div>
-    </dl>
+    <div class="grid items-start gap-6 xl:grid-cols-2">
+      <DetailCard title="内訳">
+        <div><dt>参加費</dt><dd class="whitespace-nowrap tabular-nums">{formatYen(payment.amount)}</dd></div>
+        <div><dt>団体への還元</dt><dd class="whitespace-nowrap tabular-nums">{formatYen(payment.organizationShareAmount)}</dd></div>
+        <div><dt>プラットフォーム手数料</dt><dd class="whitespace-nowrap tabular-nums">{formatYen(payment.platformFeeAmount)}</dd></div>
+        <div><dt>通貨</dt><dd>{payment.currency}</dd></div>
+      </DetailCard>
 
-    <form class="grid gap-3 text-sm" method="post" action={`/api/v1/payments/${payment.id}/refund`}>
-      <label class="grid gap-1">
-        <span>返金額（空欄で全額）</span>
-        <input type="number" name="amount" max={payment.amount} class="rounded border px-3 py-2" />
-      </label>
-      <button type="submit" class="w-fit rounded border border-red-300 px-3 py-2 text-red-700">返金する</button>
-    </form>
-  </main>
-</Layout>
+      <DetailCard title="処理状況">
+        <div><dt>決済日時</dt><dd class="tabular-nums">{payment.paidAt ? formatDateTime(payment.paidAt) : "—"}</dd></div>
+        <div><dt>返金日時</dt><dd class="tabular-nums">{payment.refundedAt ? formatDateTime(payment.refundedAt) : "—"}</dd></div>
+        <div><dt>返金額</dt><dd class="whitespace-nowrap tabular-nums">{payment.refundAmount === null ? "—" : formatYen(payment.refundAmount)}</dd></div>
+        <div><dt>失敗理由</dt><dd>{payment.failureReason ?? "—"}</dd></div>
+        <div>
+          <dt>Stripe PaymentIntent</dt>
+          <dd>{payment.stripePaymentIntentId ? <span class="font-mono text-xs break-all">{payment.stripePaymentIntentId}</span> : "—"}</dd>
+        </div>
+      </DetailCard>
+    </div>
+
+    <p class="text-sm text-muted-foreground">返金の詳細な履歴は Stripe ダッシュボードで PaymentIntent を検索してください。</p>
+  </div>
+</ConsoleLayout>

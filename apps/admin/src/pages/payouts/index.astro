@@ -1,12 +1,16 @@
 ---
 // SYS-17 — PRD-04 §3-3
-// The chart is LayerChart (DEV-01 §2) and belongs to the design phase; the skeleton renders the
-// same figures as a table so the totals are verifiable before any chart exists.
 // TODO(SYS-17): replace mockPayouts with listPayouts() — F-15-09.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import DataTable from "$lib/components/data-table.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import * as Card from "$lib/components/ui/card/index.js";
+import * as Table from "$lib/components/ui/table/index.js";
+import { formatDate, formatYen } from "$lib/format";
 import { mockPayouts } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
 import type { PayoutSummary } from "$lib/view-models/payout";
 import { createDb } from "@app/schema/client";
 
@@ -15,37 +19,47 @@ const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/", 302);
 
 const payouts: PayoutSummary[] = mockPayouts;
+const paid = payouts.filter((payout) => payout.status === "paid").reduce((sum, payout) => sum + payout.payoutAmount, 0);
+const pending = payouts.filter((payout) => payout.status !== "paid").reduce((sum, payout) => sum + payout.payoutAmount, 0);
 ---
 
-<Layout title="団体還元・振込 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">団体還元・振込</h1>
+<ConsoleLayout title="還元・振込" user={session} breadcrumbs={[{ label: "還元・振込" }]}>
+  <PageHeader title="還元・振込" description="団体ごとの月次集計を確認し、Stripe Connect への振込を実行します。" />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">団体</th>
-          <th class="py-2">対象期間</th>
-          <th class="py-2">振込額</th>
-          <th class="py-2">状態</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          payouts.map((payout) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/payouts/${payout.id}`}>{payout.organizationName}</a>
-              </td>
-              <td class="py-2">
-                {payout.periodStart} 〜 {payout.periodEnd}
-              </td>
-              <td class="py-2">{payout.payoutAmount} 円</td>
-              <td class="py-2">{payout.status}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+  <div class="grid gap-4 sm:grid-cols-2">
+    <Card.Root size="sm">
+      <Card.Header>
+        <Card.Description>振込済みの合計</Card.Description>
+        <Card.Title class="text-3xl whitespace-nowrap tabular-nums">{formatYen(paid)}</Card.Title>
+      </Card.Header>
+    </Card.Root>
+    <Card.Root size="sm">
+      <Card.Header>
+        <Card.Description>未振込の合計</Card.Description>
+        <Card.Title class="text-3xl whitespace-nowrap tabular-nums">{formatYen(pending)}</Card.Title>
+      </Card.Header>
+    </Card.Root>
+  </div>
+
+  <DataTable caption="団体還元・振込の一覧" columns={["団体", "対象期間", "還元額", "状態", "振込日"]} rowCount={payouts.length} emptyTitle="集計がありません" emptyDescription="おさんぽが実施されると月次で集計されます。" emptyActionHref="/reservations" emptyActionLabel="予約一覧を見る">
+    {
+      payouts.map((payout) => (
+        <Table.Row>
+          <Table.Cell>
+            <a href={`/payouts/${payout.id}`} class="rounded-sm font-medium underline-offset-4 hover:underline">
+              {payout.organizationName}
+            </a>
+          </Table.Cell>
+          <Table.Cell class="whitespace-nowrap text-muted-foreground tabular-nums">
+            {formatDate(payout.periodStart)} 〜 {formatDate(payout.periodEnd)}
+          </Table.Cell>
+          <Table.Cell class="whitespace-nowrap tabular-nums">{formatYen(payout.payoutAmount)}</Table.Cell>
+          <Table.Cell>
+            <StatusBadge domain="payout" value={payout.status} />
+          </Table.Cell>
+          <Table.Cell class="whitespace-nowrap text-muted-foreground tabular-nums">{payout.paidAt ? formatDate(payout.paidAt) : "—"}</Table.Cell>
+        </Table.Row>
+      ))
+    }
+  </DataTable>
+</ConsoleLayout>

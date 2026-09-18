@@ -17,3 +17,9 @@ export function formatDateTime(iso: string): string {
 export function formatYen(amount: number): string {
   return yen.format(amount);
 }
+
+// Stored as seven bare digits (DEV-07), which is unreadable in a table.
+export function formatPostalCode(value: string | null): string {
+  if (!value) return "";
+  return /^\d{7}$/.test(value) ? `〒${value.slice(0, 3)}-${value.slice(3)}` : value;
+}

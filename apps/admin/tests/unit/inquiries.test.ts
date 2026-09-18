@@ -31,7 +31,7 @@ beforeEach(async () => {
     .insert(adminUsers)
     .values({ publicId: ulid(), name: "Admin", email: `${ulid()}@example.com`, passwordHash: "x.y", status: "active", updatedAt: new Date().toISOString() })
     .returning();
-  session = { adminUserId: admin!.id, adminUserPublicId: admin!.publicId };
+  session = { adminUserId: admin!.id, adminUserPublicId: admin!.publicId, name: admin!.name, email: admin!.email };
 });
 
 describe("the public shape", () => {

@@ -2,9 +2,14 @@
 // SYS-11 — PRD-04 §3-3
 // TODO(SYS-11): replace mockWalkSlots with listWalkSlots() — F-15-06.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import DataTable from "$lib/components/data-table.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import * as Table from "$lib/components/ui/table/index.js";
+import { formatDateTime } from "$lib/format";
 import { mockWalkSlots } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
 import type { WalkSlotSummary } from "$lib/view-models/walk-slot";
 import { createDb } from "@app/schema/client";
 
@@ -12,40 +17,35 @@ const db = createDb(env.DB);
 const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/", 302);
 
-const walkSlots: WalkSlotSummary[] = mockWalkSlots;
+const slots: WalkSlotSummary[] = mockWalkSlots;
 ---
 
-<Layout title="お散歩募集 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">お散歩募集</h1>
+<ConsoleLayout title="お散歩募集" user={session} breadcrumbs={[{ label: "お散歩募集" }]}>
+  <PageHeader title="お散歩募集" description="全団体のおさんぽ募集を横断して確認します。開催の近い順に並びます。" />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">タイトル</th>
-          <th class="py-2">団体</th>
-          <th class="py-2">開催</th>
-          <th class="py-2">予約</th>
-          <th class="py-2">状態</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          walkSlots.map((slot) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/walks/${slot.id}`}>{slot.title}</a>
-              </td>
-              <td class="py-2">{slot.organizationName}</td>
-              <td class="py-2">{slot.startAt}</td>
-              <td class="py-2">
-                {slot.reservedCount} / {slot.capacity}
-              </td>
-              <td class="py-2">{slot.status}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+  <DataTable caption="お散歩募集の一覧" columns={["タイトル", "団体", "開催日時", "エリア", "予約", "状態"]} rowCount={slots.length} emptyTitle="募集がありません" emptyDescription="団体がおさんぽ募集を公開するとここに表示されます。" emptyActionHref="/organizations" emptyActionLabel="保護団体一覧を見る">
+    {
+      slots.map((slot) => (
+        <Table.Row>
+          <Table.Cell>
+            <a href={`/walks/${slot.id}`} class="rounded-sm font-medium underline-offset-4 hover:underline">
+              {slot.title}
+            </a>
+          </Table.Cell>
+          <Table.Cell class="text-muted-foreground">{slot.organizationName}</Table.Cell>
+          <Table.Cell class="whitespace-nowrap tabular-nums">{formatDateTime(slot.startAt)}</Table.Cell>
+          <Table.Cell class="text-muted-foreground">
+            {slot.areaPrefecture}
+            {slot.areaCity}
+          </Table.Cell>
+          <Table.Cell class="tabular-nums">
+            {slot.reservedCount} / {slot.capacity}
+          </Table.Cell>
+          <Table.Cell>
+            <StatusBadge domain="walkSlot" value={slot.status} />
+          </Table.Cell>
+        </Table.Row>
+      ))
+    }
+  </DataTable>
+</ConsoleLayout>

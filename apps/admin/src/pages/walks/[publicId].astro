@@ -1,11 +1,20 @@
 ---
 // SYS-12 — PRD-04 §3-3
+// Write side is `updateWalkSlotByPlatform` over the Service Binding (DEV-04 §5-15); the
+// admin-side HTTP wrapper this form posts to is still TBD-58.
 // TODO(SYS-12): replace mockWalkSlotDetail with getWalkSlot() and post updateWalkSlotByPlatform()
 // — F-15-06.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import ConfirmAction from "$lib/components/confirm-action.svelte";
+import DetailCard from "$lib/components/detail-card.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import WalkSlotEditSheet from "$lib/components/walk-slot-edit-sheet.svelte";
+import { formatDateTime, formatYen } from "$lib/format";
 import { mockWalkSlotDetail } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
+import { label, yesNo } from "$lib/status";
 import type { WalkSlotDetail } from "$lib/view-models/walk-slot";
 import { createDb } from "@app/schema/client";
 
@@ -15,22 +24,52 @@ if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
 const slot: WalkSlotDetail = mockWalkSlotDetail;
+const updateAction = `/api/v1/walk-slots/${slot.id}`;
+const cancellable = slot.status !== "cancelled" && slot.status !== "completed";
 ---
 
-<Layout title="お散歩募集の詳細 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{slot.title}</h1>
+<ConsoleLayout title={slot.title} user={session} breadcrumbs={[{ label: "お散歩募集", href: "/walks" }, { label: slot.title }]}>
+  <div data-public-id={publicId} class="contents">
+    <PageHeader title={slot.title} description={slot.organizationName}>
+      <Fragment slot="meta">
+        <p class="pt-1"><StatusBadge client:load domain="walkSlot" value={slot.status} /></p>
+      </Fragment>
+      <Fragment slot="actions">
+        <WalkSlotEditSheet client:load walkSlot={slot} action={updateAction} />
+        {cancellable && <ConfirmAction client:load action={updateAction} name="status" value="cancelled" destructive triggerLabel="開催を中止する" title="この開催を中止しますか？" message={`公開サイトから見えなくなり、予約済みの ${slot.reservedCount} 名には中止の連絡と返金が行われます。`} confirmLabel="中止する" reasonLabel="理由（参加者への連絡に含まれます）" reasonRequired />}
+      </Fragment>
+    </PageHeader>
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-muted-foreground">団体</dt> <dd class="inline">{slot.organizationName}</dd></div>
-      <div><dt class="inline text-muted-foreground">開催</dt> <dd class="inline">{slot.startAt}（{slot.durationMinutes} 分）</dd></div>
-      <div><dt class="inline text-muted-foreground">集合</dt> <dd class="inline">{slot.meetingPlace}</dd></div>
-      <div><dt class="inline text-muted-foreground">予約</dt> <dd class="inline">{slot.reservedCount} / {slot.capacity}</dd></div>
-      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{slot.status}</dd></div>
-    </dl>
+    <div class="grid items-start gap-6 xl:grid-cols-2">
+      <DetailCard title="開催情報">
+        <div><dt>開催日時</dt><dd class="tabular-nums">{formatDateTime(slot.startAt)}（{slot.durationMinutes} 分）</dd></div>
+        <div><dt>集合場所</dt><dd>{slot.meetingPlace}</dd></div>
+        <div><dt>エリア</dt><dd>{slot.areaPrefecture}{slot.areaCity}</dd></div>
+        <div><dt>予約状況</dt><dd class="tabular-nums">{slot.reservedCount} / {slot.capacity} 名</dd></div>
+        <div><dt>参加費</dt><dd class="whitespace-nowrap tabular-nums">{formatYen(slot.feePerPerson)}</dd></div>
+        <div><dt>受付期間</dt><dd class="tabular-nums">{formatDateTime(slot.acceptanceStartAt)} 〜 {formatDateTime(slot.acceptanceEndAt)}</dd></div>
+        <div><dt>スタッフ同行</dt><dd>{yesNo(slot.staffAccompanied)}</dd></div>
+      </DetailCard>
 
-    <form method="post" action={`/api/v1/walk-slots/${slot.id}/unpublish`}>
-      <button type="submit" class="rounded border border-red-300 px-3 py-2 text-sm text-red-700">掲載を取り下げる</button>
-    </form>
-  </main>
-</Layout>
+      <DetailCard title="参加条件">
+        <div><dt>必要な経験</dt><dd>{label("requiredExperience", slot.requiredExperience)}</dd></div>
+        <div><dt>初心者</dt><dd>{yesNo(slot.beginnerAllowed, "可", "不可")}</dd></div>
+        <div><dt>お子さま同伴</dt><dd>{yesNo(slot.childAllowed, "可", "不可")}</dd></div>
+        <div><dt>年齢制限</dt><dd class="tabular-nums">{slot.minAge === null ? "—" : `${slot.minAge} 歳以上`}</dd></div>
+        <div><dt>服装</dt><dd>{slot.clothingNotes ?? "—"}</dd></div>
+        <div><dt>荒天時</dt><dd>{slot.weatherPolicy ?? "—"}</dd></div>
+        <div><dt>キャンセル規定</dt><dd>{slot.cancellationPolicy ?? "—"}</dd></div>
+      </DetailCard>
+    </div>
+
+    <div class="grid items-start gap-6 xl:grid-cols-2">
+      <DetailCard title="募集内容" list={false}>
+        <p class="text-sm whitespace-pre-wrap">{slot.description ?? "—"}</p>
+      </DetailCard>
+
+      <DetailCard title="注意事項" list={false}>
+        <p class="text-sm whitespace-pre-wrap">{slot.precautions ?? "—"}</p>
+      </DetailCard>
+    </div>
+  </div>
+</ConsoleLayout>

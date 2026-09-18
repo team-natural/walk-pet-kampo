@@ -1,12 +1,15 @@
 ---
 // SYS-21 — PRD-04 §3-3
-// The operator does not mediate adoption enquiries (GOV-02 TBD-32); this is a read-only view for
-// oversight, which is why there is no action on the row.
 // TODO(SYS-21): replace mockAdoptionInquiries with listAdoptionInquiries() — F-15-11.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import DataTable from "$lib/components/data-table.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import * as Table from "$lib/components/ui/table/index.js";
+import { formatDate } from "$lib/format";
 import { mockAdoptionInquiries } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
 import type { AdoptionInquirySummary } from "$lib/view-models/adoption-inquiry";
 import { createDb } from "@app/schema/client";
 
@@ -17,33 +20,26 @@ if (!session) return Astro.redirect("/", 302);
 const inquiries: AdoptionInquirySummary[] = mockAdoptionInquiries;
 ---
 
-<Layout title="里親相談 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">里親相談</h1>
+<ConsoleLayout title="里親相談" user={session} breadcrumbs={[{ label: "里親相談" }]}>
+  <PageHeader title="里親相談" description="相談の状況を横断して確認します。譲渡の手続きそのものは各団体が行います。" />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">保護犬</th>
-          <th class="py-2">団体</th>
-          <th class="py-2">参加者</th>
-          <th class="py-2">状態</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          inquiries.map((inquiry) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/adoption-inquiries/${inquiry.id}`}>{inquiry.dogName}</a>
-              </td>
-              <td class="py-2">{inquiry.organizationName}</td>
-              <td class="py-2">{inquiry.walkerName}</td>
-              <td class="py-2">{inquiry.status}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+  <DataTable caption="里親相談の一覧" columns={["保護犬", "相談者", "団体", "状態", "相談日"]} rowCount={inquiries.length} emptyTitle="相談はありません" emptyDescription="参加者が里親相談を送るとここに表示されます。" emptyActionHref="/dogs" emptyActionLabel="保護犬一覧を見る">
+    {
+      inquiries.map((inquiry) => (
+        <Table.Row>
+          <Table.Cell>
+            <a href={`/adoption-inquiries/${inquiry.id}`} class="rounded-sm font-medium underline-offset-4 hover:underline">
+              {inquiry.dogName}
+            </a>
+          </Table.Cell>
+          <Table.Cell>{inquiry.walkerName}</Table.Cell>
+          <Table.Cell class="text-muted-foreground">{inquiry.organizationName}</Table.Cell>
+          <Table.Cell>
+            <StatusBadge domain="adoptionInquiry" value={inquiry.status} />
+          </Table.Cell>
+          <Table.Cell class="whitespace-nowrap text-muted-foreground tabular-nums">{formatDate(inquiry.createdAt)}</Table.Cell>
+        </Table.Row>
+      ))
+    }
+  </DataTable>
+</ConsoleLayout>

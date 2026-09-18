@@ -1,12 +1,21 @@
 ---
 // SYS-10 — PRD-04 §3-3
-// The cross-organization edit goes through the RPC, like the other apps/public domains
-// (GOV-01 D-022, DEV-04 §5-15).
+// The write side is `updateDogByPlatform` on apps/public's AdminOps entrypoint, reached over the
+// Service Binding (DEV-04 §5-15). The path below is the admin-side HTTP wrapper that route still
+// needs — TBD-58 — so it is the one part of this screen that is not yet settled.
 // TODO(SYS-10): replace mockDogDetail with getDog() and post updateDogByPlatform() — F-15-05.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import ConfirmAction from "$lib/components/confirm-action.svelte";
+import DetailCard from "$lib/components/detail-card.astro";
+import DogEditSheet from "$lib/components/dog-edit-sheet.svelte";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import { Badge } from "$lib/components/ui/badge/index.js";
+import { formatDateTime } from "$lib/format";
 import { mockDogDetail } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
+import { label, yesNo } from "$lib/status";
 import type { DogDetail } from "$lib/view-models/dog";
 import { createDb } from "@app/schema/client";
 
@@ -16,23 +25,64 @@ if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
 const dog: DogDetail = mockDogDetail;
+const updateAction = `/api/v1/dogs/${dog.id}`;
 ---
 
-<Layout title="保護犬の詳細 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{dog.name}</h1>
+<ConsoleLayout title={dog.name} user={session} breadcrumbs={[{ label: "保護犬", href: "/dogs" }, { label: dog.name }]}>
+  <div data-public-id={publicId} class="contents">
+    <PageHeader title={dog.name} description={dog.organizationName}>
+      <Fragment slot="meta">
+        <p class="flex flex-wrap items-center gap-2 pt-1">
+          <StatusBadge client:load domain="dog" value={dog.adoptionStatus} />
+          <Badge variant={dog.isPublished ? "secondary" : "outline"}>{dog.isPublished ? "公開中" : "非公開"}</Badge>
+        </p>
+      </Fragment>
+      <Fragment slot="actions">
+        <DogEditSheet client:load dog={dog} action={updateAction} />
+        {
+          /* Unpublishing is one click behind a confirmation, not buried in the edit form: it is the
+            one correction an operator reaches for in a hurry, and it is visible to the public. */
+        }
+        {dog.isPublished ? <ConfirmAction client:load action={updateAction} name="isPublished" value="0" destructive triggerLabel="非公開にする" title="この保護犬を非公開にしますか？" message="公開サイトから見えなくなります。この子が参加予定のおさんぽ募集はそのまま残ります。" confirmLabel="非公開にする" reasonLabel="理由（団体に通知されます）" /> : <ConfirmAction client:load action={updateAction} name="isPublished" value="1" triggerLabel="公開する" title="この保護犬を公開しますか？" message="公開サイトの一覧と検索結果に表示されるようになります。" confirmLabel="公開する" />}
+      </Fragment>
+    </PageHeader>
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-muted-foreground">団体</dt> <dd class="inline">{dog.organizationName}</dd></div>
-      <div><dt class="inline text-muted-foreground">犬種 / サイズ</dt> <dd class="inline">{dog.breed} / {dog.size}</dd></div>
-      <div><dt class="inline text-muted-foreground">譲渡状況</dt> <dd class="inline">{dog.adoptionStatus}</dd></div>
-      <div><dt class="inline text-muted-foreground">お散歩</dt> <dd class="inline">{dog.walkEligible ? "可" : "不可"}</dd></div>
-      <div><dt class="inline text-muted-foreground">団体内メモ</dt> <dd class="inline">{dog.internalNotes}</dd></div>
-    </dl>
+    <div class="grid items-start gap-6 xl:grid-cols-2">
+      <DetailCard title="基本情報">
+        <div><dt>犬種</dt><dd>{dog.breed ?? "—"}</dd></div>
+        <div><dt>大きさ</dt><dd>{dog.size ? label("dogSize", dog.size) : "—"}</dd></div>
+        <div><dt>性別</dt><dd>{dog.gender ? label("dogGender", dog.gender) : "—"}</dd></div>
+        <div><dt>体重</dt><dd class="tabular-nums">{dog.weight === null ? "—" : `${dog.weight} kg`}</dd></div>
+        <div><dt>推定年齢</dt><dd>{dog.estimatedAge ?? "—"}</dd></div>
+        <div><dt>公開 URL</dt><dd><a href={`/dogs/${dog.slug}`} class="rounded-sm underline underline-offset-4">/dogs/{dog.slug}</a></dd></div>
+        <div><dt>最終更新</dt><dd class="tabular-nums">{formatDateTime(dog.updatedAt)}</dd></div>
+      </DetailCard>
 
-    <form class="flex gap-2 text-sm" method="post" action={`/api/v1/dogs/${dog.id}`}>
-      <button type="submit" name="isPublished" value="0" class="rounded border border-red-300 px-3 py-2 text-red-700">非公開にする</button>
-      <button type="submit" name="isPublished" value="1" class="rounded border px-3 py-2">公開する</button>
-    </form>
-  </main>
-</Layout>
+      <DetailCard title="おさんぽ条件">
+        <div><dt>おさんぽ参加</dt><dd>{yesNo(dog.walkEligible, "可", "不可")}</dd></div>
+        <div><dt>必要な経験</dt><dd>{label("requiredExperience", dog.requiredExperience)}</dd></div>
+        <div><dt>初心者</dt><dd>{yesNo(dog.beginnerAllowed, "可", "不可")}</dd></div>
+        <div><dt>お子さま同伴</dt><dd>{yesNo(dog.childAllowed, "可", "不可")}</dd></div>
+        <div><dt>多頭同時</dt><dd>{yesNo(dog.multiDogAllowed, "可", "不可")}</dd></div>
+        <div><dt>人への社会性</dt><dd>{dog.humanSociability ?? "—"}</dd></div>
+        <div><dt>犬への社会性</dt><dd>{dog.dogSociability ?? "—"}</dd></div>
+        <div><dt>性格</dt><dd>{dog.temperament ?? "—"}</dd></div>
+      </DetailCard>
+    </div>
+
+    <div class="grid items-start gap-6 xl:grid-cols-2">
+      <DetailCard title="紹介文" list={false}>
+        <p class="text-sm whitespace-pre-wrap">{dog.introduction ?? "—"}</p>
+      </DetailCard>
+
+      <DetailCard title="おさんぽ時の注意" list={false}>
+        <p class="text-sm whitespace-pre-wrap">{dog.walkNotes ?? "—"}</p>
+      </DetailCard>
+    </div>
+
+    {/* Staff-only on the shelter console (PRD-04 §4-3); the platform operator sees it here (DEV-01 dog.ts). */}
+    <DetailCard title="団体内メモ" description="公開サイトには表示されません。健康・安全に関わる申し送りです。" list={false}>
+      <p class="text-sm whitespace-pre-wrap">{dog.internalNotes ?? "—"}</p>
+    </DetailCard>
+  </div>
+</ConsoleLayout>

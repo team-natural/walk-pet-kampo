@@ -1,12 +1,15 @@
 ---
 // SYS-06 — PRD-04 §3-3
-// Reference skeleton for a PLATFORM screen. AdminUser is a single role, so a valid session is
-// the whole authorization check — there is no requireRole here (GOV-01 D-011).
 // TODO(SYS-06): replace mockOrganizations with listOrganizations() — F-15-04.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import DataTable from "$lib/components/data-table.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import * as Table from "$lib/components/ui/table/index.js";
+import { formatDate } from "$lib/format";
 import { mockOrganizations } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
 import type { OrganizationSummary } from "$lib/view-models/organization";
 import { createDb } from "@app/schema/client";
 
@@ -17,35 +20,25 @@ if (!session) return Astro.redirect("/", 302);
 const organizations: OrganizationSummary[] = mockOrganizations;
 ---
 
-<Layout title="保護団体一覧 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-6xl flex-col gap-8 p-6">
-    <header class="flex items-center justify-between gap-4">
-      <h1 class="text-2xl font-bold">保護団体</h1>
-    </header>
+<ConsoleLayout title="保護団体" user={session} breadcrumbs={[{ label: "保護団体" }]}>
+  <PageHeader title="保護団体" description="承認済みの団体を横断して確認し、掲載停止・活動停止を行います。" />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">団体名</th>
-          <th class="py-2">エリア</th>
-          <th class="py-2">ステータス</th>
-          <th class="py-2">登録日</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          organizations.map((organization) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/organizations/${organization.id}`}>{organization.name}</a>
-              </td>
-              <td class="py-2">{organization.activityArea}</td>
-              <td class="py-2">{organization.status}</td>
-              <td class="py-2">{organization.createdAt}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+  <DataTable caption="保護団体の一覧" columns={["団体名", "活動地域", "状態", "登録日"]} rowCount={organizations.length} emptyTitle="登録済みの団体がありません" emptyDescription="登録申請を承認すると、その団体がここに並びます。" emptyActionHref="/organization-applications" emptyActionLabel="登録申請を見る">
+    {
+      organizations.map((organization) => (
+        <Table.Row>
+          <Table.Cell>
+            <a href={`/organizations/${organization.id}`} class="rounded-sm font-medium underline-offset-4 hover:underline">
+              {organization.name}
+            </a>
+          </Table.Cell>
+          <Table.Cell class="text-muted-foreground">{organization.activityArea ?? "—"}</Table.Cell>
+          <Table.Cell>
+            <StatusBadge domain="organization" value={organization.status} />
+          </Table.Cell>
+          <Table.Cell class="whitespace-nowrap text-muted-foreground tabular-nums">{formatDate(organization.createdAt)}</Table.Cell>
+        </Table.Row>
+      ))
+    }
+  </DataTable>
+</ConsoleLayout>

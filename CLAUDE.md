@@ -148,7 +148,9 @@ boot with a bare `SyntaxError`.
 
 E2E seeds its own account in `globalSetup`, so no env vars are needed. `pnpm test:e2e` runs with
 `--concurrency=1`: both suites drive a real dev server against the one local D1, and running them
-in parallel corrupts it.
+in parallel corrupts it. Each `playwright.config.ts` pins `workers: 1` for the same reason —
+Playwright parallelises across spec files by default, so adding a second spec file to an app is
+what turns this on. The symptom is an unrelated route answering 500 under load.
 
 Cover what E2E cannot reach — fail-closed config, expiry, timing parity — in Vitest. Cover
 hydration in E2E: a missing `client:*` directive still renders server-side, so only an interaction

@@ -1,11 +1,18 @@
 ---
 // SYS-20 — PRD-04 §3-3
 // TODO(SYS-20): replace mockIncidentDetail with getIncident() and post transitionIncident()
-// — F-15-10, F-12-03.
+// — F-15-10.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import ConfirmAction from "$lib/components/confirm-action.svelte";
+import DetailCard from "$lib/components/detail-card.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import SeverityBadge from "$lib/components/severity-badge.svelte";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import { formatDateTime } from "$lib/format";
 import { mockIncidentDetail } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
+import { label } from "$lib/status";
 import type { IncidentDetail } from "$lib/view-models/incident";
 import { createDb } from "@app/schema/client";
 
@@ -15,32 +22,58 @@ if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
 const incident: IncidentDetail = mockIncidentDetail;
+const transitionAction = `/api/v1/incidents/${incident.id}/transition`;
+const open = incident.status !== "resolved" && incident.status !== "closed";
 ---
 
-<Layout title="事故・トラブルの詳細 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{incident.category}（{incident.severity}）</h1>
+<ConsoleLayout title={`${incident.organizationName} の報告`} user={session} breadcrumbs={[{ label: "事故・トラブル", href: "/incidents" }, { label: incident.organizationName }]}>
+  <div data-public-id={publicId} class="contents">
+    <PageHeader title={incident.organizationName} description={`${label("incidentCategory", incident.category)} / ${formatDateTime(incident.occurredAt)}`}>
+      <Fragment slot="meta">
+        <p class="flex flex-wrap items-center gap-2 pt-1">
+          <SeverityBadge client:load severity={incident.severity} />
+          <StatusBadge client:load domain="incident" value={incident.status} />
+        </p>
+      </Fragment>
+      <Fragment slot="actions">
+        {
+          open && (
+            <Fragment>
+              <ConfirmAction client:load action={transitionAction} name="to" value="investigating" triggerLabel="調査を開始" title="調査を開始しますか？" message="報告者と団体に、運営が確認を始めた旨が通知されます。" confirmLabel="開始する" />
+              <ConfirmAction client:load action={transitionAction} name="to" value="resolved" triggerLabel="解決にする" title="この報告を解決にしますか？" message="対応が完了した扱いになります。再発防止策は必ず記録に残してください。" confirmLabel="解決にする" reasonLabel="対応内容と再発防止策（必須）" reasonRequired />
+            </Fragment>
+          )
+        }
+        <ConfirmAction client:load action={transitionAction} name="to" value="closed" destructive triggerLabel="クローズ" title="この報告をクローズしますか？" message="クローズは取り消せません。以降は参照専用の記録になります。" confirmLabel="クローズする" reasonLabel="クローズの理由" />
+      </Fragment>
+    </PageHeader>
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-muted-foreground">団体</dt> <dd class="inline">{incident.organizationName}</dd></div>
-      <div><dt class="inline text-muted-foreground">発生日時</dt> <dd class="inline">{incident.occurredAt}</dd></div>
-      <div><dt class="inline text-muted-foreground">報告者</dt> <dd class="inline">{incident.reportedByName}</dd></div>
-      <div><dt class="inline text-muted-foreground">参加者 / 犬</dt> <dd class="inline">{incident.walkerName} / {incident.dogName}</dd></div>
-      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{incident.status}</dd></div>
-    </dl>
+    <div class="grid items-start gap-6 xl:grid-cols-2">
+      <DetailCard title="発生状況">
+        <div><dt>発生日時</dt><dd class="tabular-nums">{formatDateTime(incident.occurredAt)}</dd></div>
+        <div><dt>場所</dt><dd>{incident.location ?? "—"}</dd></div>
+        <div><dt>種類</dt><dd>{label("incidentCategory", incident.category)}</dd></div>
+        <div><dt>重大度</dt><dd>{incident.severity}</dd></div>
+        <div><dt>報告者</dt><dd>{incident.reportedByName}</dd></div>
+      </DetailCard>
 
-    <p class="text-sm whitespace-pre-wrap">{incident.description}</p>
+      <DetailCard title="関係者">
+        <div><dt>団体</dt><dd>{incident.organizationName}</dd></div>
+        <div><dt>参加者</dt><dd>{incident.walkerName ?? "—"}</dd></div>
+        <div><dt>保護犬</dt><dd>{incident.dogName ?? "—"}</dd></div>
+        <div><dt>解決日時</dt><dd class="tabular-nums">{incident.resolvedAt ? formatDateTime(incident.resolvedAt) : "—"}</dd></div>
+        <div><dt>最終更新</dt><dd class="tabular-nums">{formatDateTime(incident.updatedAt)}</dd></div>
+      </DetailCard>
+    </div>
 
-    <form class="grid gap-3 text-sm" method="post" action={`/api/v1/incidents/${incident.id}/transition`}>
-      <label class="grid gap-1">
-        <span>再発防止策</span>
-        <textarea name="preventionMeasures" rows="3" class="rounded border px-3 py-2">{incident.preventionMeasures}</textarea>
-      </label>
-      <div class="flex gap-2">
-        <button type="submit" name="to" value="investigating" class="rounded border px-3 py-2">調査中にする</button>
-        <button type="submit" name="to" value="resolved" class="rounded border px-3 py-2">対応完了にする</button>
-        <button type="submit" name="to" value="closed" class="rounded border px-3 py-2">クローズする</button>
-      </div>
-    </form>
-  </main>
-</Layout>
+    <div class="grid items-start gap-6 xl:grid-cols-2">
+      <DetailCard title="報告内容" list={false}>
+        <p class="text-sm whitespace-pre-wrap">{incident.description}</p>
+      </DetailCard>
+
+      <DetailCard title="再発防止策" list={false}>
+        <p class="text-sm whitespace-pre-wrap">{incident.preventionMeasures ?? "まだ記録されていません。"}</p>
+      </DetailCard>
+    </div>
+  </div>
+</ConsoleLayout>

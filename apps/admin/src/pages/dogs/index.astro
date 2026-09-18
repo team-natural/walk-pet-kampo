@@ -2,9 +2,15 @@
 // SYS-09 — PRD-04 §3-3
 // TODO(SYS-09): replace mockDogs with listDogs() — F-15-05.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import DataTable from "$lib/components/data-table.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import { Badge } from "$lib/components/ui/badge/index.js";
+import * as Table from "$lib/components/ui/table/index.js";
 import { mockDogs } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
+import { label } from "$lib/status";
 import type { DogSummary } from "$lib/view-models/dog";
 import { createDb } from "@app/schema/client";
 
@@ -15,33 +21,29 @@ if (!session) return Astro.redirect("/", 302);
 const dogs: DogSummary[] = mockDogs;
 ---
 
-<Layout title="保護犬 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">保護犬</h1>
+<ConsoleLayout title="保護犬" user={session} breadcrumbs={[{ label: "保護犬" }]}>
+  <PageHeader title="保護犬" description="全団体の保護犬を横断して確認します。登録・編集は団体側で行います。" />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">名前</th>
-          <th class="py-2">団体</th>
-          <th class="py-2">譲渡状況</th>
-          <th class="py-2">公開</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          dogs.map((dog) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/dogs/${dog.id}`}>{dog.name}</a>
-              </td>
-              <td class="py-2">{dog.organizationName}</td>
-              <td class="py-2">{dog.adoptionStatus}</td>
-              <td class="py-2">{dog.isPublished ? "公開" : "非公開"}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+  <DataTable caption="保護犬の一覧" columns={["名前", "団体", "犬種", "大きさ", "里親募集", "公開"]} rowCount={dogs.length} emptyTitle="登録された保護犬がいません" emptyDescription="団体が保護犬を登録するとここに表示されます。" emptyActionHref="/organizations" emptyActionLabel="保護団体一覧を見る">
+    {
+      dogs.map((dog) => (
+        <Table.Row>
+          <Table.Cell>
+            <a href={`/dogs/${dog.id}`} class="rounded-sm font-medium underline-offset-4 hover:underline">
+              {dog.name}
+            </a>
+          </Table.Cell>
+          <Table.Cell class="text-muted-foreground">{dog.organizationName}</Table.Cell>
+          <Table.Cell>{dog.breed ?? "—"}</Table.Cell>
+          <Table.Cell>{dog.size ? label("dogSize", dog.size) : "—"}</Table.Cell>
+          <Table.Cell>
+            <StatusBadge domain="dog" value={dog.adoptionStatus} />
+          </Table.Cell>
+          <Table.Cell>
+            <Badge variant={dog.isPublished ? "secondary" : "outline"}>{dog.isPublished ? "公開中" : "非公開"}</Badge>
+          </Table.Cell>
+        </Table.Row>
+      ))
+    }
+  </DataTable>
+</ConsoleLayout>

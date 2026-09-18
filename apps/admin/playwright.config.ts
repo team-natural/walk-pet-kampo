@@ -9,6 +9,10 @@ export default defineConfig({
   globalSetup: "./tests/e2e/global-setup.ts",
   // A stray test.only would otherwise let CI pass on a subset.
   forbidOnly: !!process.env.CI,
+  // Playwright parallelises across spec files by default, and every worker drives the one dev
+  // server against the one local D1 — the same reason `pnpm test:e2e` passes `--concurrency=1`
+  // between the two suites. The symptom is an unrelated route answering 500 under load.
+  workers: 1,
   retries: process.env.CI ? 2 : 0,
   use: { baseURL, trace: "on-first-retry" },
   webServer: {

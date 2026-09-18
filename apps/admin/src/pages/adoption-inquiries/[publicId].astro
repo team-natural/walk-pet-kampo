@@ -1,11 +1,16 @@
 ---
 // SYS-22 — PRD-04 §3-3
-// Read-only: the operator receives and records, but does not mediate (GOV-02 TBD-32).
+// Read-only: the transfer itself follows each organization's own process (PRD-01 §1-0), so the
+// platform records the conversation but never advances it.
 // TODO(SYS-22): replace mockAdoptionInquiryDetail with getAdoptionInquiry() — F-15-11.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import DetailCard from "$lib/components/detail-card.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import { formatDateTime } from "$lib/format";
 import { mockAdoptionInquiryDetail } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
 import type { AdoptionInquiryDetail } from "$lib/view-models/adoption-inquiry";
 import { createDb } from "@app/schema/client";
 
@@ -17,18 +22,31 @@ const { publicId } = Astro.params;
 const inquiry: AdoptionInquiryDetail = mockAdoptionInquiryDetail;
 ---
 
-<Layout title="里親相談の詳細 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{inquiry.dogName} への相談</h1>
+<ConsoleLayout title={`${inquiry.dogName} の里親相談`} user={session} breadcrumbs={[{ label: "里親相談", href: "/adoption-inquiries" }, { label: inquiry.dogName }]}>
+  <div data-public-id={publicId} class="contents">
+    <PageHeader title={inquiry.dogName} description={`${inquiry.walkerName} さんからの相談 / ${inquiry.organizationName}`}>
+      <Fragment slot="meta">
+        <p class="pt-1"><StatusBadge client:load domain="adoptionInquiry" value={inquiry.status} /></p>
+      </Fragment>
+    </PageHeader>
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-muted-foreground">団体</dt> <dd class="inline">{inquiry.organizationName}</dd></div>
-      <div><dt class="inline text-muted-foreground">参加者</dt> <dd class="inline">{inquiry.walkerName}</dd></div>
-      <div><dt class="inline text-muted-foreground">受付日</dt> <dd class="inline">{inquiry.createdAt}</dd></div>
-      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{inquiry.status}</dd></div>
-      <div><dt class="inline text-muted-foreground">団体の連絡日</dt> <dd class="inline">{inquiry.organizationContactedAt ?? "未連絡"}</dd></div>
-    </dl>
+    <DetailCard title="相談の経過">
+      <div><dt>相談日時</dt><dd class="tabular-nums">{formatDateTime(inquiry.createdAt)}</dd></div>
+      <div><dt>団体からの連絡</dt><dd class="tabular-nums">{inquiry.organizationContactedAt ? formatDateTime(inquiry.organizationContactedAt) : "—"}</dd></div>
+      <div><dt>終了日時</dt><dd class="tabular-nums">{inquiry.closedAt ? formatDateTime(inquiry.closedAt) : "—"}</dd></div>
+      <div><dt>最終更新</dt><dd class="tabular-nums">{formatDateTime(inquiry.updatedAt)}</dd></div>
+    </DetailCard>
 
-    <p class="text-sm whitespace-pre-wrap">{inquiry.motivation}</p>
-  </main>
-</Layout>
+    <div class="grid items-start gap-6 xl:grid-cols-2">
+      <DetailCard title="相談内容" list={false}>
+        <p class="text-sm whitespace-pre-wrap">{inquiry.motivation ?? "—"}</p>
+      </DetailCard>
+
+      <DetailCard title="飼育環境" list={false}>
+        <p class="text-sm whitespace-pre-wrap">{inquiry.livingEnvironment ?? "—"}</p>
+      </DetailCard>
+    </div>
+
+    <p class="text-sm text-muted-foreground">この画面は横断確認のための参照専用です。相談への返信と譲渡手続きは団体ページから行われます。</p>
+  </div>
+</ConsoleLayout>

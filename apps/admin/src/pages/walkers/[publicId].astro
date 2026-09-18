@@ -5,9 +5,15 @@
 // TODO(SYS-03): replace mockWalkerDetail with getWalker() and post transitionWalkerProfile()
 // — F-15-02.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import ConfirmAction from "$lib/components/confirm-action.svelte";
+import DetailCard from "$lib/components/detail-card.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import { formatDate, formatDateTime, formatPostalCode } from "$lib/format";
 import { mockWalkerDetail } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
+import { yesNo } from "$lib/status";
 import type { WalkerDetail } from "$lib/view-models/walker";
 import { createDb } from "@app/schema/client";
 
@@ -17,24 +23,42 @@ if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
 const walker: WalkerDetail = mockWalkerDetail;
+const transitionAction = `/api/v1/walkers/${walker.id}/transition`;
 ---
 
-<Layout title="参加者の詳細 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{walker.name}</h1>
+<ConsoleLayout title={walker.name} user={session} breadcrumbs={[{ label: "お散歩参加者", href: "/walkers" }, { label: walker.name }]}>
+  <div data-public-id={publicId} class="contents">
+    <PageHeader title={walker.name} description={walker.email}>
+      <Fragment slot="meta">
+        <p class="pt-1"><StatusBadge client:load domain="walkerProfile" value={walker.profileStatus} /></p>
+      </Fragment>
+      <Fragment slot="actions">
+        <ConfirmAction client:load action={transitionAction} name="to" value="restricted" triggerLabel="利用制限" title="この参加者を利用制限にしますか？" message="新しい予約ができなくなります。確定済みの予約はそのまま残ります。" confirmLabel="利用制限にする" reasonLabel="理由（本人への通知には含まれません）" />
+        <ConfirmAction client:load action={transitionAction} name="to" value="suspended" destructive triggerLabel="利用停止" title="この参加者を利用停止にしますか？" message="ログインと予約ができなくなり、確定済みの予約は団体側に通知のうえキャンセルされます。" confirmLabel="利用停止にする" reasonLabel="理由（必須）" reasonRequired />
+        <ConfirmAction client:load action={transitionAction} name="to" value="active" triggerLabel="利用再開" title="利用を再開しますか？" message="予約を含むすべての機能が再び使えるようになります。" confirmLabel="再開する" />
+      </Fragment>
+    </PageHeader>
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-muted-foreground">メールアドレス</dt> <dd class="inline">{walker.email}</dd></div>
-      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{walker.profileStatus}</dd></div>
-      <div><dt class="inline text-muted-foreground">電話番号</dt> <dd class="inline">{walker.phone}（{walker.phoneVerifiedAt ? "確認済み" : "未確認"}）</dd></div>
-      <div><dt class="inline text-muted-foreground">予約件数</dt> <dd class="inline">{walker.reservationCount} 件</dd></div>
-      <div><dt class="inline text-muted-foreground">規約同意</dt> <dd class="inline">{walker.termsAgreedVersion}</dd></div>
-    </dl>
+    <div class="grid items-start gap-6 xl:grid-cols-2">
+      <DetailCard title="本人情報">
+        <div><dt>氏名</dt><dd>{walker.name}（{walker.nameKana ?? "—"}）</dd></div>
+        <div><dt>生年月日</dt><dd class="tabular-nums">{walker.birthdate ? formatDate(walker.birthdate) : "—"}</dd></div>
+        <div><dt>性別</dt><dd>{walker.gender ?? "—"}</dd></div>
+        <div><dt>住所</dt><dd>{formatPostalCode(walker.postalCode)} {walker.address ?? "—"}</dd></div>
+        <div>
+          <dt>電話番号</dt>
+          <dd class="tabular-nums">{walker.phone ?? "—"}<span class="ms-2 text-muted-foreground">{walker.phoneVerifiedAt ? "確認済み" : "未確認"}</span></dd>
+        </div>
+        <div><dt>緊急連絡先</dt><dd>{walker.emergencyContactName ?? "—"}<span class="ms-2 tabular-nums">{walker.emergencyContactPhone ?? ""}</span></dd></div>
+      </DetailCard>
 
-    <form class="flex gap-2 text-sm" method="post" action={`/api/v1/walkers/${walker.id}/transition`}>
-      <button type="submit" name="to" value="restricted" class="rounded border px-3 py-2">利用制限</button>
-      <button type="submit" name="to" value="suspended" class="rounded border border-red-300 px-3 py-2 text-red-700">利用停止</button>
-      <button type="submit" name="to" value="active" class="rounded border px-3 py-2">復帰</button>
-    </form>
-  </main>
-</Layout>
+      <DetailCard title="利用状況">
+        <div><dt>予約件数</dt><dd class="tabular-nums">{walker.reservationCount} 件</dd></div>
+        <div><dt>犬の飼育経験</dt><dd>{yesNo(walker.dogExperience)}</dd></div>
+        <div><dt>大型犬の散歩経験</dt><dd>{yesNo(walker.largeDogWalkExperience)}</dd></div>
+        <div><dt>規約同意</dt><dd class="tabular-nums">{walker.termsAgreedVersion ?? "—"}{walker.termsAgreedAt ? `（${formatDateTime(walker.termsAgreedAt)}）` : ""}</dd></div>
+        <div><dt>登録日</dt><dd class="tabular-nums">{formatDate(walker.createdAt)}</dd></div>
+      </DetailCard>
+    </div>
+  </div>
+</ConsoleLayout>

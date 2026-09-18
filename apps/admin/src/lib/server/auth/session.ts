@@ -9,9 +9,13 @@ import { eq } from "drizzle-orm";
 
 export const ADMIN_SESSION_COOKIE = "admin_session";
 
+// `name` and `email` ride along because the console shell renders them on every screen: the join
+// below already reaches admin_users, so selecting them costs nothing and saves 24 repeat queries.
 export interface Session {
   adminUserId: number;
   adminUserPublicId: string;
+  name: string;
+  email: string;
 }
 
 export async function getSession(cookies: AstroCookies, db: DbClient): Promise<Session | null> {
@@ -22,6 +26,8 @@ export async function getSession(cookies: AstroCookies, db: DbClient): Promise<S
     .select({
       adminUserId: adminUsers.id,
       adminUserPublicId: adminUsers.publicId,
+      name: adminUsers.name,
+      email: adminUsers.email,
       status: adminUsers.status,
       expiresAt: adminSessions.expiresAt,
     })
@@ -31,7 +37,7 @@ export async function getSession(cookies: AstroCookies, db: DbClient): Promise<S
     .limit(1);
 
   if (!row || !isActiveSession(row)) return null;
-  return { adminUserId: row.adminUserId, adminUserPublicId: row.adminUserPublicId };
+  return { adminUserId: row.adminUserId, adminUserPublicId: row.adminUserPublicId, name: row.name, email: row.email };
 }
 
 // There is no requireRole counterpart: AdminUser has one role, so being logged in is the whole

@@ -3,7 +3,12 @@
 // No mock: inquiries is the reference resource and its Service already exists, so this screen is
 // wired to real data from the start.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import DataTable from "$lib/components/data-table.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import * as Table from "$lib/components/ui/table/index.js";
+import { formatDateTime } from "$lib/format";
 import { getSession } from "$lib/server/auth/session";
 import { listInquiries } from "$lib/server/services/inquiries";
 import { createDb } from "@app/schema/client";
@@ -15,33 +20,25 @@ if (!session) return Astro.redirect("/", 302);
 const { items } = await listInquiries(db, {});
 ---
 
-<Layout title="お問い合わせ — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">お問い合わせ</h1>
+<ConsoleLayout title="お問い合わせ" user={session} breadcrumbs={[{ label: "お問い合わせ" }]}>
+  <PageHeader title="お問い合わせ" description="公開サイトのフォームから届いた問い合わせです。新しい順に並びます。" />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">受付日</th>
-          <th class="py-2">種別</th>
-          <th class="py-2">お名前</th>
-          <th class="py-2">状態</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          items.map((inquiry) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/inquiries/${inquiry.id}`}>{inquiry.createdAt}</a>
-              </td>
-              <td class="py-2">{inquiry.type}</td>
-              <td class="py-2">{inquiry.name}</td>
-              <td class="py-2">{inquiry.status}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+  <DataTable caption="お問い合わせの一覧" columns={["受付日時", "種別", "お名前", "状態"]} rowCount={items.length} emptyTitle="お問い合わせはありません" emptyDescription="公開サイトのフォームから届くとここに表示されます。">
+    {
+      items.map((inquiry) => (
+        <Table.Row>
+          <Table.Cell class="whitespace-nowrap tabular-nums">
+            <a href={`/inquiries/${inquiry.id}`} class="rounded-sm font-medium underline-offset-4 hover:underline">
+              {formatDateTime(inquiry.createdAt)}
+            </a>
+          </Table.Cell>
+          <Table.Cell class="text-muted-foreground">{inquiry.type ?? "—"}</Table.Cell>
+          <Table.Cell>{inquiry.name}</Table.Cell>
+          <Table.Cell>
+            <StatusBadge domain="inquiry" value={inquiry.status} />
+          </Table.Cell>
+        </Table.Row>
+      ))
+    }
+  </DataTable>
+</ConsoleLayout>

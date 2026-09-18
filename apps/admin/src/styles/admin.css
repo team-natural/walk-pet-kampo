@@ -118,6 +118,48 @@
 }
 
 @layer components {
+  /* Term/value rows on every detail screen. A class rather than a component because the value
+     side is arbitrary markup — badges, links, preformatted text.
+     Banded term column for the same reason the list tables band their header: on a white Card,
+     label and value are otherwise one flat block. Padding sits on the cells, not the row, so the
+     band runs to the card's edges. */
+  .detail-list > div {
+    display: grid;
+    border-block-start: 1px solid var(--border);
+  }
+  .detail-list > div:first-child {
+    border-block-start: 0;
+  }
+  .detail-list > div > dt {
+    background-color: var(--muted);
+    color: var(--muted-foreground);
+    font-size: 0.8125rem;
+    padding: 0.625rem var(--card-spacing);
+  }
+  .detail-list > div > dd {
+    padding: 0.625rem var(--card-spacing);
+  }
+  @media (width >= 40rem) {
+    .detail-list > div {
+      grid-template-columns: 12rem 1fr;
+    }
+    .detail-list > div > dt {
+      border-inline-end: 1px solid var(--border);
+    }
+  }
+
+  /* shadcn separates the header from the body with a hairline and nothing else, so on a white
+     Card the label row and the data read as one flat block. Band the header instead.
+     Keyed off data-slot so `shadcn-svelte update` cannot quietly revert it. */
+  [data-slot="table-header"] {
+    background-color: var(--muted);
+  }
+  [data-slot="table-head"] {
+    color: var(--muted-foreground);
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+
   /* A table that runs edge to edge inside a Card: its own cell padding is narrower than the
      card's, so the first column sits left of the card title unless the outer cells match. */
   .table-in-card :is(th, td):first-child {
@@ -125,6 +167,19 @@
   }
   .table-in-card :is(th, td):last-child {
     padding-inline-end: var(--card-spacing);
+  }
+}
+
+/* In `utilities` rather than `components` because Table.Row carries `hover:bg-muted/50`, and a
+   later layer beats any specificity an earlier one can reach. Source order inside the layer is
+   what keeps hover above the stripe. */
+@layer utilities {
+  [data-slot="table-body"] [data-slot="table-row"]:nth-child(even) {
+    background-color: color-mix(in oklch, var(--muted) 40%, transparent);
+  }
+  /* Full-strength muted: the stripe already sits at 40%, so a translucent hover reads as nothing. */
+  [data-slot="table-body"] [data-slot="table-row"]:hover {
+    background-color: var(--muted);
   }
 }
 

@@ -3,9 +3,15 @@
 // No mock: the Service already exists. Status moves through one route per transition, never a
 // PATCH on status (DEV-05, services/inquiries.ts).
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import ConfirmAction from "$lib/components/confirm-action.svelte";
+import DetailCard from "$lib/components/detail-card.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import { formatDateTime } from "$lib/format";
 import { getSession } from "$lib/server/auth/session";
 import { allowedTransitions, getInquiryByPublicId } from "$lib/server/services/inquiries";
+import { statusMeta } from "$lib/status";
 import { createDb } from "@app/schema/client";
 
 const db = createDb(env.DB);
@@ -16,30 +22,30 @@ const { publicId } = Astro.params;
 const inquiry = publicId ? await getInquiryByPublicId(db, publicId) : undefined;
 if (!inquiry) return Astro.redirect("/inquiries", 302);
 
+// One route per transition, so the target status picks the path rather than a `to` body field.
+const ROUTES = { in_progress: "start", resolved: "resolve", new: "reopen" } as const;
 const transitions = allowedTransitions(inquiry.status);
 ---
 
-<Layout title="お問い合わせの詳細 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">{inquiry.name} さんからのお問い合わせ</h1>
+<ConsoleLayout title={`${inquiry.name} さんからのお問い合わせ`} user={session} breadcrumbs={[{ label: "お問い合わせ", href: "/inquiries" }, { label: inquiry.name }]}>
+  <PageHeader title={`${inquiry.name} さんからのお問い合わせ`} description={inquiry.email}>
+    <Fragment slot="meta">
+      <p class="pt-1"><StatusBadge client:load domain="inquiry" value={inquiry.status} /></p>
+    </Fragment>
+    <Fragment slot="actions">
+      {transitions.map((to) => <ConfirmAction client:load action={`/api/v1/inquiries/${inquiry.id}/${ROUTES[to]}`} triggerLabel={`${statusMeta("inquiry", to).label}にする`} title={`このお問い合わせを${statusMeta("inquiry", to).label}にしますか？`} message="状態の変更は操作履歴に記録されます。返信そのものはメールで行ってください。" confirmLabel="変更する" />)}
+    </Fragment>
+  </PageHeader>
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-muted-foreground">受付日</dt> <dd class="inline">{inquiry.createdAt}</dd></div>
-      <div><dt class="inline text-muted-foreground">種別</dt> <dd class="inline">{inquiry.type}</dd></div>
-      <div><dt class="inline text-muted-foreground">メールアドレス</dt> <dd class="inline">{inquiry.email}</dd></div>
-      <div><dt class="inline text-muted-foreground">状態</dt> <dd class="inline">{inquiry.status}</dd></div>
-    </dl>
+  <DetailCard title="受付情報">
+    <div><dt>受付日時</dt><dd class="tabular-nums">{formatDateTime(inquiry.createdAt)}</dd></div>
+    <div><dt>種別</dt><dd>{inquiry.type ?? "—"}</dd></div>
+    <div><dt>お名前</dt><dd>{inquiry.name}</dd></div>
+    <div><dt>メールアドレス</dt><dd><a href={`mailto:${inquiry.email}`} class="rounded-sm underline underline-offset-4">{inquiry.email}</a></dd></div>
+    <div><dt>最終更新</dt><dd class="tabular-nums">{formatDateTime(inquiry.updatedAt)}</dd></div>
+  </DetailCard>
 
+  <DetailCard title="本文" list={false}>
     <p class="text-sm whitespace-pre-wrap">{inquiry.message}</p>
-
-    <form class="flex gap-2 text-sm" method="post">
-      {
-        transitions.map((to) => (
-          <button type="submit" formaction={`/api/v1/inquiries/${inquiry.id}/${to === "in_progress" ? "start" : to === "resolved" ? "resolve" : "reopen"}`} class="rounded border px-3 py-2">
-            {to} にする
-          </button>
-        ))
-      }
-    </form>
-  </main>
-</Layout>
+  </DetailCard>
+</ConsoleLayout>

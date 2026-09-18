@@ -2,9 +2,14 @@
 // SYS-15 — PRD-04 §3-3
 // TODO(SYS-15): replace mockPayments with listPayments() — F-15-08.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import DataTable from "$lib/components/data-table.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import * as Table from "$lib/components/ui/table/index.js";
+import { formatDateTime, formatYen } from "$lib/format";
 import { mockPayments } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
 import type { PaymentSummary } from "$lib/view-models/reservation";
 import { createDb } from "@app/schema/client";
 
@@ -15,33 +20,26 @@ if (!session) return Astro.redirect("/", 302);
 const payments: PaymentSummary[] = mockPayments;
 ---
 
-<Layout title="決済・返金 — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">決済・返金</h1>
+<ConsoleLayout title="決済・返金" user={session} breadcrumbs={[{ label: "決済・返金" }]}>
+  <PageHeader title="決済・返金" description="参加費の決済状況を確認し、返金を処理します。決済の実体は Stripe 側にあります。" />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">金額</th>
-          <th class="py-2">団体還元</th>
-          <th class="py-2">状態</th>
-          <th class="py-2">入金日</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          payments.map((payment) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/payments/${payment.id}`}>{payment.amount} 円</a>
-              </td>
-              <td class="py-2">{payment.organizationShareAmount} 円</td>
-              <td class="py-2">{payment.status}</td>
-              <td class="py-2">{payment.paidAt}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+  <DataTable caption="決済・返金の一覧" columns={["決済 ID", "参加費", "団体還元", "状態", "決済日時"]} rowCount={payments.length} emptyTitle="決済がありません" emptyDescription="予約が確定するとここに表示されます。" emptyActionHref="/reservations" emptyActionLabel="予約一覧を見る">
+    {
+      payments.map((payment) => (
+        <Table.Row>
+          <Table.Cell>
+            <a href={`/payments/${payment.id}`} class="rounded-sm font-mono text-xs font-medium underline-offset-4 hover:underline">
+              {payment.stripePaymentIntentId ?? payment.id}
+            </a>
+          </Table.Cell>
+          <Table.Cell class="whitespace-nowrap tabular-nums">{formatYen(payment.amount)}</Table.Cell>
+          <Table.Cell class="whitespace-nowrap text-muted-foreground tabular-nums">{formatYen(payment.organizationShareAmount)}</Table.Cell>
+          <Table.Cell>
+            <StatusBadge domain="payment" value={payment.status} />
+          </Table.Cell>
+          <Table.Cell class="whitespace-nowrap text-muted-foreground tabular-nums">{payment.paidAt ? formatDateTime(payment.paidAt) : "—"}</Table.Cell>
+        </Table.Row>
+      ))
+    }
+  </DataTable>
+</ConsoleLayout>

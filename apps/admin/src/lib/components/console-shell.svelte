@@ -13,6 +13,7 @@
   import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
   import UsersIcon from "@lucide/svelte/icons/users";
   import ConsoleUserMenu from "$lib/components/console-user-menu.svelte";
+  import FlashMessage from "$lib/components/flash-message.svelte";
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import { Separator } from "$lib/components/ui/separator/index.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
@@ -23,12 +24,14 @@
     pathname,
     sidebarOpen = true,
     breadcrumbs = [],
+    flashStatus = null,
     children,
   }: {
     user: { name: string; email: string };
     pathname: string;
     sidebarOpen?: boolean;
     breadcrumbs?: { label: string; href?: string }[];
+    flashStatus?: string | null;
     children?: import("svelte").Snippet;
   } = $props();
 
@@ -136,6 +139,7 @@
     </header>
 
     <div class="flex flex-1 flex-col gap-6 p-4 md:p-6">
+      <FlashMessage status={flashStatus} />
       {@render children?.()}
     </div>
   </Sidebar.Inset>

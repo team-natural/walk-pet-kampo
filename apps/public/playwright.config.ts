@@ -9,6 +9,9 @@ export default defineConfig({
   globalSetup: "./tests/e2e/global-setup.ts",
   // A stray test.only would otherwise let CI pass on a subset.
   forbidOnly: !!process.env.CI,
+  // One worker for the same reason as apps/admin: the second spec file is what turns the shared
+  // dev server and local D1 into a race, so this has to be set before that file exists.
+  workers: 1,
   retries: process.env.CI ? 2 : 0,
   use: { baseURL, trace: "on-first-retry" },
   webServer: {

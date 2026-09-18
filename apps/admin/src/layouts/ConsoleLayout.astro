@@ -22,7 +22,7 @@ const sidebarOpen = Astro.cookies.get(SIDEBAR_COOKIE_NAME)?.value !== "false";
 ---
 
 <Layout title={`${title} | 運営管理`}>
-  <ConsoleShell client:load user={user} pathname={Astro.url.pathname} breadcrumbs={breadcrumbs} sidebarOpen={sidebarOpen}>
+  <ConsoleShell client:load user={user} pathname={Astro.url.pathname} breadcrumbs={breadcrumbs} sidebarOpen={sidebarOpen} flashStatus={Astro.url.searchParams.get("status")}>
     <slot />
   </ConsoleShell>
 </Layout>

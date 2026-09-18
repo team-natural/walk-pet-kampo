@@ -2,9 +2,16 @@
 // SYS-19 — PRD-04 §3-3
 // TODO(SYS-19): replace mockIncidents with listIncidents() — F-15-10.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import { getSession } from "$lib/server/auth/session";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import DataTable from "$lib/components/data-table.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import SeverityBadge from "$lib/components/severity-badge.svelte";
+import StatusBadge from "$lib/components/status-badge.svelte";
+import * as Table from "$lib/components/ui/table/index.js";
+import { formatDateTime } from "$lib/format";
 import { mockIncidents } from "$lib/mocks";
+import { getSession } from "$lib/server/auth/session";
+import { label } from "$lib/status";
 import type { IncidentSummary } from "$lib/view-models/incident";
 import { createDb } from "@app/schema/client";
 
@@ -15,35 +22,29 @@ if (!session) return Astro.redirect("/", 302);
 const incidents: IncidentSummary[] = mockIncidents;
 ---
 
-<Layout title="事故・トラブル — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">事故・トラブル</h1>
+<ConsoleLayout title="事故・トラブル" user={session} breadcrumbs={[{ label: "事故・トラブル" }]}>
+  <PageHeader title="事故・トラブル" description="団体から届いた報告を確認し、対応を記録します。P1 は当日中の一次対応が必要です。" />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">発生日時</th>
-          <th class="py-2">団体</th>
-          <th class="py-2">重大度</th>
-          <th class="py-2">種別</th>
-          <th class="py-2">状態</th>
-        </tr>
-      </thead>
-      <tbody>
-        {
-          incidents.map((incident) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/incidents/${incident.id}`}>{incident.occurredAt}</a>
-              </td>
-              <td class="py-2">{incident.organizationName}</td>
-              <td class="py-2">{incident.severity}</td>
-              <td class="py-2">{incident.category}</td>
-              <td class="py-2">{incident.status}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+  <DataTable caption="事故・トラブル報告の一覧" columns={["団体", "重大度", "種類", "報告者", "発生日時", "状態"]} rowCount={incidents.length} emptyTitle="報告はありません" emptyDescription="団体または参加者から報告が届くとここに表示されます。" emptyActionHref="/walks" emptyActionLabel="お散歩募集を見る">
+    {
+      incidents.map((incident) => (
+        <Table.Row>
+          <Table.Cell>
+            <a href={`/incidents/${incident.id}`} class="rounded-sm font-medium underline-offset-4 hover:underline">
+              {incident.organizationName}
+            </a>
+          </Table.Cell>
+          <Table.Cell>
+            <SeverityBadge severity={incident.severity} />
+          </Table.Cell>
+          <Table.Cell>{label("incidentCategory", incident.category)}</Table.Cell>
+          <Table.Cell class="text-muted-foreground">{incident.reportedByName}</Table.Cell>
+          <Table.Cell class="whitespace-nowrap text-muted-foreground tabular-nums">{formatDateTime(incident.occurredAt)}</Table.Cell>
+          <Table.Cell>
+            <StatusBadge domain="incident" value={incident.status} />
+          </Table.Cell>
+        </Table.Row>
+      ))
+    }
+  </DataTable>
+</ConsoleLayout>

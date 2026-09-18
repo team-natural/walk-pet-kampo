@@ -49,6 +49,8 @@ describe("getSession", () => {
     await expect(getSession(cookiesWith(token), db)).resolves.toEqual({
       adminUserId: user.id,
       adminUserPublicId: user.publicId,
+      name: user.name,
+      email: user.email,
     });
   });
 
