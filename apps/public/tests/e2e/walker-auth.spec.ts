@@ -86,7 +86,7 @@ test.describe("public site", () => {
     await page.goto("/");
 
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await page.getByRole("link", { name: "お散歩を探す" }).click();
+    await page.getByRole("link", { name: "おさんぽをさがす" }).click();
     await expect(page).toHaveURL(/\/walks$/);
   });
 

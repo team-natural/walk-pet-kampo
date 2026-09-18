@@ -2,47 +2,260 @@
 // SCR-01 — PRD-04 §3-1
 // TODO(SCR-01): replace the mocks with searchWalkSlots() / listOrganizations() — F-07-01〜03.
 import Layout from "../layouts/Layout.astro";
+import PawIcon from "$lib/components/paw-icon.astro";
 import { mockOrganizations, mockWalkSlots } from "$lib/mocks";
+import { CANCELLATION, formatYen, ORGANIZATION_SHARE, PARTICIPATION_FEE, PLATFORM_FEE } from "$lib/pricing";
 import type { OrganizationSummary } from "$lib/view-models/organization";
 import type { WalkSlotSummary } from "$lib/view-models/walk-slot";
 
 const walkSlots: WalkSlotSummary[] = mockWalkSlots;
 const organizations: OrganizationSummary[] = mockOrganizations;
+
+// The split is drawn as paw prints, so the count comes from the fee rather than a literal 4 —
+// change the fee in pricing.ts and the picture follows.
+const PAW_TOTAL = 5;
+const DONATED_PAWS = Math.round((ORGANIZATION_SHARE / PARTICIPATION_FEE) * PAW_TOTAL);
+
+// The server runs in UTC; a walk on a Saturday morning in Tokyo must not render as Friday.
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
+
+const STEPS = [
+  { title: "さがす", body: "住んでいる地域と日付で、参加できるおさんぽを探します。" },
+  { title: "予約する", body: "参加人数と緊急連絡先を入力し、参加費をお支払いいただきます。" },
+  { title: "いっしょに歩く", body: "集合場所で保護団体のスタッフと合流。当日は同行します。" },
+];
+
+const ASSURANCES = [
+  { title: "はじめてでも歩けます", body: "犬の扱いに慣れていなくても参加できるよう、おさんぽには保護団体のスタッフが同行します。", href: "/guide", label: "利用ガイドを読む" },
+  { title: "里親にならなくて大丈夫", body: "目的はまず会うことです。相性がよければ、そのときに里親を検討いただけます。", href: "/faq", label: "よくある質問を見る" },
+  { title: "無理のないキャンセル", body: `開催の ${CANCELLATION.freeCancellationHours} 時間前までは無料でキャンセルできます。雨天中止の場合も全額返金します。`, href: "/safety", label: "安全について読む" },
+];
 ---
 
-<Layout title="保護犬おさんぽマッチング">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-10 p-6">
-    <section class="grid gap-3">
-      <h1 class="text-3xl font-bold">保護犬とおさんぽに行く</h1>
-      <p class="text-sm text-gray-600">参加費はそのまま保護団体の活動費になります。</p>
-      <a href="/walks" class="underline">お散歩を探す</a>
+<Layout title="保護犬おさんぽマッチング | 保護犬と歩く、ワンコインのおさんぽ" description="里親になるのはまだ不安。でも犬とふれあいたい。保護犬と1回かぎりのおさんぽができるサービスです。参加費500円のうち400円が保護団体の活動費になります。">
+  <main id="main-content">
+    <section class="mx-auto max-w-6xl px-4 pt-10 pb-4 sm:pt-16">
+      <div class="anim-rise grid gap-10 lg:grid-cols-[1.15fr_1fr] lg:items-center">
+        <div>
+          <p class="inline-flex items-center gap-2 rounded-full bg-brand-sun/50 px-4 py-1.5 text-sm font-bold">
+            <PawIcon class="size-4 text-brand-blossom-deep" />
+            1 回 {formatYen(PARTICIPATION_FEE)} から
+          </p>
+
+          {
+            /* Phrase-aware breaking is set globally in global.css. The explicit <br> is still
+          needed: it keeps the two sentences on separate lines at every width. The smallest step
+          is sized so the first sentence fits one line at 375px. */
+          }
+          <h1 class="mt-5 text-[1.75rem] leading-[1.35] font-bold sm:text-[2.75rem] lg:text-5xl">
+            保護犬と、おさんぽ。<br />
+            はじめの一歩は、それくらいでいい。
+          </h1>
+
+          <p class="mt-5 max-w-xl text-lg leading-relaxed text-pretty text-brand-ink-soft">里親になるのはまだ不安。でも犬とふれあいたい。そんな方のための、1 回かぎりのおさんぽ体験です。参加費は、そのまま保護団体の活動費になります。</p>
+
+          <form action="/walks" method="get" role="search" aria-labelledby="walk-search-heading" class="card mt-8 p-4">
+            <p id="walk-search-heading" class="px-1 text-sm font-bold">おさんぽをさがす</p>
+            <div class="mt-3 flex flex-col gap-3 sm:flex-row">
+              <label class="flex-1">
+                <span class="sr-only">エリア</span>
+                <input type="search" name="area" autocomplete="off" spellcheck="false" placeholder="エリア（例: 東京都北区）" class="field w-full" />
+              </label>
+              <label class="sm:w-44">
+                <span class="sr-only">おさんぽの日付</span>
+                <input type="date" name="date" autocomplete="off" class="field w-full" />
+              </label>
+              <button type="submit" class="btn btn-blossom px-6">さがす</button>
+            </div>
+          </form>
+
+          <p class="mt-3 text-sm text-brand-ink-soft">
+            まずは見てみるだけでも。
+            <a href="/walks" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">募集中のおさんぽ一覧</a>
+          </p>
+        </div>
+
+        <div class="relative">
+          <div class="card p-8 sm:p-10">
+            <p class="text-sm font-bold text-brand-ink-soft">参加費 {formatYen(PARTICIPATION_FEE)} の、ゆくえ</p>
+
+            <div class="mt-6 flex items-end gap-2" role="img" aria-label={`参加費 ${PARTICIPATION_FEE} 円のうち ${ORGANIZATION_SHARE} 円が保護団体へ、${PLATFORM_FEE} 円が運営費になります`}>
+              {
+                Array.from({ length: PAW_TOTAL }, (_, index) => (
+                  <span class="anim-rise" style={`--delay: ${0.15 + index * 0.08}s`}>
+                    <PawIcon class={`size-12 sm:size-14 ${index < DONATED_PAWS ? "text-brand-blossom" : "text-brand-sun"}`} />
+                  </span>
+                ))
+              }
+            </div>
+
+            <dl class="mt-6 space-y-3 text-sm">
+              <div class="flex items-baseline justify-between gap-4">
+                <dt class="flex items-center gap-2 font-bold">
+                  <span class="size-3 rounded-full bg-brand-blossom"></span>
+                  保護団体の活動費へ
+                </dt>
+                <dd class="text-lg font-bold whitespace-nowrap text-brand-blossom-deep tabular-nums">{formatYen(ORGANIZATION_SHARE)}</dd>
+              </div>
+              <div class="flex items-baseline justify-between gap-4">
+                <dt class="flex items-center gap-2 font-bold">
+                  <span class="size-3 rounded-full bg-brand-sun"></span>
+                  サービスの運営費へ
+                </dt>
+                <dd class="text-lg font-bold whitespace-nowrap text-brand-sun-deep tabular-nums">{formatYen(PLATFORM_FEE)}</dd>
+              </div>
+            </dl>
+
+            <p class="mt-5 text-sm leading-relaxed text-pretty text-brand-ink-soft">フードや医療費として、保護犬のために使われます。</p>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <section class="grid gap-2">
-      <h2 class="text-lg font-semibold">募集中のお散歩</h2>
-      <ul class="grid gap-2 text-sm">
+    <section class="mx-auto max-w-6xl px-4 py-16">
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <h2 class="text-2xl font-bold text-balance sm:text-3xl">募集中のおさんぽ</h2>
         {
-          walkSlots.map((slot) => (
-            <li>
-              <a href={`/walks/${slot.id}`}>{slot.title}</a> — {slot.areaPrefecture}
-              {slot.areaCity} / 残り {slot.remainingCapacity} 名
+          /* Both "see all" links on this page carry the same visible text, so each needs its own
+        label to be told apart in a screen reader's link list. */
+        }
+        <a href="/walks" aria-label="募集中のおさんぽをすべて見る" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">すべて見る</a>
+      </div>
+
+      <ul class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          walkSlots.map((slot, index) => (
+            <li class="anim-rise card flex flex-col p-6" style={`--delay: ${index * 0.06}s`}>
+              <p class="flex flex-wrap items-center gap-x-2 text-sm font-bold text-brand-ink-soft">
+                <span>
+                  {slot.areaPrefecture}
+                  {slot.areaCity}
+                </span>
+                <span aria-hidden="true">・</span>
+                <time datetime={slot.startAt}>{dateFormat.format(new Date(slot.startAt))}</time>
+              </p>
+
+              <h3 class="mt-2 line-clamp-2 text-lg font-bold text-balance">
+                <a href={`/walks/${slot.id}`} class="rounded underline-offset-4 hover:underline">
+                  {slot.title}
+                </a>
+              </h3>
+
+              <div class="mt-4 flex flex-wrap gap-2 text-sm">
+                {slot.beginnerAllowed === 1 && <span class="rounded-full bg-brand-sun/45 px-3 py-1 font-bold">はじめての方歓迎</span>}
+                <span class="rounded-full bg-brand-blossom/35 px-3 py-1 font-bold tabular-nums">
+                  残り {slot.remainingCapacity} / {slot.capacity} 名
+                </span>
+              </div>
+
+              <p class="mt-4 font-bold whitespace-nowrap tabular-nums">{formatYen(slot.feePerPerson)} / 名</p>
             </li>
           ))
         }
       </ul>
+
+      {
+        walkSlots.length === 0 && (
+          <p class="card mt-8 p-8 text-center text-pretty text-brand-ink-soft">
+            いま募集中のおさんぽはありません。
+            <a href="/organizations" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">
+              参加している保護団体を見る
+            </a>
+          </p>
+        )
+      }
     </section>
 
-    <section class="grid gap-2">
-      <h2 class="text-lg font-semibold">参加保護団体</h2>
-      <ul class="grid gap-2 text-sm">
+    <section class="border-y-2 border-brand-sun/40 bg-white/55 py-16">
+      <div class="mx-auto max-w-5xl px-4">
+        <h2 class="text-center text-2xl font-bold text-balance sm:text-3xl">おさんぽまでの流れ</h2>
+
+        <ol class="mt-10 grid gap-5 sm:grid-cols-3">
+          {
+            STEPS.map((step, index) => (
+              <li class="anim-rise card relative p-6 pt-8" style={`--delay: ${index * 0.08}s`}>
+                <span class="absolute -top-4 left-6 grid size-9 place-items-center rounded-full bg-brand-blossom-deep text-base font-bold text-white" aria-hidden="true">
+                  {index + 1}
+                </span>
+                <h3 class="text-lg font-bold">{step.title}</h3>
+                <p class="mt-2 text-sm leading-relaxed text-pretty text-brand-ink-soft">{step.body}</p>
+              </li>
+            ))
+          }
+        </ol>
+      </div>
+    </section>
+
+    <section class="mx-auto max-w-6xl px-4 py-16">
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <h2 class="text-2xl font-bold text-balance sm:text-3xl">いっしょに活動する保護団体</h2>
+        <a href="/organizations" aria-label="参加している保護団体をすべて見る" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">すべて見る</a>
+      </div>
+
+      <ul class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {
-          organizations.map((organization) => (
-            <li>
-              <a href={`/organizations/${organization.slug}`}>{organization.name}</a>
+          organizations.map((organization, index) => (
+            <li class="anim-rise card p-6" style={`--delay: ${index * 0.06}s`}>
+              <p class="text-sm font-bold text-brand-ink-soft">{organization.activityArea}</p>
+              <h3 class="mt-2 line-clamp-2 text-lg font-bold text-balance">
+                <a href={`/organizations/${organization.slug}`} class="rounded underline-offset-4 hover:underline">
+                  {organization.name}
+                </a>
+              </h3>
+              {organization.protectedDogCount !== null && <p class="mt-3 text-sm text-brand-ink-soft tabular-nums">保護中 {organization.protectedDogCount} 頭</p>}
             </li>
           ))
         }
       </ul>
+
+      {
+        organizations.length === 0 && (
+          <p class="card mt-8 p-8 text-center text-pretty text-brand-ink-soft">
+            掲載中の保護団体はまだありません。
+            <a href="/organization/apply" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">
+              保護団体として掲載する
+            </a>
+          </p>
+        )
+      }
+    </section>
+
+    <section class="border-y-2 border-brand-sun/40 bg-white/55 py-16">
+      <div class="mx-auto max-w-5xl px-4">
+        <h2 class="text-center text-2xl font-bold text-balance sm:text-3xl">はじめての方へ</h2>
+
+        <div class="mt-10 grid gap-5 sm:grid-cols-3">
+          {
+            ASSURANCES.map((item, index) => (
+              <div class="anim-rise card flex flex-col p-6" style={`--delay: ${index * 0.08}s`}>
+                <h3 class="text-lg font-bold text-balance">{item.title}</h3>
+                <p class="mt-2 grow text-sm leading-relaxed text-pretty text-brand-ink-soft">{item.body}</p>
+                <a href={item.href} class="mt-4 rounded text-sm font-bold text-brand-blossom-deep underline underline-offset-4">
+                  {item.label}
+                </a>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="mx-auto max-w-4xl px-4 py-16">
+      <div class="card bg-gradient-to-br from-brand-cream-deep to-brand-blossom/25 p-8 text-center sm:p-12">
+        <div class="flex justify-center gap-1" aria-hidden="true">
+          <PawIcon class="size-8 text-brand-blossom-deep/70" />
+          <PawIcon class="size-8 translate-y-2 text-brand-blossom-deep/50" />
+          <PawIcon class="size-8 text-brand-blossom-deep/70" />
+        </div>
+
+        <h2 class="mt-5 text-2xl font-bold text-balance sm:text-3xl">まずは、近くのおさんぽから。</h2>
+        <p class="mt-3 text-pretty text-brand-ink-soft">保護団体の方は、掲載のお申し込みはこちらから。</p>
+
+        <div class="mt-7 flex flex-wrap justify-center gap-3">
+          <a href="/walks" class="btn btn-blossom px-7 py-3 text-lg">おさんぽ一覧を見る</a>
+          <a href="/organization/apply" class="btn btn-sun px-7 py-3 text-lg">保護団体として掲載する</a>
+        </div>
+      </div>
     </section>
   </main>
 </Layout>

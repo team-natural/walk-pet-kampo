@@ -1,0 +1,24 @@
+---
+// Shared chrome for the public and member areas. Lives in the layout, not in pages, so the
+// screens added after SCR-01 inherit it (GOV-01 D-029 leaves the page files to their own
+// content).
+import PawIcon from "./paw-icon.astro";
+
+const SITE_NAME = "保護犬おさんぽマッチング";
+---
+
+{/* Full-bleed and sticky, so it has to clear the notch in landscape. */}
+<header class="sticky top-0 z-30 border-b-2 border-brand-sun/60 bg-brand-cream/80 pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] backdrop-blur">
+  <div class="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+    <a href="/" class="flex items-center gap-2 rounded-full py-1 font-bold text-brand-ink">
+      <PawIcon class="size-7 text-brand-blossom-deep" />
+      {/* One element, not a visible/hidden pair: below sm the name is read but not drawn. */}
+      <span translate="no" class="sr-only text-base sm:not-sr-only">{SITE_NAME}</span>
+    </a>
+
+    <nav aria-label="主要メニュー" class="flex items-center gap-2">
+      <a href="/organization/apply" class="btn btn-quiet hidden px-4 text-sm sm:inline-flex">保護団体の方へ</a>
+      <a href="/walks" class="btn btn-blossom px-4 text-sm">おさんぽをさがす</a>
+    </nav>
+  </div>
+</header>

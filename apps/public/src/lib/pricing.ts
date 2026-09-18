@@ -21,6 +21,11 @@ export const CANCELLATION = {
   noShowRefundRate: 0,
 } as const;
 
+/**
+ * An ordinary space, not U+00A0 — an invisible character in source is worse than the wrap it
+ * prevents. Callers rendering this in a narrow column add `whitespace-nowrap` so the digits and
+ * the unit stay together.
+ */
 export function formatYen(amount: number): string {
   return `${amount.toLocaleString("ja-JP")} 円`;
 }

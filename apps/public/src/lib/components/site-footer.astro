@@ -1,0 +1,88 @@
+---
+import PawIcon from "./paw-icon.astro";
+import { TERMS_VERSION } from "$lib/legal";
+
+const SITE_NAME = "保護犬おさんぽマッチング";
+
+const GROUPS = [
+  {
+    heading: "さがす",
+    links: [
+      { href: "/walks", label: "おさんぽ一覧" },
+      { href: "/dogs", label: "保護犬一覧" },
+      { href: "/organizations", label: "参加保護団体" },
+      { href: "/news", label: "お知らせ" },
+    ],
+  },
+  {
+    heading: "はじめての方へ",
+    links: [
+      { href: "/about", label: "このサービスについて" },
+      { href: "/guide", label: "利用ガイド" },
+      { href: "/safety", label: "安全に利用するために" },
+      { href: "/faq", label: "よくある質問" },
+    ],
+  },
+  {
+    heading: "保護団体の方へ",
+    links: [
+      { href: "/organization/apply", label: "掲載を申し込む" },
+      { href: "/organization/login", label: "団体ログイン" },
+    ],
+  },
+  {
+    heading: "運営",
+    links: [
+      { href: "/company", label: "運営会社" },
+      { href: "/contact", label: "お問い合わせ" },
+      { href: "/terms", label: "利用規約" },
+      { href: "/privacy", label: "プライバシーポリシー" },
+      { href: "/law", label: "特定商取引法に基づく表示" },
+    ],
+  },
+];
+---
+
+<footer class="mt-24 border-t-2 border-brand-sun/60 bg-brand-cream-deep/50">
+  <div class="mx-auto max-w-6xl px-4 py-12">
+    {
+      /* The first column is wider than the link columns: the service name is one long compound and
+    has nowhere sensible to break in a 1fr column. */
+    }
+    <div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.5fr_repeat(4,1fr)]">
+      <div>
+        <p class="flex items-center gap-2 font-bold text-brand-ink">
+          <PawIcon class="size-6 shrink-0 text-brand-blossom-deep" />
+          <span translate="no">{SITE_NAME}</span>
+        </p>
+        <p class="mt-3 text-sm leading-relaxed text-brand-ink-soft">保護犬と歩く 1 回かぎりのおさんぽを、保護団体とつなぎます。</p>
+      </div>
+
+      {
+        GROUPS.map((group) => (
+          <nav aria-label={group.heading}>
+            <h2 class="text-sm font-bold text-brand-ink">{group.heading}</h2>
+            <ul class="mt-3 space-y-2 text-sm">
+              {group.links.map((link) => (
+                <li>
+                  <a href={link.href} class="rounded text-brand-ink-soft underline-offset-4 hover:text-brand-ink hover:underline">
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        ))
+      }
+    </div>
+
+    {
+      /* The margin between these two is visual only — without a separator character they run
+    together into one sentence when read aloud. */
+    }
+    <p class="mt-10 flex flex-wrap gap-x-3 border-t border-brand-ink/10 pt-6 text-xs text-brand-ink-soft">
+      <span>© 2026 {SITE_NAME}</span>
+      <span>利用規約 {TERMS_VERSION} 版</span>
+    </p>
+  </div>
+</footer>

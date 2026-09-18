@@ -45,7 +45,27 @@ export const mockOrganizationDetail: OrganizationDetail = {
   adoptionTrackRecord: "年間 約 60 頭",
 };
 
-export const mockOrganizations: OrganizationSummary[] = [mockOrganizationSummary];
+export const mockOrganizations: OrganizationSummary[] = [
+  mockOrganizationSummary,
+  {
+    id: "01HZZORGANIZATION0000000002",
+    name: "ねりまワンだふるハウス",
+    slug: "nerima-wonderful-house",
+    status: "approved",
+    activityArea: "東京都練馬区・杉並区",
+    logoKey: null,
+    protectedDogCount: 11,
+  },
+  {
+    id: "01HZZORGANIZATION0000000003",
+    name: "多摩リバーサイド・ドッグレスキュー",
+    slug: "tama-riverside-rescue",
+    status: "approved",
+    activityArea: "神奈川県川崎市・横浜市",
+    logoKey: null,
+    protectedDogCount: 32,
+  },
+];
 
 export const mockDogSummary: DogSummary = {
   id: "01HZZDOG00000000000000001",
@@ -110,7 +130,37 @@ export const mockWalkSlotDetail: WalkSlotDetail = {
   cancellationPolicy: "開催 48 時間前まで無料",
 };
 
-export const mockWalkSlots: WalkSlotSummary[] = [mockWalkSlotSummary];
+// Three entries rather than one: a list of a single card cannot be judged as a list, and the
+// screens that render these are being designed before any Service exists.
+export const mockWalkSlots: WalkSlotSummary[] = [
+  mockWalkSlotSummary,
+  {
+    id: "01HZZWALKSLOT000000000002",
+    title: "夕方の石神井公園さんぽ",
+    startAt: "2026-10-04T08:30:00.000Z",
+    durationMinutes: 45,
+    areaPrefecture: "東京都",
+    areaCity: "練馬区",
+    capacity: 3,
+    remainingCapacity: 1,
+    feePerPerson: 500,
+    status: "open",
+    beginnerAllowed: 0,
+  },
+  {
+    id: "01HZZWALKSLOT000000000003",
+    title: "多摩川の土手をゆっくり歩く",
+    startAt: "2026-10-11T00:30:00.000Z",
+    durationMinutes: 90,
+    areaPrefecture: "神奈川県",
+    areaCity: "川崎市",
+    capacity: 6,
+    remainingCapacity: 5,
+    feePerPerson: 500,
+    status: "open",
+    beginnerAllowed: 1,
+  },
+];
 
 export const mockPaymentSummary: PaymentSummary = {
   id: "01HZZPAYMENT00000000000001",

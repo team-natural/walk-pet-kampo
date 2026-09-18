@@ -2,6 +2,8 @@
 // Canonical and OGP are built from `site` in astro.config.mjs, never from a URL written in a
 // page (DEV-06 §11-1). Defaults live here rather than in a settings table (GOV-01 D-016).
 import "../styles/global.css";
+import SiteFooter from "$lib/components/site-footer.astro";
+import SiteHeader from "$lib/components/site-header.astro";
 import { isPrivateRoute } from "$lib/private-routes";
 
 interface Props {
@@ -12,20 +14,24 @@ interface Props {
   ogImageAlt?: string;
   /** Defaults to true on members-only and transactional routes. */
   noindex?: boolean;
+  /** The shelter console gets its own three-pane shell (PRD-04 §4-1), so it opts out. */
+  chrome?: boolean;
 }
 
 const SITE_NAME = "保護犬おさんぽマッチング";
 const DEFAULT_DESCRIPTION = "保護犬とのお散歩を予約できるサービスです。参加費はそのまま保護団体の活動費になります。";
 
-const { title, description = DEFAULT_DESCRIPTION, ogImage, ogImageAlt, noindex } = Astro.props;
+const { title, description = DEFAULT_DESCRIPTION, ogImage, ogImageAlt, noindex, chrome } = Astro.props;
 
-const canonical = new URL(Astro.url.pathname, Astro.site);
+const pathname = Astro.url.pathname;
+const canonical = new URL(pathname, Astro.site);
 // No default image on purpose: the only asset in the repo is an SVG, and Facebook, X, LINE and
 // Slack all refuse to render one. Declaring summary_large_image with an image they drop produces
 // a blank card, which is worse than a text card.
 const ogImageUrl = ogImage ? new URL(ogImage, Astro.site) : null;
 // robots.txt stops crawling but does not stop a URL found elsewhere from being indexed. This does.
-const isNoindex = noindex ?? isPrivateRoute(Astro.url.pathname);
+const isNoindex = noindex ?? isPrivateRoute(pathname);
+const showChrome = chrome ?? !(pathname === "/organization" || pathname.startsWith("/organization/"));
 ---
 
 <!doctype html>
@@ -34,10 +40,17 @@ const isNoindex = noindex ?? isPrivateRoute(Astro.url.pathname);
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    {/* Matches the page background, not the accent — the browser paints its chrome with this. */}
+    <meta name="theme-color" content="#fffaf0" />
+    <meta name="color-scheme" content="light" />
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     {isNoindex && <meta name="robots" content="noindex, nofollow" />}
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={SITE_NAME} />
@@ -49,7 +62,10 @@ const isNoindex = noindex ?? isPrivateRoute(Astro.url.pathname);
     <meta name="twitter:card" content={ogImageUrl ? "summary_large_image" : "summary"} />
     <slot name="head" />
   </head>
-  <body>
+  <body class="min-h-dvh font-maru text-brand-ink antialiased">
+    <a href="#main-content" class="sr-only rounded-full focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:bg-brand-blossom-deep focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-white"> 本文へスキップ </a>
+    {showChrome && <SiteHeader />}
     <slot />
+    {showChrome && <SiteFooter />}
   </body>
 </html>

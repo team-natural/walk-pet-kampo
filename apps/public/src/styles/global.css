@@ -4,18 +4,168 @@
    typography stay as per-use Tailwind utilities, because a token layer nobody asked for is
    harder to undo than the utilities are.
 
-   Provisional values, warm-toned per PRD-04 §8 `[Assumed]`. The brand is not decided yet
-   (GOV-02 TBD-35) — when it is, this block is the only place that changes, which is the whole
-   reason screens must use `brand-*` rather than a literal Tailwind colour. */
+   Provisional values pending GOV-02 TBD-35 — when the brand lands, this block is the only place
+   that changes, which is why screens must use `brand-*` rather than a literal colour.
+
+   The `-deep` variants exist because the light hues are backgrounds, not text: `sun` and
+   `blossom` both fall under 4.5:1 on cream. Use the light one to fill a shape, the deep one to
+   write on one. */
 @theme {
-  --color-brand-50: #fdf6f0;
-  --color-brand-100: #f8e7d8;
-  --color-brand-200: #f0ccae;
-  --color-brand-300: #e5ab7e;
-  --color-brand-400: #d98d55;
-  --color-brand-500: #c97238;
-  --color-brand-600: #ad5a29;
-  --color-brand-700: #8a4621;
-  --color-brand-800: #66341a;
-  --color-brand-900: #442313;
+  --color-brand-ink: #4a3a29;
+  --color-brand-ink-soft: #6b5947;
+  --color-brand-cream: #fffaf0;
+  --color-brand-cream-deep: #fff3d6;
+  --color-brand-sun: #fce14b;
+  --color-brand-sun-deep: #8a6300;
+  --color-brand-blossom: #ffb3c1;
+  --color-brand-blossom-deep: #c9406a;
+  --color-brand-leaf: #4d7f26;
+
+  --font-maru: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic", system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-brand-cream);
+    /* Japanese has no spaces, so the default is to break anywhere — including inside a word.
+       auto-phrase breaks at phrase boundaries instead, and browsers without it ignore the
+       declaration rather than falling over. */
+    word-break: auto-phrase;
+  }
+
+  /* The wash gets its own fixed layer rather than `background-attachment: fixed` on the body,
+     which repaints the whole viewport on every scroll frame and is unreliable on iOS. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(circle at 12% 0%, #fff4c9 0, rgba(255, 244, 201, 0) 42%), radial-gradient(circle at 88% 8%, #ffe9ee 0, rgba(255, 233, 238, 0) 38%), linear-gradient(180deg, #fffdf6, var(--color-brand-cream));
+  }
+
+  /* Stops the 300ms tap delay and the grey flash on the pill buttons, which are the primary
+     control on every public screen. */
+  a,
+  button,
+  summary {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-brand-blossom-deep);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .card {
+    border-radius: 1.5rem;
+    background-color: color-mix(in srgb, white 82%, transparent);
+    box-shadow: 0 12px 28px -18px rgba(122, 84, 52, 0.55);
+  }
+
+  /* The press is the whole personality of these buttons: a solid offset shadow that collapses
+     when pushed, so the control reads as a physical thing rather than a rectangle. */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    border-width: 2px;
+    font-weight: 700;
+    line-height: 1.2;
+    /* 44px minimum target on the smallest padding step (WCAG 2.2 target size). */
+    min-height: 2.75rem;
+    box-shadow: 0 5px 0 0 var(--btn-shadow);
+    transition:
+      transform 0.12s ease,
+      box-shadow 0.12s ease;
+  }
+
+  .btn-sun {
+    --btn-shadow: #d9ae1f;
+    background: linear-gradient(180deg, var(--color-brand-sun), #f6ce2e);
+    border-color: #e0b724;
+    color: var(--color-brand-ink);
+  }
+
+  .btn-blossom {
+    --btn-shadow: #e4718a;
+    background: linear-gradient(180deg, #ffc2cd, var(--color-brand-blossom));
+    border-color: #ef8298;
+    color: var(--color-brand-ink);
+  }
+
+  .btn-quiet {
+    --btn-shadow: color-mix(in srgb, var(--color-brand-ink) 12%, transparent);
+    background: color-mix(in srgb, white 70%, transparent);
+    border-color: color-mix(in srgb, var(--color-brand-ink) 18%, transparent);
+    color: var(--color-brand-ink);
+  }
+
+  .btn:hover {
+    transform: translateY(-2px);
+  }
+
+  /* The offset has to come from the variant, not currentcolor — currentcolor is the label's
+     brown, which turns every pressed button's shadow into a different colour than its resting
+     one. */
+  .btn:active {
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 0 var(--btn-shadow);
+  }
+
+  .field {
+    border-radius: 999px;
+    border: 2px solid color-mix(in srgb, var(--color-brand-ink) 15%, transparent);
+    background-color: white;
+    padding: 0.625rem 1.125rem;
+    min-height: 2.75rem;
+    color: var(--color-brand-ink);
+  }
+
+  .field::placeholder {
+    color: var(--color-brand-ink-soft);
+  }
+}
+
+@layer utilities {
+  /* One shared entrance, staggered by an inline --delay, rather than a keyframe per element.
+     Transform and opacity only, so it stays on the compositor. */
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .anim-rise {
+    animation: rise 0.5s ease-out both;
+    animation-delay: var(--delay, 0s);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .anim-rise {
+      animation: none;
+    }
+
+    .btn {
+      transition: none;
+    }
+
+    html {
+      scroll-behavior: auto;
+    }
+  }
 }
