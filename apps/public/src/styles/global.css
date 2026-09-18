@@ -57,6 +57,13 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Tailwind v4 preflight dropped v3's `button { cursor: pointer }`, and `.btn` is worn by both
+     <a> and <button> — so the same pill answered the mouse differently depending on its tag. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
   :focus-visible {
     outline: 3px solid var(--color-brand-blossom-deep);
     outline-offset: 2px;

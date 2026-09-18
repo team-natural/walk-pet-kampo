@@ -7,6 +7,7 @@ import { env } from "cloudflare:workers";
 import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
 import DataTable from "$lib/components/data-table.astro";
 import PageHeader from "$lib/components/page-header.astro";
+import RowLink from "$lib/components/row-link.svelte";
 import SeverityBadge from "$lib/components/severity-badge.svelte";
 import * as Card from "$lib/components/ui/card/index.js";
 import * as Table from "$lib/components/ui/table/index.js";
@@ -58,9 +59,7 @@ const dashboard: DashboardView = mockDashboard;
         dashboard.pendingApplications.map((application) => (
           <Table.Row>
             <Table.Cell>
-              <a href={`/organization-applications/${application.id}`} class="rounded-sm font-medium underline-offset-4 hover:underline">
-                {application.name}
-              </a>
+              <RowLink href={`/organization-applications/${application.id}`}>{application.name}</RowLink>
             </Table.Cell>
             <Table.Cell class="whitespace-nowrap text-muted-foreground tabular-nums">{formatDateTime(application.submittedAt)}</Table.Cell>
           </Table.Row>
@@ -73,9 +72,7 @@ const dashboard: DashboardView = mockDashboard;
         dashboard.recentIncidents.map((incident) => (
           <Table.Row>
             <Table.Cell>
-              <a href={`/incidents/${incident.id}`} class="rounded-sm font-medium underline-offset-4 hover:underline">
-                {incident.organizationName}
-              </a>
+              <RowLink href={`/incidents/${incident.id}`}>{incident.organizationName}</RowLink>
             </Table.Cell>
             <Table.Cell>
               <SeverityBadge severity={incident.severity} />

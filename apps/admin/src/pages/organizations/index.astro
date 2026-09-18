@@ -5,6 +5,7 @@ import { env } from "cloudflare:workers";
 import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
 import DataTable from "$lib/components/data-table.astro";
 import PageHeader from "$lib/components/page-header.astro";
+import RowLink from "$lib/components/row-link.svelte";
 import StatusBadge from "$lib/components/status-badge.svelte";
 import * as Table from "$lib/components/ui/table/index.js";
 import { formatDate } from "$lib/format";
@@ -28,9 +29,7 @@ const organizations: OrganizationSummary[] = mockOrganizations;
       organizations.map((organization) => (
         <Table.Row>
           <Table.Cell>
-            <a href={`/organizations/${organization.id}`} class="rounded-sm font-medium underline-offset-4 hover:underline">
-              {organization.name}
-            </a>
+            <RowLink href={`/organizations/${organization.id}`}>{organization.name}</RowLink>
           </Table.Cell>
           <Table.Cell class="text-muted-foreground">{organization.activityArea ?? "—"}</Table.Cell>
           <Table.Cell>

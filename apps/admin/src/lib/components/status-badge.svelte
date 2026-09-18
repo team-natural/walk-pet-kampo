@@ -12,9 +12,13 @@
   // PRD-04 §7: state is never carried by colour alone. The label always differs, and the three
   // tones an operator has to act on get an icon as well.
   const VARIANTS = { neutral: "outline", info: "secondary", positive: "default", warning: "secondary", danger: "destructive" } as const;
+
+  // Badge ships no warning variant, and `secondary` alone is near-white — on a striped row the
+  // pill disappears. Tinted here, not in ui/badge.svelte, which `shadcn-svelte update` rewrites.
+  const TONE_CLASS = { neutral: "", info: "", positive: "", warning: "bg-warning/10 text-warning dark:bg-warning/20", danger: "" } as const;
 </script>
 
-<Badge variant={VARIANTS[meta.tone]}>
+<Badge variant={VARIANTS[meta.tone]} class={TONE_CLASS[meta.tone]}>
   {#if meta.tone === "positive"}
     <CircleCheckIcon data-icon="inline-start" />
   {:else if meta.tone === "danger"}
