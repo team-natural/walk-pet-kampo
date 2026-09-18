@@ -2,7 +2,9 @@
 // ADM-08 — PRD-04 §3-2 (guarded)
 // TODO(ADM-08): replace mockWalkSlots with listOwnWalkSlots() — F-06-01.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import DataTable from "$lib/components/organization/data-table.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { mockWalkSlots } from "$lib/mocks";
 import type { WalkSlotSummary } from "$lib/view-models/walk-slot";
@@ -13,40 +15,36 @@ const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
 const walkSlots: WalkSlotSummary[] = mockWalkSlots;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="お散歩募集">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
-    <header class="flex items-center justify-between gap-4">
-      <h1 class="text-2xl font-bold">お散歩募集</h1>
-      <a href="/organization/walks/add" class="text-sm underline">募集を作成する</a>
-    </header>
+<OrganizationLayout title="おさんぽ募集 | 団体ページ" session={session}>
+  <FlashMessage />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">タイトル</th>
-          <th class="py-2">開催</th>
-          <th class="py-2">定員</th>
-          <th class="py-2">状態</th>
+  <header class="flex flex-wrap items-center justify-between gap-4">
+    <h1 class="text-xl font-bold">おさんぽ募集</h1>
+    <a href="/organization/walks/add" class="btn btn-sun px-5 text-sm">募集を作成する</a>
+  </header>
+
+  <DataTable columns={["タイトル", "開催", "予約", "状態"]} rowCount={walkSlots.length} caption="登録されているおさんぽ募集の一覧" emptyMessage="まだおさんぽ募集を作成していません。" emptyActionHref="/organization/walks/add" emptyActionLabel="募集を作成する">
+    {
+      walkSlots.map((slot) => (
+        <tr>
+          <td>
+            <a href={`/organization/walks/${slot.id}`} class="rounded font-bold underline-offset-4 hover:underline">
+              {slot.title}
+            </a>
+          </td>
+          <td class="tabular-nums">{dateFormat.format(new Date(slot.startAt))}</td>
+          <td class="tabular-nums">
+            {slot.capacity - slot.remainingCapacity} / {slot.capacity}
+          </td>
+          <td>
+            <span class="badge badge-quiet">{slot.status}</span>
+          </td>
         </tr>
-      </thead>
-      <tbody>
-        {
-          walkSlots.map((slot) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/organization/walks/${slot.id}`}>{slot.title}</a>
-              </td>
-              <td class="py-2">{slot.startAt}</td>
-              <td class="py-2">
-                {slot.capacity - slot.remainingCapacity} / {slot.capacity}
-              </td>
-              <td class="py-2">{slot.status}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+      ))
+    }
+  </DataTable>
+</OrganizationLayout>

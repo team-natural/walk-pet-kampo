@@ -4,6 +4,7 @@
 // — F-02-02, F-02-03.
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
 import { mockWalkerProfile } from "$lib/mocks";
 import type { WalkerProfileView } from "$lib/view-models/walker";
@@ -16,44 +17,61 @@ if (!session) return Astro.redirect("/auth/login", 302);
 const profile: WalkerProfileView = mockWalkerProfile;
 ---
 
-<Layout title="プロフィール編集">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">プロフィール編集</h1>
+<Layout title="プロフィール編集 | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-2xl gap-6 px-4 py-12">
+    <PageHeader title="プロフィール編集" backHref="/mypage" backLabel="マイページ" />
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/me/profile">
-      <label class="grid gap-1">
-        <span>お名前（カナ）</span>
-        <input type="text" name="nameKana" value={profile.nameKana} class="rounded border border-gray-300 px-3 py-2" />
-      </label>
-      <label class="grid gap-1">
-        <span>生年月日</span>
-        <input type="date" name="birthdate" value={profile.birthdate} class="rounded border border-gray-300 px-3 py-2" />
-      </label>
-      <label class="grid gap-1">
-        <span>郵便番号</span>
-        <input type="text" name="postalCode" value={profile.postalCode} class="rounded border border-gray-300 px-3 py-2" />
-      </label>
-      <label class="grid gap-1">
-        <span>住所</span>
-        <input type="text" name="address" value={profile.address} class="rounded border border-gray-300 px-3 py-2" />
-      </label>
-      <label class="grid gap-1">
-        <span>電話番号</span>
-        <input type="tel" name="phone" value={profile.phone} class="rounded border border-gray-300 px-3 py-2" />
-      </label>
-      <label class="grid gap-1">
-        <span>緊急連絡先（氏名）</span>
-        <input type="text" name="emergencyContactName" value={profile.emergencyContactName} class="rounded border border-gray-300 px-3 py-2" />
-      </label>
-      <label class="grid gap-1">
-        <span>緊急連絡先（電話番号）</span>
-        <input type="tel" name="emergencyContactPhone" value={profile.emergencyContactPhone} class="rounded border border-gray-300 px-3 py-2" />
-      </label>
-      <label class="grid gap-1">
-        <span>希望エリア</span>
-        <input type="text" name="preferredArea" value={profile.preferredArea} class="rounded border border-gray-300 px-3 py-2" />
-      </label>
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">保存する</button>
+    <form class="grid gap-4" method="post" action="/api/v1/me/profile">
+      <fieldset class="card grid gap-4 p-6 text-sm sm:p-8">
+        <legend class="px-1 font-bold">基本情報</legend>
+
+        <label class="grid gap-1.5">
+          <span class="font-bold">お名前（カナ）</span>
+          <input type="text" name="nameKana" value={profile.nameKana} class="field w-full" />
+        </label>
+
+        <label class="grid gap-1.5">
+          <span class="font-bold">生年月日</span>
+          <input type="date" name="birthdate" value={profile.birthdate} class="field w-full" />
+        </label>
+
+        <label class="grid gap-1.5">
+          <span class="font-bold">郵便番号</span>
+          <input type="text" name="postalCode" value={profile.postalCode} autocomplete="postal-code" inputmode="numeric" class="field w-full" />
+        </label>
+
+        <label class="grid gap-1.5">
+          <span class="font-bold">住所</span>
+          <input type="text" name="address" value={profile.address} autocomplete="street-address" class="field w-full" />
+        </label>
+
+        <label class="grid gap-1.5">
+          <span class="font-bold">電話番号</span>
+          <input type="tel" name="phone" value={profile.phone} autocomplete="tel" class="field w-full" />
+        </label>
+
+        <label class="grid gap-1.5">
+          <span class="font-bold">希望エリア</span>
+          <input type="text" name="preferredArea" value={profile.preferredArea} class="field w-full" />
+        </label>
+      </fieldset>
+
+      <fieldset class="card grid gap-4 p-6 text-sm sm:p-8">
+        <legend class="px-1 font-bold">緊急連絡先</legend>
+        <p class="text-pretty text-brand-ink-soft">当日の安全管理のために、予約が確定したおさんぽの担当スタッフにのみ共有されます。</p>
+
+        <label class="grid gap-1.5">
+          <span class="font-bold">氏名</span>
+          <input type="text" name="emergencyContactName" value={profile.emergencyContactName} class="field w-full" />
+        </label>
+
+        <label class="grid gap-1.5">
+          <span class="font-bold">電話番号</span>
+          <input type="tel" name="emergencyContactPhone" value={profile.emergencyContactPhone} class="field w-full" />
+        </label>
+      </fieldset>
+
+      <button type="submit" class="btn btn-blossom w-fit px-6 py-3">保存する</button>
     </form>
   </main>
 </Layout>

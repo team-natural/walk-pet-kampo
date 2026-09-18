@@ -1,12 +1,13 @@
 ---
 // SCR-09 — PRD-04 §3-1
 import Layout from "../../layouts/Layout.astro";
+import CompletionPanel from "$lib/components/completion-panel.astro";
 ---
 
-<Layout title="登録を受け付けました">
-  <main class="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
-    <h1 class="text-2xl font-bold">登録を受け付けました</h1>
-    <p class="text-sm text-gray-600">ご登録のメールアドレスに確認メールをお送りしました。記載のリンクからメールアドレスの確認を完了してください。</p>
-    <a href="/" class="underline">トップページへ</a>
+<Layout title="登録を受け付けました | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto max-w-2xl px-4 py-16">
+    <CompletionPanel title="登録を受け付けました" message="ご登録のメールアドレスに確認メールをお送りしました。記載のリンクからメールアドレスの確認を完了すると、おさんぽの予約ができるようになります。" actionHref="/walks" actionLabel="おさんぽをさがす">
+      <p class="text-sm text-pretty text-brand-ink-soft">メールが届かない場合は、迷惑メールフォルダもご確認ください。</p>
+    </CompletionPanel>
   </main>
 </Layout>

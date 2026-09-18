@@ -2,14 +2,13 @@
 // SCR-12 — PRD-04 §3-1
 // TODO(SCR-12): exchange the provider code for a walker session — F-01-07.
 import Layout from "../../../layouts/Layout.astro";
+import CompletionPanel from "$lib/components/completion-panel.astro";
 
 const { provider } = Astro.params;
 ---
 
-<Layout title="ログイン処理中">
-  <main class="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 p-6 text-center" data-provider={provider}>
-    <h1 class="text-2xl font-bold">ログイン処理中です</h1>
-    <p class="text-sm text-gray-600">画面が切り替わらない場合は、お手数ですがもう一度ログインしてください。</p>
-    <a href="/auth/login" class="underline">ログイン画面へ</a>
+<Layout title="ログイン処理中 | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto max-w-2xl px-4 py-16" data-provider={provider}>
+    <CompletionPanel tone="attention" title="ログイン処理中です" message="このまましばらくお待ちください。画面が切り替わらない場合は、お手数ですがもう一度ログインしてください。" actionHref="/auth/login" actionLabel="ログイン画面へ" />
   </main>
 </Layout>

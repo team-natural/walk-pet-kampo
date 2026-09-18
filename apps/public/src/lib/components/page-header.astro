@@ -1,0 +1,26 @@
+---
+// The h1 block every screen below the top page opens with. Centralised so the heading scale and
+// the gap to the body are decided once, not per page (GOV-01 D-029).
+interface Props {
+  title: string;
+  lead?: string;
+  /** Breadcrumb-ish back link for screens one level down. */
+  backHref?: string;
+  backLabel?: string;
+}
+
+const { title, lead, backHref, backLabel } = Astro.props;
+---
+
+<header class="grid gap-3">
+  {
+    backHref && (
+      <a href={backHref} class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">
+        ← {backLabel}
+      </a>
+    )
+  }
+  <h1 class="text-2xl font-bold text-balance sm:text-3xl">{title}</h1>
+  {lead && <p class="max-w-2xl leading-relaxed text-pretty text-brand-ink-soft">{lead}</p>}
+  <slot />
+</header>

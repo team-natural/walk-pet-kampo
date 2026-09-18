@@ -3,6 +3,8 @@
 // TODO(SCR-32): replace mockNotifications with listWalkerNotifications() — F-13-01.
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
+import EmptyState from "$lib/components/empty-state.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
 import { mockNotifications } from "$lib/mocks";
 import type { NotificationView } from "$lib/view-models/notification";
@@ -13,24 +15,30 @@ const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/auth/login", 302);
 
 const notifications: NotificationView[] = mockNotifications;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="お知らせ">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
-    <header class="flex items-center justify-between gap-4">
-      <h1 class="text-2xl font-bold">お知らせ</h1>
-      <a href="/mypage/notification-settings" class="text-sm underline">通知設定</a>
-    </header>
+<Layout title="お知らせ | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-3xl gap-8 px-4 py-12">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <PageHeader title="お知らせ" backHref="/mypage" backLabel="マイページ" />
+      <a href="/mypage/notification-settings" class="rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">通知設定</a>
+    </div>
 
-    <ul class="grid gap-3 text-sm">
-      {
-        notifications.map((notification) => (
-          <li class="rounded border border-gray-200 p-4">
-            <p class={notification.readAt ? "text-gray-600" : "font-semibold"}>{notification.body}</p>
-            <p class="text-gray-500">{notification.createdAt}</p>
-          </li>
-        ))
-      }
-    </ul>
+    {
+      notifications.length > 0 ? (
+        <ul class="grid gap-3">
+          {notifications.map((notification) => (
+            <li class={`card p-6 ${notification.readAt ? "" : "border-2 border-brand-blossom/50"}`}>
+              <p class={`text-pretty ${notification.readAt ? "text-brand-ink-soft" : "font-bold"}`}>{notification.body}</p>
+              <p class="mt-2 text-sm text-brand-ink-soft tabular-nums">{dateFormat.format(new Date(notification.createdAt))}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState message="新しいお知らせはありません。" actionHref="/mypage" actionLabel="マイページへ戻る" />
+      )
+    }
   </main>
 </Layout>

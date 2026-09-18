@@ -2,7 +2,9 @@
 // ADM-20 — PRD-04 §3-2 (guarded)
 // TODO(ADM-20): replace mockAdoptionInquiries with listOwnAdoptionInquiries() — F-11-02.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import DataTable from "$lib/components/organization/data-table.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { mockAdoptionInquiries } from "$lib/mocks";
 import type { AdoptionInquirySummary } from "$lib/view-models/adoption-inquiry";
@@ -13,33 +15,30 @@ const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
 const inquiries: AdoptionInquirySummary[] = mockAdoptionInquiries;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "numeric", day: "numeric", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="里親相談">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">里親相談</h1>
+<OrganizationLayout title="里親相談 | 団体ページ" session={session}>
+  <FlashMessage />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">保護犬</th>
-          <th class="py-2">受付日</th>
-          <th class="py-2">状態</th>
+  <h1 class="text-xl font-bold">里親相談</h1>
+
+  <DataTable columns={["保護犬", "受付日", "状態"]} rowCount={inquiries.length} caption="受け付けた里親相談の一覧" emptyMessage="まだ里親相談は届いていません。" emptyActionHref="/organization/dogs" emptyActionLabel="保護犬を見る">
+    {
+      inquiries.map((inquiry) => (
+        <tr>
+          <td>
+            <a href={`/organization/adoption-inquiries/${inquiry.id}`} class="rounded font-bold underline-offset-4 hover:underline">
+              {inquiry.dog.name}
+            </a>
+          </td>
+          <td class="tabular-nums">{dateFormat.format(new Date(inquiry.createdAt))}</td>
+          <td>
+            <span class="badge badge-quiet">{inquiry.status}</span>
+          </td>
         </tr>
-      </thead>
-      <tbody>
-        {
-          inquiries.map((inquiry) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/organization/adoption-inquiries/${inquiry.id}`}>{inquiry.dog.name}</a>
-              </td>
-              <td class="py-2">{inquiry.createdAt}</td>
-              <td class="py-2">{inquiry.status}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+      ))
+    }
+  </DataTable>
+</OrganizationLayout>

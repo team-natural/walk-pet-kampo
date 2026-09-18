@@ -6,11 +6,12 @@
 // that count is the remaining work, and reaching zero is what "the screens are implemented" means.
 import type { AdoptionInquiryDetail, AdoptionInquirySummary } from "$lib/view-models/adoption-inquiry";
 import type { OrganizationDashboardView } from "$lib/view-models/dashboard";
-import type { DogDetail, DogSummary } from "$lib/view-models/dog";
+import type { DogDetail, DogSummary, OwnDogDetail } from "$lib/view-models/dog";
 import type { IncidentDetail, IncidentSummary } from "$lib/view-models/incident";
 import type { NotificationSettingView, NotificationView } from "$lib/view-models/notification";
 import type { OrganizationMemberView } from "$lib/view-models/organization-member";
-import type { OrganizationDetail, OrganizationSummary } from "$lib/view-models/organization";
+import { formatYen } from "$lib/pricing";
+import type { OrganizationApplicationStatus, OrganizationDetail, OrganizationSummary } from "$lib/view-models/organization";
 import type { PayoutDetail, PayoutSummary } from "$lib/view-models/payout";
 import type { PaymentSummary, ReservationDetail, ReservationSummary } from "$lib/view-models/reservation";
 import type { WalkRecordDetail, WalkRecordSummary } from "$lib/view-models/walk-record";
@@ -43,6 +44,13 @@ export const mockOrganizationDetail: OrganizationDetail = {
   activityStartedOn: "2015-04-01",
   introduction: "北区を中心に保護犬の一時預かりと譲渡活動を行っています。",
   adoptionTrackRecord: "年間 約 60 頭",
+};
+
+export const mockOrganizationApplicationStatus: OrganizationApplicationStatus = {
+  id: mockOrganizationSummary.id,
+  name: mockOrganizationSummary.name,
+  status: "needs_more_info",
+  rejectionReason: "活動実績が確認できる書類を追加でご提出ください。",
 };
 
 export const mockOrganizations: OrganizationSummary[] = [
@@ -92,6 +100,12 @@ export const mockDogDetail: DogDetail = {
   childAllowed: 0,
   multiDogAllowed: 1,
   introduction: "保護時は警戒心が強かったものの、今では散歩が大好きです。",
+};
+
+export const mockOwnDogDetail: OwnDogDetail = {
+  ...mockDogDetail,
+  internalNotes: "投薬中（2026-10 まで）。団体内のみ共有。",
+  isPublished: 1,
 };
 
 export const mockDogs: DogSummary[] = [mockDogSummary];
@@ -323,10 +337,10 @@ export const mockOrganizationMembers: OrganizationMemberView[] = [
 
 export const mockOrganizationDashboard: OrganizationDashboardView = {
   tiles: [
-    { label: "公開中のお散歩枠", value: 6, href: "/organization/walks" },
+    { label: "公開中のおさんぽ募集", value: 6, href: "/organization/walks" },
     { label: "今週の予約", value: 12, href: "/organization/reservations" },
     { label: "未対応の里親相談", value: 2, href: "/organization/adoption-inquiries" },
-    { label: "今月の還元見込", value: 24000, href: "/organization/payouts" },
+    { label: "今月の還元見込", value: formatYen(24000), href: "/organization/payouts" },
   ],
   upcomingWalks: [{ id: mockWalkSlotSummary.id, title: mockWalkSlotSummary.title, startAt: mockWalkSlotSummary.startAt, reservedCount: 2, capacity: 4 }],
   recentReservations: [{ id: mockReservationSummary.id, walkerName: "山田 太郎", walkSlotTitle: mockWalkSlotSummary.title, status: "confirmed", createdAt: NOW }],

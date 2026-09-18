@@ -1,0 +1,25 @@
+---
+// One of the five shared parts (GOV-01 D-019). The KPI tile on ADM-01 and ADM-15.
+interface Props {
+  label: string;
+  value: string | number;
+  href?: string | null;
+}
+
+const { label, value, href } = Astro.props;
+---
+
+<article class="card p-6">
+  <p class="text-sm text-brand-ink-soft">{label}</p>
+  <p class="mt-1 text-3xl font-bold whitespace-nowrap tabular-nums">
+    {
+      href ? (
+        <a href={href} class="rounded underline-offset-4 hover:underline">
+          {value}
+        </a>
+      ) : (
+        value
+      )
+    }
+  </p>
+</article>

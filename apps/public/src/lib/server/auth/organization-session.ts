@@ -17,6 +17,9 @@ export interface OrganizationSession {
   organizationMemberId: number;
   organizationId: number;
   organizationPublicId: string;
+  /** The shelter's name. The lookup already joins organizations, so carrying it costs nothing
+   *  and saves OrganizationLayout a second query on every screen. */
+  organizationName: string;
   role: "org_admin" | "org_staff";
   name: string;
 }
@@ -28,6 +31,7 @@ const DEV_SESSION: OrganizationSession = {
   organizationMemberId: 1,
   organizationId: 1,
   organizationPublicId: "01HZZORGANIZATION0000000001",
+  organizationName: "きた保護犬ネットワーク",
   role: "org_admin",
   name: "北川 一郎",
 };
@@ -41,6 +45,7 @@ export async function getOrganizationSession(cookies: AstroCookies, db: DbClient
       organizationMemberId: organizationMembers.id,
       organizationId: organizations.id,
       organizationPublicId: organizations.publicId,
+      organizationName: organizations.name,
       role: organizationMembers.role,
       name: organizationMembers.name,
       status: organizationMembers.status,
@@ -53,7 +58,7 @@ export async function getOrganizationSession(cookies: AstroCookies, db: DbClient
     .limit(1);
 
   if (!row || !isActiveSession(row)) return null;
-  return { organizationMemberId: row.organizationMemberId, organizationId: row.organizationId, organizationPublicId: row.organizationPublicId, role: row.role, name: row.name };
+  return { organizationMemberId: row.organizationMemberId, organizationId: row.organizationId, organizationPublicId: row.organizationPublicId, organizationName: row.organizationName, role: row.role, name: row.name };
 }
 
 export async function requireOrganizationSession(cookies: AstroCookies, db: DbClient): Promise<OrganizationSession> {

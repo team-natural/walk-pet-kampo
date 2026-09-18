@@ -1,0 +1,41 @@
+---
+// One of the five shared parts the shelter console is built from (GOV-01 D-019). Eight list
+// screens use it, and the point is that all eight get the same header treatment, the same row
+// rhythm and the same empty state instead of eight near-identical tables.
+import EmptyState from "../empty-state.astro";
+
+interface Props {
+  /** Column headings, in order. */
+  columns: string[];
+  /** Rows currently rendered — the table is replaced by the empty state when there are none. */
+  rowCount: number;
+  caption: string;
+  emptyMessage: string;
+  emptyActionHref: string;
+  emptyActionLabel: string;
+}
+
+const { columns, rowCount, caption, emptyMessage, emptyActionHref, emptyActionLabel } = Astro.props;
+---
+
+{
+  rowCount > 0 ? (
+    <div class="card overflow-x-auto p-4 sm:p-6">
+      <table class="data-table">
+        <caption class="sr-only">{caption}</caption>
+        <thead>
+          <tr>
+            {columns.map((column) => (
+              <th scope="col">{column}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <slot />
+        </tbody>
+      </table>
+    </div>
+  ) : (
+    <EmptyState message={emptyMessage} actionHref={emptyActionHref} actionLabel={emptyActionLabel} />
+  )
+}

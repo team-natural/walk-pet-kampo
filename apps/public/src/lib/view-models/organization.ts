@@ -9,4 +9,9 @@ type Row = typeof organizations.$inferSelect;
 // `id` is the public ULID. The internal integer id never leaves the Service layer.
 export type OrganizationSummary = { id: string } & Pick<Row, "name" | "slug" | "status" | "activityArea" | "logoKey" | "protectedDogCount">;
 
+// SCR-51 only. The applicant resubmitting their own application needs to read the operator's
+// note, but OrganizationDetail is what the public shelter page renders — widening it would put a
+// review comment on a public screen.
+export type OrganizationApplicationStatus = { id: string } & Pick<Row, "name" | "status" | "rejectionReason">;
+
 export type OrganizationDetail = OrganizationSummary & Pick<Row, "nameKana" | "orgType" | "representativeName" | "addressVisibility" | "address" | "latitude" | "longitude" | "website" | "snsLinks" | "activityStartedOn" | "introduction" | "adoptionTrackRecord">;

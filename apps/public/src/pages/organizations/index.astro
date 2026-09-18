@@ -1,34 +1,37 @@
 ---
 // SCR-02 — PRD-04 §3-1
-// Reference skeleton for a PUBLIC list screen: no guard, view model imported, mock data named
-// exactly once so the Service call replaces a single line.
 // TODO(SCR-02): replace mockOrganizations with listOrganizations() — F-07-01.
 import Layout from "../../layouts/Layout.astro";
+import EmptyState from "$lib/components/empty-state.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { mockOrganizations } from "$lib/mocks";
 import type { OrganizationSummary } from "$lib/view-models/organization";
 
 const organizations: OrganizationSummary[] = mockOrganizations;
 ---
 
-<Layout title="参加保護団体">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-8 p-6">
-    <header class="flex flex-col gap-2">
-      <h1 class="text-2xl font-bold">参加保護団体</h1>
-      <p class="text-sm text-gray-600">お散歩の受け入れをしている保護団体の一覧です。</p>
-    </header>
+<Layout title="参加保護団体 | 保護犬おさんぽマッチング" description="おさんぽの受け入れをしている保護団体の一覧です。">
+  <main id="main-content" class="mx-auto grid max-w-6xl gap-8 px-4 py-12">
+    <PageHeader title="参加保護団体" lead="おさんぽの受け入れをしている保護団体の一覧です。気になる団体のページから、募集中のおさんぽを見られます。" />
 
-    <ul class="grid gap-4">
-      {
-        organizations.map((organization) => (
-          <li class="rounded border border-gray-200 p-4">
-            <a href={`/organizations/${organization.slug}`} class="font-semibold">
-              {organization.name}
-            </a>
-            <p class="text-sm text-gray-600">{organization.activityArea}</p>
-            <p class="text-sm text-gray-600">保護中 {organization.protectedDogCount} 頭</p>
-          </li>
-        ))
-      }
-    </ul>
+    {
+      organizations.length > 0 ? (
+        <ul class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {organizations.map((organization, index) => (
+            <li class="anim-rise card p-6" style={`--delay: ${index * 0.06}s`}>
+              <p class="text-sm font-bold text-brand-ink-soft">{organization.activityArea}</p>
+              <h2 class="mt-2 line-clamp-2 text-lg font-bold text-balance">
+                <a href={`/organizations/${organization.slug}`} class="rounded underline-offset-4 hover:underline">
+                  {organization.name}
+                </a>
+              </h2>
+              {organization.protectedDogCount !== null && <p class="mt-3 text-sm text-brand-ink-soft tabular-nums">保護中 {organization.protectedDogCount} 頭</p>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState message="掲載中の保護団体はまだありません。" actionHref="/organization/apply" actionLabel="保護団体として掲載する" />
+      )
+    }
   </main>
 </Layout>

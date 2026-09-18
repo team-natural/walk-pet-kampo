@@ -2,30 +2,46 @@
 // SCR-08 — PRD-04 §3-1
 // TODO(SCR-08): post to registerWalker() and redirect to /register/complete — F-02-01.
 import Layout from "../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 ---
 
-<Layout title="参加者登録">
-  <main class="mx-auto flex min-h-dvh max-w-md flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">参加者登録</h1>
+<Layout title="参加者登録 | 保護犬おさんぽマッチング" description="おさんぽに参加するためのアカウント登録です。登録は無料です。">
+  <main id="main-content" class="mx-auto grid max-w-md gap-6 px-4 py-16">
+    <PageHeader title="参加者登録" lead="登録は無料です。登録後、確認メールのリンクを開くと予約ができるようになります。" />
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/auth/register">
-      <label class="grid gap-1">
-        <span>お名前</span>
-        <input type="text" name="name" required class="rounded border border-gray-300 px-3 py-2" />
+    <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action="/api/v1/auth/register">
+      <label class="grid gap-1.5">
+        <span class="font-bold">お名前</span>
+        <input type="text" name="name" required autocomplete="name" class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>メールアドレス</span>
-        <input type="email" name="email" required class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">メールアドレス</span>
+        <input type="email" name="email" required autocomplete="email" spellcheck="false" class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>パスワード</span>
-        <input type="password" name="password" required class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">パスワード</span>
+        <input type="password" name="password" required autocomplete="new-password" class="field w-full" />
       </label>
-      <label class="flex items-start gap-2">
-        <input type="checkbox" name="termsAgreed" required />
-        <span><a href="/terms" class="underline">利用規約</a>と<a href="/privacy" class="underline">プライバシーポリシー</a>に同意します</span>
+
+      <label class="flex items-start gap-3">
+        <input type="checkbox" name="termsAgreed" required class="mt-1 size-5 shrink-0 accent-brand-blossom-deep" />
+        <span class="text-pretty">
+          <a href="/terms" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">利用規約</a>
+          と
+          <a href="/privacy" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">プライバシーポリシー</a>
+          に同意します
+        </span>
       </label>
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">登録する</button>
+
+      <button type="submit" class="btn btn-blossom px-6 py-3">登録する</button>
     </form>
+
+    <p class="text-sm text-brand-ink-soft">
+      登録済みの方は
+      <a href="/auth/login" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">ログイン</a>
+      へ。
+    </p>
   </main>
 </Layout>

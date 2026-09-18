@@ -1,10 +1,13 @@
 ---
-// SCR-45 500 — PRD-04 §3-1
+// SCR-45 — PRD-04 §3-1
 import Layout from "../layouts/Layout.astro";
+import CompletionPanel from "$lib/components/completion-panel.astro";
 ---
 
-<Layout title="Something went wrong">
-  <h1>500</h1>
-  <p>An unexpected error occurred. Please try again later.</p>
-  <a href="/">Back to top</a>
+<Layout title="問題が発生しました | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto max-w-2xl px-4 py-16">
+    <CompletionPanel tone="attention" title="問題が発生しました" message="一時的な不具合の可能性があります。少し時間をおいてから、もう一度お試しください。繰り返し起きる場合はお問い合わせください。" actionHref="/" actionLabel="トップページへ戻る">
+      <a href="/contact" class="rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">お問い合わせ</a>
+    </CompletionPanel>
+  </main>
 </Layout>

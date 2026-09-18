@@ -4,8 +4,10 @@
 // createReservation() — F-07-06.
 import { env } from "cloudflare:workers";
 import Layout from "../../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
 import { mockWalkSlotDetail } from "$lib/mocks";
+import { formatYen } from "$lib/pricing";
 import type { WalkSlotDetail } from "$lib/view-models/walk-slot";
 import { createDb } from "@app/schema/client";
 
@@ -15,27 +17,40 @@ if (!session) return Astro.redirect("/auth/login", 302);
 
 const { publicId } = Astro.params;
 const slot: WalkSlotDetail = mockWalkSlotDetail;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title={`${slot.title} — 予約`}>
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">予約内容の入力</h1>
-    <p class="text-sm text-gray-600">{slot.title} / {slot.startAt}</p>
+<Layout title={`${slot.title} の予約 | 保護犬おさんぽマッチング`}>
+  <main id="main-content" class="mx-auto grid max-w-2xl gap-6 px-4 py-12" data-public-id={publicId}>
+    <PageHeader title="予約内容の入力" backHref={`/walks/${slot.id}`} backLabel="おさんぽの詳細">
+      <p class="text-sm font-bold text-brand-ink-soft">{slot.title} / {dateFormat.format(new Date(slot.startAt))}</p>
+    </PageHeader>
 
-    <form class="grid gap-4 text-sm" method="post" action={`/api/v1/walk-slots/${publicId}/reservations`}>
-      <label class="grid gap-1">
-        <span>参加人数</span>
-        <input type="number" name="participantCount" min="1" max={slot.remainingCapacity} value="1" class="rounded border border-gray-300 px-3 py-2" />
+    <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action={`/api/v1/walk-slots/${publicId}/reservations`}>
+      <label class="grid gap-1.5">
+        <span class="font-bold">参加人数</span>
+        <input type="number" name="participantCount" min="1" max={slot.remainingCapacity} value="1" class="field w-full tabular-nums" />
+        <span class="text-brand-ink-soft">残り {slot.remainingCapacity} 名まで予約できます。</span>
       </label>
-      <label class="grid gap-1">
-        <span>緊急連絡先（氏名）</span>
-        <input type="text" name="emergencyContactName" class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">緊急連絡先（氏名）</span>
+        <input type="text" name="emergencyContactName" required autocomplete="name" class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>緊急連絡先（電話番号）</span>
-        <input type="tel" name="emergencyContactPhone" class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">緊急連絡先（電話番号）</span>
+        <input type="tel" name="emergencyContactPhone" required autocomplete="tel" class="field w-full" />
+        <span class="text-pretty text-brand-ink-soft">当日の安全管理のために、予約が確定したおさんぽの担当スタッフにのみ共有されます。</span>
       </label>
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">確認へ進む</button>
+
+      <p class="flex items-baseline justify-between gap-4 border-t border-brand-ink/10 pt-4 font-bold">
+        <span>お支払い予定額</span>
+        <span class="text-lg whitespace-nowrap tabular-nums">{formatYen(slot.feePerPerson)}</span>
+      </p>
+
+      <button type="submit" class="btn btn-blossom px-6 py-3">確認へ進む</button>
     </form>
   </main>
 </Layout>

@@ -5,26 +5,29 @@
 // TODO(ADM-26): resolve the token with getInvitationByToken() and post acceptInvitation()
 // — F-03-06, F-04-03.
 import Layout from "../../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 
 const { token } = Astro.params;
 ---
 
-<Layout title="招待の受諾">
-  <main class="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 p-6">
-    <h1 class="text-2xl font-bold">アカウントの有効化</h1>
-    <p class="text-sm text-gray-600">パスワードを設定すると、団体ページにログインできるようになります。</p>
+<Layout title="アカウントの有効化 | 保護犬おさんぽマッチング" chrome={true}>
+  <main id="main-content" class="mx-auto grid max-w-md gap-6 px-4 py-16">
+    <PageHeader title="アカウントの有効化" lead="パスワードを設定すると、団体ページにログインできるようになります。" />
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/invitations/accept">
+    <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action="/api/v1/organization/invitations/accept">
       <input type="hidden" name="token" value={token} />
-      <label class="grid gap-1">
-        <span>お名前</span>
-        <input type="text" name="name" required class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">お名前</span>
+        <input type="text" name="name" required autocomplete="name" class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>パスワード</span>
-        <input type="password" name="password" required class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">パスワード</span>
+        <input type="password" name="password" required autocomplete="new-password" class="field w-full" />
       </label>
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">設定して開始する</button>
+
+      <button type="submit" class="btn btn-sun px-6 py-3">設定して開始する</button>
     </form>
   </main>
 </Layout>

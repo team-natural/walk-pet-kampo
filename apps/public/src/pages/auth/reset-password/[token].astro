@@ -2,21 +2,22 @@
 // SCR-14 — PRD-04 §3-1
 // TODO(SCR-14): validate the token and post to resetWalkerPassword() — F-01-04.
 import Layout from "../../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 
 const { token } = Astro.params;
 ---
 
-<Layout title="新しいパスワードの設定">
-  <main class="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 p-6">
-    <h1 class="text-2xl font-bold">新しいパスワードの設定</h1>
+<Layout title="新しいパスワードの設定 | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-md gap-6 px-4 py-16">
+    <PageHeader title="新しいパスワードの設定" lead="新しいパスワードを入力してください。設定後、そのままログインできます。" />
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/auth/password/reset">
+    <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action="/api/v1/auth/password/reset">
       <input type="hidden" name="token" value={token} />
-      <label class="grid gap-1">
-        <span>新しいパスワード</span>
-        <input type="password" name="password" required class="rounded border border-gray-300 px-3 py-2" />
+      <label class="grid gap-1.5">
+        <span class="font-bold">新しいパスワード</span>
+        <input type="password" name="password" required autocomplete="new-password" class="field w-full" />
       </label>
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">設定する</button>
+      <button type="submit" class="btn btn-blossom px-6 py-3">設定する</button>
     </form>
   </main>
 </Layout>

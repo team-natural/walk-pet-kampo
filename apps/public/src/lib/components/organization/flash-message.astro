@@ -1,0 +1,27 @@
+---
+// The fifth shared part (GOV-01 D-019). PRD-04 §4-4 asks for a toast on every completed action.
+//
+// Server-rendered from the redirect target rather than a client-side toast store: these screens
+// submit with a plain form, so the outcome arrives as a navigation. A floating toast would need
+// state that survives that navigation anyway — and one that nothing can trigger yet would be
+// dead code. `role="status"` so it is announced without stealing focus.
+const STATUS_MESSAGES: Record<string, { tone: "success" | "attention"; message: string }> = {
+  saved: { tone: "success", message: "保存しました。" },
+  created: { tone: "success", message: "登録しました。" },
+  cancelled: { tone: "attention", message: "中止しました。予約者へ通知を送りました。" },
+  invited: { tone: "success", message: "招待メールを送りました。" },
+  submitted: { tone: "success", message: "申請を送信しました。" },
+  failed: { tone: "attention", message: "処理できませんでした。時間をおいてお試しください。" },
+};
+
+const status = Astro.url.searchParams.get("status");
+const flash = status ? STATUS_MESSAGES[status] : undefined;
+---
+
+{
+  flash && (
+    <p role="status" class:list={["rounded-2xl border-2 px-4 py-3 text-sm font-bold", flash.tone === "success" ? "border-brand-blossom/60 bg-brand-blossom/20" : "border-brand-sun/70 bg-brand-sun/25"]}>
+      {flash.message}
+    </p>
+  )
+}

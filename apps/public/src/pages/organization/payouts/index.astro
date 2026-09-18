@@ -2,9 +2,12 @@
 // ADM-15 — PRD-04 §3-2 (guarded, org_admin only)
 // TODO(ADM-15): replace mockPayouts with listOwnPayouts() — F-09-02, F-09-04.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import DataTable from "$lib/components/organization/data-table.astro";
+import StatCard from "$lib/components/organization/stat-card.astro";
 import { getOrganizationSession, isOrganizationAdmin } from "$lib/server/auth/organization-session";
 import { mockPayouts } from "$lib/mocks";
+import { formatYen } from "$lib/pricing";
 import type { PayoutSummary } from "$lib/view-models/payout";
 import { createDb } from "@app/schema/client";
 
@@ -14,37 +17,34 @@ if (!session) return Astro.redirect("/organization/login", 302);
 if (!isOrganizationAdmin(session)) return Astro.redirect("/organization", 302);
 
 const payouts: PayoutSummary[] = mockPayouts;
+const totalPaid = payouts.filter((payout) => payout.status === "paid").reduce((sum, payout) => sum + payout.payoutAmount, 0);
+const pending = payouts.filter((payout) => payout.status !== "paid").reduce((sum, payout) => sum + payout.payoutAmount, 0);
 ---
 
-<Layout title="還元・振込">
-  <main class="mx-auto flex min-h-dvh max-w-4xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">還元・振込</h1>
+<OrganizationLayout title="還元・振込 | 団体ページ" session={session}>
+  <h1 class="text-xl font-bold">還元・振込</h1>
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">対象期間</th>
-          <th class="py-2">還元額</th>
-          <th class="py-2">状態</th>
-          <th class="py-2">振込日</th>
+  <div class="grid gap-4 sm:grid-cols-2">
+    <StatCard label="これまでの振込額" value={formatYen(totalPaid)} />
+    <StatCard label="振込予定額" value={formatYen(pending)} />
+  </div>
+
+  <DataTable columns={["対象期間", "還元額", "状態", "振込日"]} rowCount={payouts.length} caption="団体還元・振込の履歴" emptyMessage="まだ還元の記録はありません。おさんぽが実施されると集計されます。" emptyActionHref="/organization/walks" emptyActionLabel="おさんぽ募集を見る">
+    {
+      payouts.map((payout) => (
+        <tr>
+          <td class="tabular-nums">
+            <a href={`/organization/payouts/${payout.id}`} class="rounded font-bold underline-offset-4 hover:underline">
+              {payout.periodStart} 〜 {payout.periodEnd}
+            </a>
+          </td>
+          <td class="whitespace-nowrap tabular-nums">{formatYen(payout.payoutAmount)}</td>
+          <td>
+            <span class="badge badge-quiet">{payout.status}</span>
+          </td>
+          <td class="tabular-nums">{payout.paidAt ?? "—"}</td>
         </tr>
-      </thead>
-      <tbody>
-        {
-          payouts.map((payout) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/organization/payouts/${payout.id}`}>
-                  {payout.periodStart} 〜 {payout.periodEnd}
-                </a>
-              </td>
-              <td class="py-2">{payout.payoutAmount} 円</td>
-              <td class="py-2">{payout.status}</td>
-              <td class="py-2">{payout.paidAt}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+      ))
+    }
+  </DataTable>
+</OrganizationLayout>

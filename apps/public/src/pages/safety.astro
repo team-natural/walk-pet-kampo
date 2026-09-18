@@ -1,29 +1,29 @@
 ---
 // SCR-38 — PRD-04 §3-1
 import Layout from "../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
+
+const NOTES = [
+  { title: "スタッフの指示に従ってください", body: "犬ごとに苦手なものや扱いのコツがあります。リードの持ち方や声のかけ方は、当日スタッフからご案内します。" },
+  { title: "無理に触れない、急に近づかない", body: "保護犬には人に慣れる途中の子もいます。犬のほうから近づいてくるのを待ってください。" },
+  { title: "体調がすぐれないときは見合わせて", body: "当日のキャンセルはおさんぽ枠ごとの規定に従います。まずは保護団体へご連絡ください。" },
+  { title: "万一のときは、その場でお知らせを", body: "咬傷・脱走・怪我などが起きた場合は、すぐにスタッフにお伝えください。保護団体から運営へ報告され、対応を記録します。" },
+];
 ---
 
-<Layout title="安全に利用するために">
-  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 p-6">
-    <h1 class="text-2xl font-bold">安全に利用するために</h1>
+<Layout title="安全に利用するために | 保護犬おさんぽマッチング" description="おさんぽに参加するときに気をつけていただきたいことをまとめました。">
+  <main id="main-content" class="mx-auto grid max-w-3xl gap-10 px-4 py-12">
+    <PageHeader title="安全に利用するために" lead="犬にとっても人にとっても安心なおさんぽのために、いくつかお願いがあります。" />
 
-    <section class="grid gap-4 text-sm">
-      <article class="grid gap-1">
-        <h2 class="font-semibold">スタッフの指示に従ってください</h2>
-        <p>犬ごとに苦手なものや扱いのコツがあります。リードの持ち方や声のかけ方は、当日スタッフからご案内します。</p>
-      </article>
-      <article class="grid gap-1">
-        <h2 class="font-semibold">無理に触れない・急に近づかない</h2>
-        <p>保護犬には人に慣れる途中の子もいます。犬のほうから近づいてくるのを待ってください。</p>
-      </article>
-      <article class="grid gap-1">
-        <h2 class="font-semibold">体調がすぐれないときは参加を見合わせてください</h2>
-        <p>当日のキャンセルはお散歩枠ごとの規定に従います。まずは保護団体へご連絡ください。</p>
-      </article>
-      <article class="grid gap-1">
-        <h2 class="font-semibold">万一のときは</h2>
-        <p>咬傷・脱走・怪我などが起きた場合は、その場でスタッフにお知らせください。保護団体から運営へ報告され、対応を記録します。</p>
-      </article>
-    </section>
+    <div class="grid gap-4">
+      {
+        NOTES.map((note) => (
+          <section class="card p-6">
+            <h2 class="text-lg font-bold text-balance">{note.title}</h2>
+            <p class="mt-2 leading-relaxed text-pretty text-brand-ink-soft">{note.body}</p>
+          </section>
+        ))
+      }
+    </div>
   </main>
 </Layout>

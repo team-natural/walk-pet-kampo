@@ -2,7 +2,9 @@
 // ADM-11 — PRD-04 §3-2 (guarded)
 // TODO(ADM-11): replace mockReservations with listOwnReservations() — F-06-03.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import DataTable from "$lib/components/organization/data-table.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { mockReservations } from "$lib/mocks";
 import type { ReservationSummary } from "$lib/view-models/reservation";
@@ -13,35 +15,31 @@ const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
 const reservations: ReservationSummary[] = mockReservations;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="予約">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">予約</h1>
+<OrganizationLayout title="予約 | 団体ページ" session={session}>
+  <FlashMessage />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">お散歩</th>
-          <th class="py-2">開催</th>
-          <th class="py-2">人数</th>
-          <th class="py-2">状態</th>
+  <h1 class="text-xl font-bold">予約</h1>
+
+  <DataTable columns={["おさんぽ", "開催", "人数", "状態"]} rowCount={reservations.length} caption="受け付けている予約の一覧" emptyMessage="まだ予約はありません。" emptyActionHref="/organization/walks" emptyActionLabel="おさんぽ募集を見る">
+    {
+      reservations.map((reservation) => (
+        <tr>
+          <td>
+            <a href={`/organization/reservations/${reservation.id}`} class="rounded font-bold underline-offset-4 hover:underline">
+              {reservation.walkSlot.title}
+            </a>
+          </td>
+          <td class="tabular-nums">{dateFormat.format(new Date(reservation.walkSlot.startAt))}</td>
+          <td class="tabular-nums">{reservation.participantCount}</td>
+          <td>
+            <span class="badge badge-quiet">{reservation.status}</span>
+          </td>
         </tr>
-      </thead>
-      <tbody>
-        {
-          reservations.map((reservation) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/organization/reservations/${reservation.id}`}>{reservation.walkSlot.title}</a>
-              </td>
-              <td class="py-2">{reservation.walkSlot.startAt}</td>
-              <td class="py-2">{reservation.participantCount}</td>
-              <td class="py-2">{reservation.status}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+      ))
+    }
+  </DataTable>
+</OrganizationLayout>

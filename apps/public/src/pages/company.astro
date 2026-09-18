@@ -2,19 +2,40 @@
 // SCR-47 — PRD-04 §3-1
 // TODO(SCR-47): fill in the operating entity once it is registered — GOV-02 TBD-35.
 import Layout from "../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 ---
 
-<Layout title="運営会社">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">運営会社</h1>
+<Layout title="運営会社 | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-3xl gap-8 px-4 py-12">
+    <PageHeader title="運営会社" />
 
-    <dl class="grid gap-3 text-sm">
-      <div><dt class="font-semibold">会社名</dt> <dd class="text-gray-600">（確定後に記載）</dd></div>
-      <div><dt class="font-semibold">所在地</dt> <dd class="text-gray-600">（確定後に記載）</dd></div>
-      <div><dt class="font-semibold">事業内容</dt> <dd class="text-gray-600">保護犬とのお散歩体験のマッチング、保護団体への支援</dd></div>
-      <div><dt class="font-semibold">お問い合わせ</dt> <dd class="text-gray-600"><a href="/contact" class="underline">お問い合わせフォーム</a></dd></div>
-    </dl>
+    <div class="card p-6 sm:p-10">
+      <dl class="detail-list">
+        <div>
+          <dt>会社名</dt>
+          <dd class="text-brand-ink-soft">（確定後に記載）</dd>
+        </div>
+        <div>
+          <dt>所在地</dt>
+          <dd class="text-brand-ink-soft">（確定後に記載）</dd>
+        </div>
+        <div>
+          <dt>事業内容</dt>
+          <dd>保護犬とのおさんぽ体験のマッチング、保護団体への支援</dd>
+        </div>
+        <div>
+          <dt>お問い合わせ</dt>
+          <dd>
+            <a href="/contact" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">お問い合わせフォーム</a>
+          </dd>
+        </div>
+      </dl>
+    </div>
 
-    <p class="text-sm text-gray-600">法定表記は<a href="/law" class="underline">特定商取引法に基づく表示</a>をご覧ください。</p>
+    <p class="text-sm text-brand-ink-soft">
+      法定表記は
+      <a href="/law" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">特定商取引法に基づく表示</a>
+      をご覧ください。
+    </p>
   </main>
 </Layout>

@@ -1,0 +1,29 @@
+---
+// Eight screens exist only to say "that worked, here is where to go next" (SCR-09/16/19/20/42/50,
+// ADM-26 and the verify step). They differ by two strings and a link, so they share one shape.
+import PawIcon from "./paw-icon.astro";
+
+interface Props {
+  title: string;
+  message: string;
+  actionHref: string;
+  actionLabel: string;
+  /** Set on the outcomes that are not a success, so the mark does not read as a tick. */
+  tone?: "success" | "attention";
+}
+
+const { title, message, actionHref, actionLabel, tone = "success" } = Astro.props;
+---
+
+<div class="card grid justify-items-center gap-5 p-10 text-center sm:p-14">
+  <div class="flex gap-1" aria-hidden="true">
+    <PawIcon class={`size-9 ${tone === "success" ? "text-brand-blossom" : "text-brand-sun"}`} />
+    <PawIcon class={`size-9 translate-y-2 ${tone === "success" ? "text-brand-blossom/70" : "text-brand-sun/70"}`} />
+  </div>
+
+  <h1 class="text-2xl font-bold text-balance sm:text-3xl">{title}</h1>
+  <p class="max-w-lg leading-relaxed text-pretty text-brand-ink-soft">{message}</p>
+
+  <a href={actionHref} class="btn btn-blossom px-7 py-3">{actionLabel}</a>
+  <slot />
+</div>

@@ -5,7 +5,8 @@
 // TODO(ADM-21): replace mockAdoptionInquiryDetail with getOwnAdoptionInquiry() and post
 // transitionAdoptionInquiry() — F-11-02, F-11-03.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { mockAdoptionInquiryDetail } from "$lib/mocks";
 import type { AdoptionInquiryDetail } from "$lib/view-models/adoption-inquiry";
@@ -19,20 +20,37 @@ const { publicId } = Astro.params;
 const inquiry: AdoptionInquiryDetail = mockAdoptionInquiryDetail;
 ---
 
-<Layout title="里親相談の詳細">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{inquiry.dog.name} への相談</h1>
+<OrganizationLayout title="里親相談の詳細 | 団体ページ" session={session}>
+  <FlashMessage />
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-gray-500">受付日</dt> <dd class="inline">{inquiry.createdAt}</dd></div>
-      <div><dt class="inline text-gray-500">状態</dt> <dd class="inline">{inquiry.status}</dd></div>
-      <div><dt class="inline text-gray-500">希望理由</dt> <dd class="inline">{inquiry.motivation}</dd></div>
-      <div><dt class="inline text-gray-500">飼育環境</dt> <dd class="inline">{inquiry.livingEnvironment}</dd></div>
+  <header class="grid gap-2" data-public-id={publicId}>
+    <a href="/organization/adoption-inquiries" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← 里親相談</a>
+    <h1 class="text-xl font-bold">{inquiry.dog.name} への相談</h1>
+    <p><span class="badge badge-quiet">{inquiry.status}</span></p>
+  </header>
+
+  <div class="card max-w-2xl p-6 sm:p-8">
+    <dl class="detail-list">
+      <div>
+        <dt>希望理由</dt>
+        <dd class="text-pretty">{inquiry.motivation}</dd>
+      </div>
+      <div>
+        <dt>飼育環境</dt>
+        <dd class="text-pretty">{inquiry.livingEnvironment}</dd>
+      </div>
+      <div>
+        <dt>連絡済み</dt>
+        <dd>{inquiry.organizationContactedAt ?? "未連絡"}</dd>
+      </div>
     </dl>
+  </div>
 
-    <form class="flex gap-2 text-sm" method="post" action={`/api/v1/organization/adoption-inquiries/${inquiry.id}/transition`}>
-      <button type="submit" name="to" value="contacted" class="rounded border border-gray-300 px-3 py-2">連絡済みにする</button>
-      <button type="submit" name="to" value="closed" class="rounded border border-gray-300 px-3 py-2">終了にする</button>
-    </form>
-  </main>
-</Layout>
+  <form class="flex max-w-2xl flex-wrap gap-3" method="post" action={`/api/v1/organization/adoption-inquiries/${inquiry.id}/transition`}>
+    <button type="submit" name="to" value="contacted" class="btn btn-sun px-5 text-sm">連絡済みにする</button>
+    <button type="submit" name="to" value="interview_scheduled" class="btn btn-quiet px-5 text-sm">面談予定にする</button>
+    <button type="submit" name="to" value="closed" class="btn btn-quiet px-5 text-sm">終了にする</button>
+  </form>
+
+  <p class="max-w-2xl text-sm text-pretty text-brand-ink-soft">相談者への連絡はサービス外で直接行ってください。運営は仲介しません。</p>
+</OrganizationLayout>

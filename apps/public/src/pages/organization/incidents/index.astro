@@ -2,7 +2,9 @@
 // ADM-17 — PRD-04 §3-2 (guarded)
 // TODO(ADM-17): replace mockIncidents with listOwnIncidents() — F-12-01.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import DataTable from "$lib/components/organization/data-table.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { mockIncidents } from "$lib/mocks";
 import type { IncidentSummary } from "$lib/view-models/incident";
@@ -13,38 +15,36 @@ const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
 const incidents: IncidentSummary[] = mockIncidents;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="事故・トラブル報告">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
-    <header class="flex items-center justify-between gap-4">
-      <h1 class="text-2xl font-bold">事故・トラブル報告</h1>
-      <a href="/organization/incidents/add" class="text-sm underline">報告する</a>
-    </header>
+<OrganizationLayout title="事故・トラブル | 団体ページ" session={session}>
+  <FlashMessage />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">発生日時</th>
-          <th class="py-2">重大度</th>
-          <th class="py-2">種別</th>
-          <th class="py-2">状態</th>
+  <header class="flex flex-wrap items-center justify-between gap-4">
+    <h1 class="text-xl font-bold">事故・トラブル</h1>
+    <a href="/organization/incidents/add" class="btn btn-sun px-5 text-sm">報告する</a>
+  </header>
+
+  <DataTable columns={["発生日時", "重大度", "種別", "状態"]} rowCount={incidents.length} caption="報告された事故・トラブルの一覧" emptyMessage="報告された事故・トラブルはありません。" emptyActionHref="/organization/incidents/add" emptyActionLabel="報告する">
+    {
+      incidents.map((incident) => (
+        <tr>
+          <td class="tabular-nums">
+            <a href={`/organization/incidents/${incident.id}`} class="rounded font-bold underline-offset-4 hover:underline">
+              {dateFormat.format(new Date(incident.occurredAt))}
+            </a>
+          </td>
+          <td>
+            <span class="badge badge-blossom">{incident.severity}</span>
+          </td>
+          <td>{incident.category}</td>
+          <td>
+            <span class="badge badge-quiet">{incident.status}</span>
+          </td>
         </tr>
-      </thead>
-      <tbody>
-        {
-          incidents.map((incident) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/organization/incidents/${incident.id}`}>{incident.occurredAt}</a>
-              </td>
-              <td class="py-2">{incident.severity}</td>
-              <td class="py-2">{incident.category}</td>
-              <td class="py-2">{incident.status}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+      ))
+    }
+  </DataTable>
+</OrganizationLayout>

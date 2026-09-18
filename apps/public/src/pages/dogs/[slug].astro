@@ -2,6 +2,7 @@
 // SCR-05 — PRD-04 §3-1
 // TODO(SCR-05): replace mockDogDetail with getDogBySlug() — F-07-02, F-11-01.
 import Layout from "../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { mockDogDetail } from "$lib/mocks";
 import type { DogDetail } from "$lib/view-models/dog";
 
@@ -9,22 +10,51 @@ const { slug } = Astro.params;
 const dog: DogDetail = mockDogDetail;
 ---
 
-<Layout title={`${dog.name} — 保護犬`}>
-  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 p-6" data-slug={slug}>
-    <header class="grid gap-2">
-      <h1 class="text-2xl font-bold">{dog.name}</h1>
-      <p class="text-sm text-gray-600">{dog.breed} / {dog.size} / {dog.gender} / {dog.estimatedAge}</p>
-    </header>
+<Layout title={`${dog.name} | 保護犬おさんぽマッチング`} description={dog.introduction ?? undefined}>
+  <main id="main-content" class="mx-auto grid max-w-4xl gap-8 px-4 py-12" data-slug={slug}>
+    <PageHeader title={dog.name} backHref="/dogs" backLabel="保護犬をさがす">
+      <p class="text-sm font-bold text-brand-ink-soft">{dog.breed} / {dog.size} / {dog.gender} / {dog.estimatedAge}</p>
+    </PageHeader>
 
-    <section class="grid gap-2 text-sm">
-      <p>{dog.introduction}</p>
-      <dl class="grid gap-1">
-        <div><dt class="inline text-gray-500">性格</dt> <dd class="inline">{dog.temperament}</dd></div>
-        <div><dt class="inline text-gray-500">散歩の注意</dt> <dd class="inline">{dog.walkNotes}</dd></div>
-        <div><dt class="inline text-gray-500">必要な経験</dt> <dd class="inline">{dog.requiredExperience}</dd></div>
-      </dl>
-    </section>
+    <div class="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-start">
+      <div class="card grid gap-6 p-6 sm:p-8">
+        <p class="leading-relaxed text-pretty">{dog.introduction}</p>
 
-    <a href={`/dogs/${dog.slug}/adoption-inquiry`} class="underline">里親について相談する</a>
+        <dl class="detail-list">
+          <div>
+            <dt>性格</dt>
+            <dd class="text-pretty">{dog.temperament}</dd>
+          </div>
+          <div>
+            <dt>人への慣れ</dt>
+            <dd>{dog.humanSociability}</dd>
+          </div>
+          <div>
+            <dt>ほかの犬との相性</dt>
+            <dd>{dog.dogSociability}</dd>
+          </div>
+          <div>
+            <dt>おさんぽの注意</dt>
+            <dd class="text-pretty">{dog.walkNotes}</dd>
+          </div>
+          <div>
+            <dt>必要な経験</dt>
+            <dd>{dog.requiredExperience}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <aside class="card grid gap-4 p-6 lg:sticky lg:top-24">
+        <div class="flex flex-wrap gap-2">
+          {dog.beginnerAllowed === 1 && <span class="badge">はじめての方歓迎</span>}
+          {dog.childAllowed === 1 && <span class="badge badge-quiet">お子さま同伴可</span>}
+          <span class="badge badge-blossom">{dog.adoptionStatus}</span>
+        </div>
+
+        <a href={`/dogs/${dog.slug}/adoption-inquiry`} class="btn btn-blossom px-6 py-3">里親について相談する</a>
+        <a href="/walks" class="btn btn-quiet px-6 py-3">この子に会えるおさんぽを探す</a>
+        <p class="text-sm text-pretty text-brand-ink-soft">相談したからといって、里親になる義務はありません。</p>
+      </aside>
+    </div>
   </main>
 </Layout>

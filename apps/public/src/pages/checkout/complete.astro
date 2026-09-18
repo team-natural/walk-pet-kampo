@@ -5,6 +5,7 @@
 // TODO(SCR-19): replace mockReservationDetail with getReservationByPublicId() — F-08-02.
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
+import CompletionPanel from "$lib/components/completion-panel.astro";
 import { getSession } from "$lib/server/auth/session";
 import { mockReservationDetail } from "$lib/mocks";
 import type { ReservationDetail } from "$lib/view-models/reservation";
@@ -17,11 +18,10 @@ if (!session) return Astro.redirect("/auth/login", 302);
 const reservation: ReservationDetail = mockReservationDetail;
 ---
 
-<Layout title="お支払いが完了しました">
-  <main class="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
-    <h1 class="text-2xl font-bold">お支払いが完了しました</h1>
-    <p class="text-sm text-gray-600">{reservation.walkSlot.title} / {reservation.walkSlot.startAt}</p>
-    <p class="text-sm text-gray-600">予約の確定処理が完了しだい、メールでお知らせします。</p>
-    <a href={`/mypage/reservations/${reservation.id}`} class="underline">予約の詳細を見る</a>
+<Layout title="お支払いが完了しました | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto max-w-2xl px-4 py-16">
+    <CompletionPanel title="お支払いが完了しました" message="予約の確定処理が終わりしだい、メールでお知らせします。確定まで少し時間がかかることがあります。" actionHref={`/mypage/reservations/${reservation.id}`} actionLabel="予約の詳細を見る">
+      <p class="text-sm font-bold text-brand-ink-soft">{reservation.walkSlot.title}</p>
+    </CompletionPanel>
   </main>
 </Layout>

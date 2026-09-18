@@ -4,8 +4,10 @@
 // cancelReservation() — F-08-03, F-08-07.
 import { env } from "cloudflare:workers";
 import Layout from "../../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
 import { mockReservationDetail } from "$lib/mocks";
+import { CANCELLATION, formatYen } from "$lib/pricing";
 import type { ReservationDetail } from "$lib/view-models/reservation";
 import { createDb } from "@app/schema/client";
 
@@ -15,22 +17,47 @@ if (!session) return Astro.redirect("/auth/login", 302);
 
 const { publicId } = Astro.params;
 const reservation: ReservationDetail = mockReservationDetail;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="予約の詳細">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{reservation.walkSlot.title}</h1>
+<Layout title="予約の詳細 | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-3xl gap-6 px-4 py-12" data-public-id={publicId}>
+    <PageHeader title={reservation.walkSlot.title} backHref="/mypage/reservations" backLabel="予約履歴">
+      <p><span class="badge badge-blossom">{reservation.status}</span></p>
+    </PageHeader>
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-gray-500">開催</dt> <dd class="inline">{reservation.walkSlot.startAt}</dd></div>
-      <div><dt class="inline text-gray-500">人数</dt> <dd class="inline">{reservation.participantCount} 名</dd></div>
-      <div><dt class="inline text-gray-500">状態</dt> <dd class="inline">{reservation.status}</dd></div>
-      <div><dt class="inline text-gray-500">お支払い</dt> <dd class="inline">{reservation.payment?.amount} 円 / {reservation.payment?.status}</dd></div>
-      <div><dt class="inline text-gray-500">キャンセル規定</dt> <dd class="inline">{reservation.walkSlot.title} のページをご確認ください</dd></div>
-    </dl>
+    <div class="card p-6 sm:p-8">
+      <dl class="detail-list">
+        <div>
+          <dt>開催</dt>
+          <dd>{dateFormat.format(new Date(reservation.walkSlot.startAt))}</dd>
+        </div>
+        <div>
+          <dt>場所</dt>
+          <dd>{reservation.walkSlot.areaPrefecture}{reservation.walkSlot.areaCity}</dd>
+        </div>
+        <div>
+          <dt>参加人数</dt>
+          <dd class="tabular-nums">{reservation.participantCount} 名</dd>
+        </div>
+        <div>
+          <dt>緊急連絡先</dt>
+          <dd>{reservation.emergencyContactNameSnapshot}（{reservation.emergencyContactPhoneSnapshot}）</dd>
+        </div>
+        <div>
+          <dt>お支払い</dt>
+          <dd class="whitespace-nowrap tabular-nums">{formatYen(reservation.payment?.amount ?? 0)} / {reservation.payment?.status}</dd>
+        </div>
+      </dl>
+    </div>
 
-    <form method="post" action={`/api/v1/me/reservations/${reservation.id}/cancel`}>
-      <button type="submit" class="rounded border border-red-300 px-3 py-2 text-sm text-red-700">予約をキャンセルする</button>
-    </form>
+    <section class="card grid gap-3 p-6">
+      <h2 class="font-bold">予約をキャンセルする</h2>
+      <p class="text-sm text-pretty text-brand-ink-soft">開催の {CANCELLATION.freeCancellationHours} 時間前までは全額返金されます。それ以降のキャンセルは返金されません。</p>
+      <form method="post" action={`/api/v1/me/reservations/${reservation.id}/cancel`}>
+        <button type="submit" class="btn btn-quiet px-5 text-sm text-red-800">キャンセルする</button>
+      </form>
+    </section>
   </main>
 </Layout>

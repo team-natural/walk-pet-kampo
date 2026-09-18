@@ -3,6 +3,7 @@
 // TODO(SCR-23): replace mockWalkerProfile with getWalkerProfile() — F-01-01, F-01-02.
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
 import { mockWalkerProfile } from "$lib/mocks";
 import type { WalkerProfileView } from "$lib/view-models/walker";
@@ -15,21 +16,36 @@ if (!session) return Astro.redirect("/auth/login", 302);
 const profile: WalkerProfileView = mockWalkerProfile;
 ---
 
-<Layout title="本人・連絡先の確認状況">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">本人・連絡先の確認状況</h1>
+<Layout title="本人・連絡先の確認状況 | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-2xl gap-6 px-4 py-12">
+    <PageHeader title="本人・連絡先の確認状況" lead="おさんぽの予約には、電話番号の確認と規約への同意が必要です。" backHref="/mypage" backLabel="マイページ" />
 
-    <dl class="grid gap-2 text-sm">
-      <div><dt class="inline text-gray-500">アカウント状態</dt> <dd class="inline">{profile.status}</dd></div>
-      <div><dt class="inline text-gray-500">電話番号の確認</dt> <dd class="inline">{profile.phoneVerifiedAt ? "確認済み" : "未確認"}</dd></div>
-      <div><dt class="inline text-gray-500">規約への同意</dt> <dd class="inline">{profile.termsAgreedVersion ?? "未同意"}</dd></div>
-    </dl>
+    <div class="card p-6 sm:p-8">
+      <dl class="detail-list">
+        <div>
+          <dt>アカウントの状態</dt>
+          <dd><span class="badge badge-blossom">{profile.status}</span></dd>
+        </div>
+        <div>
+          <dt>電話番号の確認</dt>
+          <dd>{profile.phoneVerifiedAt ? <span class="badge">確認済み</span> : <span class="badge badge-quiet">未確認</span>}</dd>
+        </div>
+        <div>
+          <dt>規約への同意</dt>
+          <dd class="tabular-nums">{profile.termsAgreedVersion ?? "未同意"}</dd>
+        </div>
+      </dl>
+    </div>
 
     {
       !profile.phoneVerifiedAt && (
-        <a href="/mypage/profile" class="text-sm underline">
-          電話番号を登録する
-        </a>
+        <div class="card grid gap-3 p-6">
+          <h2 class="font-bold">電話番号を確認する</h2>
+          <p class="text-sm text-pretty text-brand-ink-soft">プロフィールに電話番号を登録すると、確認の手続きに進めます。</p>
+          <a href="/mypage/profile" class="btn btn-blossom w-fit px-6">
+            プロフィールを編集する
+          </a>
+        </div>
       )
     }
   </main>

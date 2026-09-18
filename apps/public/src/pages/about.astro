@@ -1,30 +1,38 @@
 ---
 // SCR-46 — PRD-04 §3-1
 import Layout from "../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import PawIcon from "$lib/components/paw-icon.astro";
+import { formatYen, ORGANIZATION_SHARE, PARTICIPATION_FEE } from "$lib/pricing";
+
+const POINTS = [
+  { title: "スタッフが同行します", body: "犬の扱いに慣れていなくても参加できるよう、おさんぽには保護団体のスタッフが同行します。当日の進め方もその場でご案内します。" },
+  { title: "参加費は保護団体へ", body: `参加費 ${formatYen(PARTICIPATION_FEE)} のうち ${formatYen(ORGANIZATION_SHARE)} が保護団体への還元となり、フードや医療費として使われます。` },
+  { title: "里親になる前に、会える", body: "迎える・迎えないを決める前に、実際に一緒に歩いて相性を確かめられます。相談はいつでも取り下げられます。" },
+];
 ---
 
-<Layout title="このサービスについて">
-  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 p-6">
-    <header class="grid gap-2">
-      <h1 class="text-2xl font-bold">保護犬との一歩を、無理なく</h1>
-      <p class="text-sm text-gray-600">保護犬のお散歩に参加することが、そのまま保護団体の支援になります。</p>
-    </header>
+<Layout title="このサービスについて | 保護犬おさんぽマッチング" description="保護犬とのおさんぽが、そのまま保護団体の支援になる仕組みをご紹介します。">
+  <main id="main-content" class="mx-auto grid max-w-3xl gap-10 px-4 py-12">
+    <PageHeader title="保護犬との一歩を、無理なく" lead="保護犬のおさんぽに参加することが、そのまま保護団体の支援になります。" />
 
-    <section class="grid gap-3 text-sm">
-      <article class="grid gap-1">
-        <h2 class="font-semibold">スタッフが同行します</h2>
-        <p>犬の扱いに慣れていなくても参加できるよう、お散歩には保護団体のスタッフが同行します。</p>
-      </article>
-      <article class="grid gap-1">
-        <h2 class="font-semibold">参加費は保護団体へ</h2>
-        <p>参加費の大部分は保護団体への還元にあてられ、フードや医療費として使われます。</p>
-      </article>
-      <article class="grid gap-1">
-        <h2 class="font-semibold">里親になる前に、会える</h2>
-        <p>迎える・迎えないを決める前に、実際に一緒に歩いて相性を確かめられます。</p>
-      </article>
-    </section>
+    <div class="grid gap-4">
+      {
+        POINTS.map((point) => (
+          <section class="card flex gap-4 p-6">
+            <PawIcon class="mt-1 size-7 shrink-0 text-brand-blossom" />
+            <div>
+              <h2 class="text-lg font-bold text-balance">{point.title}</h2>
+              <p class="mt-2 leading-relaxed text-pretty text-brand-ink-soft">{point.body}</p>
+            </div>
+          </section>
+        ))
+      }
+    </div>
 
-    <a href="/walks" class="text-sm underline">お散歩をさがす</a>
+    <div class="flex flex-wrap gap-3">
+      <a href="/walks" class="btn btn-blossom px-6 py-3">おさんぽをさがす</a>
+      <a href="/organization/apply" class="btn btn-sun px-6 py-3">保護団体として掲載する</a>
+    </div>
   </main>
 </Layout>

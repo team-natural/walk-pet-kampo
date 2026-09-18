@@ -2,7 +2,9 @@
 // ADM-13 — PRD-04 §3-2 (guarded)
 // TODO(ADM-13): replace mockWalkRecords with listOwnWalkRecords() — F-10-01.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import DataTable from "$lib/components/organization/data-table.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { mockWalkRecords } from "$lib/mocks";
 import type { WalkRecordSummary } from "$lib/view-models/walk-record";
@@ -13,35 +15,29 @@ const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
 const records: WalkRecordSummary[] = mockWalkRecords;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "numeric", day: "numeric", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="実施記録">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">実施記録</h1>
+<OrganizationLayout title="実施記録 | 団体ページ" session={session}>
+  <FlashMessage />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">お散歩</th>
-          <th class="py-2">実施日</th>
-          <th class="py-2">実施</th>
-          <th class="py-2">事故報告</th>
+  <h1 class="text-xl font-bold">実施記録</h1>
+
+  <DataTable columns={["おさんぽ", "実施日", "実施", "報告"]} rowCount={records.length} caption="おさんぽの実施記録の一覧" emptyMessage="まだ実施記録はありません。" emptyActionHref="/organization/walks" emptyActionLabel="おさんぽ募集を見る">
+    {
+      records.map((record) => (
+        <tr>
+          <td>
+            <a href={`/organization/records/${record.id}`} class="rounded font-bold underline-offset-4 hover:underline">
+              {record.walkSlot.title}
+            </a>
+          </td>
+          <td class="tabular-nums">{record.conductedAt ? dateFormat.format(new Date(record.conductedAt)) : "—"}</td>
+          <td>{record.conducted === 1 ? "実施" : "中止"}</td>
+          <td>{record.incidentFlag === 1 ? <span class="badge">あり</span> : "—"}</td>
         </tr>
-      </thead>
-      <tbody>
-        {
-          records.map((record) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/organization/records/${record.id}`}>{record.walkSlot.title}</a>
-              </td>
-              <td class="py-2">{record.conductedAt}</td>
-              <td class="py-2">{record.conducted ? "実施" : "中止"}</td>
-              <td class="py-2">{record.incidentFlag ? "あり" : "なし"}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+      ))
+    }
+  </DataTable>
+</OrganizationLayout>

@@ -1,0 +1,79 @@
+---
+// The three-pane shell for the shelter console (PRD-04 §4-1). It wraps Layout with the public
+// site's header and footer switched off — this area has its own chrome and is not part of the
+// marketing site.
+//
+// The session is passed in rather than read here: the page already fetched it for its guard, and
+// a layout that queried again would double every screen's D1 reads.
+import Layout from "./Layout.astro";
+import PawIcon from "$lib/components/paw-icon.astro";
+import type { OrganizationSession } from "$lib/server/auth/organization-session";
+
+interface Props {
+  title: string;
+  session: OrganizationSession;
+}
+
+const { title, session } = Astro.props;
+
+const NAV = [
+  { href: "/organization", label: "ダッシュボード", adminOnly: false },
+  { href: "/organization/dogs", label: "保護犬", adminOnly: false },
+  { href: "/organization/walks", label: "おさんぽ募集", adminOnly: false },
+  { href: "/organization/reservations", label: "予約", adminOnly: false },
+  { href: "/organization/records", label: "実施記録", adminOnly: false },
+  { href: "/organization/incidents", label: "事故・トラブル", adminOnly: false },
+  { href: "/organization/adoption-inquiries", label: "里親相談", adminOnly: false },
+  { href: "/organization/notifications", label: "通知", adminOnly: false },
+  { href: "/organization/payouts", label: "還元・振込", adminOnly: true },
+  { href: "/organization/members", label: "スタッフ", adminOnly: true },
+  { href: "/organization/profile", label: "団体情報", adminOnly: true },
+];
+
+const pathname = Astro.url.pathname;
+const visible = NAV.filter((item) => !item.adminOnly || session.role === "org_admin");
+
+// Exact match for the dashboard, prefix for the rest — otherwise every screen highlights it.
+function isCurrent(href: string) {
+  return href === "/organization" ? pathname === href : pathname.startsWith(href);
+}
+---
+
+<Layout title={title} chrome={false}>
+  <div class="min-h-dvh lg:grid lg:grid-cols-[16rem_1fr]">
+    <div class="border-b-2 border-brand-sun/60 bg-brand-cream-deep/40 lg:border-r-2 lg:border-b-0">
+      <div class="flex items-center gap-2 px-4 py-4">
+        <PawIcon class="size-6 shrink-0 text-brand-blossom-deep" />
+        <p class="truncate font-bold">{session.organizationName}</p>
+      </div>
+
+      <nav aria-label="団体メニュー" class="px-2 pb-3">
+        <ul class="flex gap-1 overflow-x-auto lg:grid lg:overflow-visible">
+          {
+            visible.map((item) => (
+              <li>
+                <a href={item.href} aria-current={isCurrent(item.href) ? "page" : undefined} class:list={["block rounded-full px-4 py-2 text-sm font-bold whitespace-nowrap", isCurrent(item.href) ? "bg-brand-blossom/40" : "hover:bg-brand-sun/30"]}>
+                  {item.label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+    </div>
+
+    <div class="grid grid-rows-[auto_1fr]">
+      <header class="flex items-center justify-between gap-4 border-b border-brand-ink/10 px-4 py-3 text-sm">
+        <p class="text-brand-ink-soft">
+          {session.name}
+          <span class="badge badge-quiet ml-2">{session.role === "org_admin" ? "管理者" : "スタッフ"}</span>
+        </p>
+        <a href="/" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">公開サイトへ</a>
+      </header>
+
+      <main id="main-content" class="grid content-start gap-6 p-4 sm:p-6">
+        <slot />
+      </main>
+    </div>
+  </div>
+</Layout>

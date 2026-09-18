@@ -4,6 +4,7 @@
 // updateNotificationSettings() — F-02-05, F-13-03.
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
 import { mockNotificationSettings } from "$lib/mocks";
 import type { NotificationSettingView } from "$lib/view-models/notification";
@@ -16,27 +17,27 @@ if (!session) return Astro.redirect("/auth/login", 302);
 const settings: NotificationSettingView[] = mockNotificationSettings;
 ---
 
-<Layout title="通知設定">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">通知設定</h1>
+<Layout title="通知設定 | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-2xl gap-6 px-4 py-12">
+    <PageHeader title="通知設定" lead="受け取りたい通知の種類を選べます。予約の確定など、取引に関わる連絡は常にお送りします。" backHref="/mypage" backLabel="マイページ" />
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/me/notification-settings">
+    <form class="grid gap-4" method="post" action="/api/v1/me/notification-settings">
       {
         settings.map((setting) => (
-          <fieldset class="grid gap-2 rounded border border-gray-200 p-4">
-            <legend class="px-1">{setting.type}</legend>
-            <label class="flex items-center gap-2">
-              <input type="checkbox" name={`${setting.type}.email`} checked={setting.emailEnabled} />
+          <fieldset class="card grid gap-3 p-6">
+            <legend class="px-1 font-bold">{setting.type}</legend>
+            <label class="flex items-center gap-3 text-sm">
+              <input type="checkbox" name={`${setting.type}.email`} checked={setting.emailEnabled} class="size-5 accent-brand-blossom-deep" />
               <span>メールで受け取る</span>
             </label>
-            <label class="flex items-center gap-2">
-              <input type="checkbox" name={`${setting.type}.inApp`} checked={setting.inAppEnabled} />
+            <label class="flex items-center gap-3 text-sm">
+              <input type="checkbox" name={`${setting.type}.inApp`} checked={setting.inAppEnabled} class="size-5 accent-brand-blossom-deep" />
               <span>サイト内で受け取る</span>
             </label>
           </fieldset>
         ))
       }
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">保存する</button>
+      <button type="submit" class="btn btn-blossom w-fit px-6 py-3">保存する</button>
     </form>
   </main>
 </Layout>

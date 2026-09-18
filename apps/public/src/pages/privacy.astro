@@ -3,33 +3,31 @@
 // TODO(SCR-40): replace the placeholder sections with the reviewed text and bump PRIVACY_VERSION
 // in the same commit — DEV-02 §8, OPS-01.
 import Layout from "../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { PRIVACY_VERSION } from "$lib/legal";
 ---
 
-<Layout title="プライバシーポリシー">
-  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 p-6">
-    <header class="grid gap-1">
-      <h1 class="text-2xl font-bold">プライバシーポリシー</h1>
-      <p class="text-sm text-gray-600">制定日: {PRIVACY_VERSION}</p>
-    </header>
+<Layout title="プライバシーポリシー | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-3xl gap-8 px-4 py-12">
+    <PageHeader title="プライバシーポリシー">
+      <p class="text-sm text-brand-ink-soft tabular-nums">制定日 {PRIVACY_VERSION}</p>
+    </PageHeader>
 
-    <section class="grid gap-4 text-sm">
-      <article class="grid gap-1">
-        <h2 class="font-semibold">取得する情報</h2>
-        <p>氏名、メールアドレス、電話番号、住所、緊急連絡先、お散歩の参加履歴を取得します。</p>
-      </article>
-      <article class="grid gap-1">
-        <h2 class="font-semibold">利用目的</h2>
-        <p>お散歩の予約・実施、安全管理、決済および保護団体への還元のために利用します。</p>
-      </article>
-      <article class="grid gap-1">
-        <h2 class="font-semibold">第三者提供</h2>
-        <p>緊急連絡先は、予約が確定したお散歩の担当スタッフにのみ開示します。</p>
-      </article>
-      <article class="grid gap-1">
-        <h2 class="font-semibold">保存期間</h2>
-        <p>退会後、一定期間を経過した情報は削除します。</p>
-      </article>
-    </section>
+    <article class="card prose-jp max-w-none p-6 sm:p-10">
+      <h2>取得する情報</h2>
+      <p>氏名、メールアドレス、電話番号、住所、緊急連絡先、おさんぽの参加履歴を取得します。</p>
+
+      <h2>利用目的</h2>
+      <p>おさんぽの予約と実施、当日の安全管理、決済および保護団体への還元のために利用します。</p>
+
+      <h2>第三者提供</h2>
+      <p>緊急連絡先は、予約が確定したおさんぽの担当スタッフにのみ開示します。里親相談の内容は、相談先の保護団体にのみ共有します。</p>
+
+      <h2>保存期間</h2>
+      <p>退会後、一定期間を経過した情報は削除します。</p>
+
+      <h2>お問い合わせ</h2>
+      <p>個人情報の開示・訂正・削除のご請求は、お問い合わせフォームから承ります。</p>
+    </article>
   </main>
 </Layout>

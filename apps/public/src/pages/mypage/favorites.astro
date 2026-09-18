@@ -5,6 +5,8 @@
 // TODO(SCR-29): replace the mocks with listWalkerFavorites() — F-02-04.
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
+import EmptyState from "$lib/components/empty-state.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
 import { mockDogs, mockOrganizations } from "$lib/mocks";
 import type { DogSummary } from "$lib/view-models/dog";
@@ -19,34 +21,50 @@ const dogs: DogSummary[] = mockDogs;
 const organizations: OrganizationSummary[] = mockOrganizations;
 ---
 
-<Layout title="お気に入り">
-  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 p-6">
-    <h1 class="text-2xl font-bold">お気に入り</h1>
+<Layout title="お気に入り | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-4xl gap-10 px-4 py-12">
+    <PageHeader title="お気に入り" backHref="/mypage" backLabel="マイページ" />
 
-    <section class="grid gap-2">
-      <h2 class="text-lg font-semibold">保護犬</h2>
-      <ul class="grid gap-2 text-sm">
-        {
-          dogs.map((dog) => (
-            <li>
-              <a href={`/dogs/${dog.slug}`}>{dog.name}</a>
-            </li>
-          ))
-        }
-      </ul>
-    </section>
+    {
+      dogs.length === 0 && organizations.length === 0 ? (
+        <EmptyState message="まだお気に入りはありません。気になる子や団体を見つけたら登録できます。" actionHref="/dogs" actionLabel="保護犬をさがす" />
+      ) : (
+        <>
+          <section class="grid gap-4">
+            <h2 class="text-lg font-bold">保護犬</h2>
+            <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {dogs.map((dog) => (
+                <li class="card p-6">
+                  <h3 class="line-clamp-2 text-lg font-bold text-balance">
+                    <a href={`/dogs/${dog.slug}`} class="rounded underline-offset-4 hover:underline">
+                      {dog.name}
+                    </a>
+                  </h3>
+                  <p class="mt-2 text-sm text-brand-ink-soft">
+                    {dog.breed} / {dog.size}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
 
-    <section class="grid gap-2">
-      <h2 class="text-lg font-semibold">保護団体</h2>
-      <ul class="grid gap-2 text-sm">
-        {
-          organizations.map((organization) => (
-            <li>
-              <a href={`/organizations/${organization.slug}`}>{organization.name}</a>
-            </li>
-          ))
-        }
-      </ul>
-    </section>
+          <section class="grid gap-4">
+            <h2 class="text-lg font-bold">保護団体</h2>
+            <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {organizations.map((organization) => (
+                <li class="card p-6">
+                  <h3 class="line-clamp-2 text-lg font-bold text-balance">
+                    <a href={`/organizations/${organization.slug}`} class="rounded underline-offset-4 hover:underline">
+                      {organization.name}
+                    </a>
+                  </h3>
+                  <p class="mt-2 text-sm text-brand-ink-soft">{organization.activityArea}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        </>
+      )
+    }
   </main>
 </Layout>

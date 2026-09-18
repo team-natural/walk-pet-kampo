@@ -5,6 +5,7 @@
 // TODO(SCR-20): replace mockReservationDetail with getReservationByPublicId() — F-08-01.
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
+import CompletionPanel from "$lib/components/completion-panel.astro";
 import { getSession } from "$lib/server/auth/session";
 import { mockReservationDetail } from "$lib/mocks";
 import type { ReservationDetail } from "$lib/view-models/reservation";
@@ -17,10 +18,10 @@ if (!session) return Astro.redirect("/auth/login", 302);
 const reservation: ReservationDetail = mockReservationDetail;
 ---
 
-<Layout title="お支払いが完了しませんでした">
-  <main class="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
-    <h1 class="text-2xl font-bold">お支払いが完了しませんでした</h1>
-    <p class="text-sm text-gray-600">{reservation.walkSlot.title} の予約はまだ確定していません。お手数ですがもう一度お試しください。</p>
-    <a href="/checkout" class="underline">お支払いをやり直す</a>
+<Layout title="お支払いが完了しませんでした | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto max-w-2xl px-4 py-16">
+    <CompletionPanel tone="attention" title="お支払いが完了しませんでした" message="予約はまだ確定していませんが、枠は一定時間おさえてあります。お手数ですが、もう一度お支払いをお試しください。" actionHref="/checkout" actionLabel="お支払いをやり直す">
+      <p class="text-sm font-bold text-brand-ink-soft">{reservation.walkSlot.title}</p>
+    </CompletionPanel>
   </main>
 </Layout>

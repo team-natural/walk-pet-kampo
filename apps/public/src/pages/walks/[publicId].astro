@@ -2,45 +2,83 @@
 // SCR-07 — PRD-04 §3-1
 // TODO(SCR-07): replace mockWalkSlotDetail with getWalkSlotByPublicId() — F-07-05.
 import Layout from "../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { mockWalkSlotDetail } from "$lib/mocks";
+import { formatYen } from "$lib/pricing";
 import type { WalkSlotDetail } from "$lib/view-models/walk-slot";
 
 const { publicId } = Astro.params;
 const slot: WalkSlotDetail = mockWalkSlotDetail;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title={slot.title}>
-  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 p-6" data-public-id={publicId}>
-    <header class="grid gap-2">
-      <h1 class="text-2xl font-bold">{slot.title}</h1>
-      <p class="text-sm text-gray-600">
-        <a href={`/organizations/${slot.organization.slug}`}>{slot.organization.name}</a>
+<Layout title={`${slot.title} | 保護犬おさんぽマッチング`} description={slot.description ?? undefined}>
+  <main id="main-content" class="mx-auto grid max-w-4xl gap-8 px-4 py-12" data-public-id={publicId}>
+    <PageHeader title={slot.title} backHref="/walks" backLabel="おさんぽ一覧">
+      <p class="text-sm font-bold text-brand-ink-soft">
+        <a href={`/organizations/${slot.organization.slug}`} class="rounded underline decoration-2 underline-offset-4 hover:text-brand-ink">{slot.organization.name}</a>
       </p>
-    </header>
+    </PageHeader>
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-gray-500">開催</dt> <dd class="inline">{slot.startAt}（{slot.durationMinutes} 分）</dd></div>
-      <div><dt class="inline text-gray-500">集合</dt> <dd class="inline">{slot.meetingPlace}</dd></div>
-      <div><dt class="inline text-gray-500">参加費</dt> <dd class="inline">{slot.feePerPerson} 円 / 名</dd></div>
-      <div><dt class="inline text-gray-500">残り</dt> <dd class="inline">{slot.remainingCapacity} / {slot.capacity} 名</dd></div>
-      <div><dt class="inline text-gray-500">持ち物・服装</dt> <dd class="inline">{slot.clothingNotes}</dd></div>
-      <div><dt class="inline text-gray-500">注意事項</dt> <dd class="inline">{slot.precautions}</dd></div>
-      <div><dt class="inline text-gray-500">キャンセル</dt> <dd class="inline">{slot.cancellationPolicy}</dd></div>
-    </dl>
+    <div class="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-start">
+      <div class="card grid gap-6 p-6 sm:p-8">
+        <p class="leading-relaxed text-pretty">{slot.description}</p>
 
-    <section class="grid gap-2">
-      <h2 class="text-lg font-semibold">参加する保護犬</h2>
-      <ul class="grid gap-2 text-sm">
-        {
-          slot.dogs.map((dog) => (
-            <li>
-              <a href={`/dogs/${dog.slug}`}>{dog.name}</a>
-            </li>
-          ))
-        }
-      </ul>
-    </section>
+        <dl class="detail-list">
+          <div>
+            <dt>開催</dt>
+            <dd>{dateFormat.format(new Date(slot.startAt))}（{slot.durationMinutes} 分）</dd>
+          </div>
+          <div>
+            <dt>集合場所</dt>
+            <dd>{slot.meetingPlace}</dd>
+          </div>
+          <div>
+            <dt>持ち物・服装</dt>
+            <dd class="text-pretty">{slot.clothingNotes}</dd>
+          </div>
+          <div>
+            <dt>注意事項</dt>
+            <dd class="text-pretty">{slot.precautions}</dd>
+          </div>
+          <div>
+            <dt>雨天時</dt>
+            <dd class="text-pretty">{slot.weatherPolicy}</dd>
+          </div>
+          <div>
+            <dt>キャンセル</dt>
+            <dd class="text-pretty">{slot.cancellationPolicy}</dd>
+          </div>
+        </dl>
 
-    <a href={`/walks/${slot.id}/reserve`} class="underline">このお散歩を予約する</a>
+        <section class="grid gap-3">
+          <h2 class="font-bold">いっしょに歩く保護犬</h2>
+          <ul class="flex flex-wrap gap-2">
+            {
+              slot.dogs.map((dog) => (
+                <li>
+                  <a href={`/dogs/${dog.slug}`} class="badge badge-quiet rounded-full underline-offset-4 hover:underline">
+                    {dog.name}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+        </section>
+      </div>
+
+      <aside class="card grid gap-4 p-6 lg:sticky lg:top-24">
+        <p class="text-2xl font-bold whitespace-nowrap tabular-nums">{formatYen(slot.feePerPerson)} <span class="text-base font-bold text-brand-ink-soft">/ 名</span></p>
+
+        <div class="flex flex-wrap gap-2">
+          {slot.beginnerAllowed === 1 && <span class="badge">はじめての方歓迎</span>}
+          <span class="badge badge-blossom tabular-nums">残り {slot.remainingCapacity} / {slot.capacity} 名</span>
+        </div>
+
+        <a href={`/walks/${slot.id}/reserve`} class="btn btn-blossom px-6 py-3">このおさんぽを予約する</a>
+        <p class="text-sm text-pretty text-brand-ink-soft">予約にはログインが必要です。参加費のお支払いは次の画面で行います。</p>
+      </aside>
+    </div>
   </main>
 </Layout>

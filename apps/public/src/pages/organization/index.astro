@@ -4,7 +4,9 @@
 // answering 401 because this is a page, not an API route (DEV-01 §5).
 // TODO(ADM-01): replace mockOrganizationDashboard with getOrganizationDashboard() — F-15-01.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
+import OrganizationLayout from "../../layouts/OrganizationLayout.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
+import StatCard from "$lib/components/organization/stat-card.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { mockOrganizationDashboard } from "$lib/mocks";
 import type { OrganizationDashboardView } from "$lib/view-models/dashboard";
@@ -15,37 +17,56 @@ const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
 const dashboard: OrganizationDashboardView = mockOrganizationDashboard;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="団体ダッシュボード">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-8 p-6">
-    <header class="flex items-center justify-between gap-4">
-      <h1 class="text-2xl font-bold">ダッシュボード</h1>
-      <p class="text-sm text-gray-600">{session.name}</p>
-    </header>
+<OrganizationLayout title="ダッシュボード | 団体ページ" session={session}>
+  <FlashMessage />
 
-    <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+  <h1 class="text-xl font-bold">ダッシュボード</h1>
+
+  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    {dashboard.tiles.map((tile) => <StatCard label={tile.label} value={tile.value} href={tile.href} />)}
+  </div>
+
+  <section class="grid gap-3">
+    <h2 class="font-bold">直近のおさんぽ</h2>
+    <ul class="grid gap-3">
       {
-        dashboard.tiles.map((tile) => (
-          <article class="rounded border border-gray-200 p-4">
-            <p class="text-sm text-gray-600">{tile.label}</p>
-            <p class="text-2xl font-bold">{tile.value}</p>
-          </article>
+        dashboard.upcomingWalks.map((walk) => (
+          <li class="card flex flex-wrap items-center justify-between gap-3 p-5 text-sm">
+            <div>
+              <a href={`/organization/walks/${walk.id}`} class="rounded font-bold underline-offset-4 hover:underline">
+                {walk.title}
+              </a>
+              <p class="text-brand-ink-soft tabular-nums">{dateFormat.format(new Date(walk.startAt))}</p>
+            </div>
+            <span class="badge badge-blossom tabular-nums">
+              {walk.reservedCount} / {walk.capacity} 名
+            </span>
+          </li>
         ))
       }
-    </section>
+    </ul>
+  </section>
 
-    <section class="grid gap-2">
-      <h2 class="text-lg font-semibold">直近のお散歩枠</h2>
-      <ul class="grid gap-2 text-sm">
-        {
-          dashboard.upcomingWalks.map((walk) => (
-            <li>
-              <a href={`/organization/walks/${walk.id}`}>{walk.title}</a> — {walk.reservedCount} / {walk.capacity} 名
-            </li>
-          ))
-        }
-      </ul>
-    </section>
-  </main>
-</Layout>
+  <section class="grid gap-3">
+    <h2 class="font-bold">直近の予約</h2>
+    <ul class="grid gap-3">
+      {
+        dashboard.recentReservations.map((reservation) => (
+          <li class="card flex flex-wrap items-center justify-between gap-3 p-5 text-sm">
+            <div>
+              <a href={`/organization/reservations/${reservation.id}`} class="rounded font-bold underline-offset-4 hover:underline">
+                {reservation.walkSlotTitle}
+              </a>
+              <p class="text-brand-ink-soft">{reservation.walkerName}</p>
+            </div>
+            <span class="badge badge-quiet">{reservation.status}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</OrganizationLayout>

@@ -4,8 +4,10 @@
 // Checkout Session — F-07-06, F-08-01.
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
 import { mockReservationDetail } from "$lib/mocks";
+import { CANCELLATION, formatYen } from "$lib/pricing";
 import type { ReservationDetail } from "$lib/view-models/reservation";
 import { createDb } from "@app/schema/client";
 
@@ -14,22 +16,42 @@ const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/auth/login", 302);
 
 const reservation: ReservationDetail = mockReservationDetail;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="予約内容の確認">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">予約内容の確認</h1>
+<Layout title="予約内容の確認 | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-2xl gap-6 px-4 py-12">
+    <PageHeader title="予約内容の確認" lead="内容をご確認のうえ、お支払いにお進みください。" />
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-gray-500">お散歩</dt> <dd class="inline">{reservation.walkSlot.title}</dd></div>
-      <div><dt class="inline text-gray-500">開催</dt> <dd class="inline">{reservation.walkSlot.startAt}</dd></div>
-      <div><dt class="inline text-gray-500">人数</dt> <dd class="inline">{reservation.participantCount} 名</dd></div>
-      <div><dt class="inline text-gray-500">お支払い</dt> <dd class="inline">{reservation.payment?.amount} 円</dd></div>
-      <div><dt class="inline text-gray-500">緊急連絡先</dt> <dd class="inline">{reservation.emergencyContactNameSnapshot}（{reservation.emergencyContactPhoneSnapshot}）</dd></div>
-    </dl>
+    <div class="card p-6 sm:p-8">
+      <dl class="detail-list">
+        <div>
+          <dt>おさんぽ</dt>
+          <dd class="font-bold text-pretty">{reservation.walkSlot.title}</dd>
+        </div>
+        <div>
+          <dt>開催</dt>
+          <dd>{dateFormat.format(new Date(reservation.walkSlot.startAt))}</dd>
+        </div>
+        <div>
+          <dt>参加人数</dt>
+          <dd class="tabular-nums">{reservation.participantCount} 名</dd>
+        </div>
+        <div>
+          <dt>緊急連絡先</dt>
+          <dd>{reservation.emergencyContactNameSnapshot}（{reservation.emergencyContactPhoneSnapshot}）</dd>
+        </div>
+        <div>
+          <dt>お支払い額</dt>
+          <dd class="text-xl font-bold whitespace-nowrap tabular-nums">{formatYen(reservation.payment?.amount ?? 0)}</dd>
+        </div>
+      </dl>
+    </div>
 
-    <form method="post" action={`/api/v1/reservations/${reservation.id}/checkout-session`}>
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2 text-sm">お支払いに進む</button>
+    <form method="post" action={`/api/v1/reservations/${reservation.id}/checkout-session`} class="grid gap-3">
+      <button type="submit" class="btn btn-blossom px-6 py-3">お支払いに進む</button>
+      <p class="text-sm text-pretty text-brand-ink-soft">開催の {CANCELLATION.freeCancellationHours} 時間前までのキャンセルは全額返金します。お支払いは外部の決済画面で行います。</p>
     </form>
   </main>
 </Layout>

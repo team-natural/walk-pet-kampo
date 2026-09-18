@@ -3,6 +3,7 @@
 // TODO(SCR-33): post to requestWalkerWithdrawal() — F-02-06.
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
 import { createDb } from "@app/schema/client";
 
@@ -11,21 +12,31 @@ const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/auth/login", 302);
 ---
 
-<Layout title="退会のお手続き">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">退会のお手続き</h1>
-    <p class="text-sm text-gray-600">確定済みの予約が残っている場合は、退会の前にキャンセルのお手続きが必要です。退会後、登録情報は一定期間の後に削除されます。</p>
+<Layout title="退会のお手続き | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-2xl gap-6 px-4 py-12">
+    <PageHeader title="退会のお手続き" backHref="/mypage" backLabel="マイページ" />
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/me/withdrawal">
-      <label class="grid gap-1">
-        <span>退会の理由（任意）</span>
-        <textarea name="reason" rows="4" class="rounded border border-gray-300 px-3 py-2"></textarea>
+    <div class="card grid gap-3 p-6 text-sm">
+      <h2 class="font-bold">退会の前にご確認ください</h2>
+      <ul class="grid gap-2 text-pretty text-brand-ink-soft">
+        <li>確定済みの予約が残っている場合は、先にキャンセルのお手続きが必要です。</li>
+        <li>おさんぽの記録と支援実績は見られなくなります。</li>
+        <li>ご登録の情報は、一定期間の後に削除されます。</li>
+      </ul>
+    </div>
+
+    <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action="/api/v1/me/withdrawal">
+      <label class="grid gap-1.5">
+        <span class="font-bold">退会の理由（任意）</span>
+        <textarea name="reason" rows="4" class="field w-full rounded-2xl"></textarea>
       </label>
-      <label class="flex items-start gap-2">
-        <input type="checkbox" name="confirmed" required />
-        <span>退会すると元に戻せないことを理解しました</span>
+
+      <label class="flex items-start gap-3">
+        <input type="checkbox" name="confirmed" required class="mt-1 size-5 shrink-0 accent-brand-blossom-deep" />
+        <span class="text-pretty">退会すると元に戻せないことを理解しました</span>
       </label>
-      <button type="submit" class="rounded border border-red-300 px-3 py-2 text-red-700">退会する</button>
+
+      <button type="submit" class="btn btn-quiet w-fit px-6 py-3 text-red-800">退会する</button>
     </form>
   </main>
 </Layout>

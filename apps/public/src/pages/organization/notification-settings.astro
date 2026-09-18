@@ -5,7 +5,9 @@
 // TODO(ADM-27): replace mockNotificationSettings with getNotificationSettings() and post
 // updateNotificationSettings() — F-13-03.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
+import OrganizationLayout from "../../layouts/OrganizationLayout.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
+import FormSection from "$lib/components/organization/form-section.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { mockNotificationSettings } from "$lib/mocks";
 import type { NotificationSettingView } from "$lib/view-models/notification";
@@ -18,27 +20,29 @@ if (!session) return Astro.redirect("/organization/login", 302);
 const settings: NotificationSettingView[] = mockNotificationSettings;
 ---
 
-<Layout title="通知設定">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">通知設定</h1>
+<OrganizationLayout title="通知設定 | 団体ページ" session={session}>
+  <FlashMessage />
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/notification-settings">
-      {
-        settings.map((setting) => (
-          <fieldset class="grid gap-2 rounded border border-gray-200 p-4">
-            <legend class="px-1">{setting.type}</legend>
-            <label class="flex items-center gap-2">
-              <input type="checkbox" name={`${setting.type}.email`} checked={setting.emailEnabled} />
-              <span>メールで受け取る</span>
-            </label>
-            <label class="flex items-center gap-2">
-              <input type="checkbox" name={`${setting.type}.inApp`} checked={setting.inAppEnabled} />
-              <span>サイト内で受け取る</span>
-            </label>
-          </fieldset>
-        ))
-      }
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">保存する</button>
-    </form>
-  </main>
-</Layout>
+  <header class="grid gap-2">
+    <a href="/organization/notifications" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← 通知</a>
+    <h1 class="text-xl font-bold">通知設定</h1>
+  </header>
+
+  <form class="grid max-w-2xl gap-4" method="post" action="/api/v1/organization/notification-settings">
+    {
+      settings.map((setting) => (
+        <FormSection legend={setting.type}>
+          <label class="flex items-center gap-3">
+            <input type="checkbox" name={`${setting.type}.email`} checked={setting.emailEnabled} class="size-5 accent-brand-blossom-deep" />
+            <span>メールで受け取る</span>
+          </label>
+          <label class="flex items-center gap-3">
+            <input type="checkbox" name={`${setting.type}.inApp`} checked={setting.inAppEnabled} class="size-5 accent-brand-blossom-deep" />
+            <span>サイト内で受け取る</span>
+          </label>
+        </FormSection>
+      ))
+    }
+    <button type="submit" class="btn btn-sun w-fit px-6 py-3">保存する</button>
+  </form>
+</OrganizationLayout>

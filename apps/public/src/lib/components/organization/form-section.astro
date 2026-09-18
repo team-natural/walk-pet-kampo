@@ -1,0 +1,16 @@
+---
+// One of the five shared parts (GOV-01 D-019). A fieldset with a legend, so grouped inputs are
+// grouped for a screen reader too — a card with a bold <p> on top only looks grouped.
+interface Props {
+  legend: string;
+  description?: string;
+}
+
+const { legend, description } = Astro.props;
+---
+
+<fieldset class="card grid gap-4 p-6 text-sm sm:p-8">
+  <legend class="px-1 font-bold">{legend}</legend>
+  {description && <p class="text-pretty text-brand-ink-soft">{description}</p>}
+  <slot />
+</fieldset>

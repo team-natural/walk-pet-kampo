@@ -1,12 +1,14 @@
 ---
 // ADM-10 — PRD-04 §3-2 (guarded)
-// Cancelling notifies everyone already booked, so the confirmation must say so before the action
-// (PRD-04 §4-3). The modal itself belongs to the design phase; the skeleton states the
-// consequence in text so it cannot be lost on the way there.
+// Cancelling notifies everyone already booked, so it goes through the shared confirm dialog and
+// the copy says what happens before the click (PRD-04 §4-3, GOV-01 D-019).
 // TODO(ADM-10): replace mockWalkSlotDetail with getOwnWalkSlot(), post updateWalkSlot() and
 // cancelWalkSlot() — F-06-01, F-06-04.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import ConfirmDialog from "$lib/components/organization/confirm-dialog.svelte";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
+import FormSection from "$lib/components/organization/form-section.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { mockWalkSlotDetail } from "$lib/mocks";
 import type { WalkSlotDetail } from "$lib/view-models/walk-slot";
@@ -20,32 +22,44 @@ const { publicId } = Astro.params;
 const slot: WalkSlotDetail = mockWalkSlotDetail;
 ---
 
-<Layout title={`${slot.title} の編集`}>
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{slot.title}</h1>
+<OrganizationLayout title={`${slot.title} | 団体ページ`} session={session}>
+  <FlashMessage />
 
-    <form class="grid gap-4 text-sm" method="post" action={`/api/v1/organization/walk-slots/${slot.id}`}>
-      <label class="grid gap-1">
-        <span>タイトル</span>
-        <input type="text" name="title" value={slot.title} class="rounded border border-gray-300 px-3 py-2" />
-      </label>
-      <label class="grid gap-1">
-        <span>集合場所</span>
-        <input type="text" name="meetingPlace" value={slot.meetingPlace} class="rounded border border-gray-300 px-3 py-2" />
-      </label>
-      <label class="grid gap-1">
-        <span>注意事項</span>
-        <textarea name="precautions" rows="4" class="rounded border border-gray-300 px-3 py-2">{slot.precautions}</textarea>
-      </label>
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">保存する</button>
-    </form>
+  <header class="grid gap-2" data-public-id={publicId}>
+    <a href="/organization/walks" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← おさんぽ募集</a>
+    <h1 class="text-xl font-bold">{slot.title}</h1>
+    <p class="flex flex-wrap gap-2">
+      <span class="badge badge-quiet">{slot.status}</span>
+      <span class="badge badge-blossom tabular-nums">残り {slot.remainingCapacity} / {slot.capacity} 名</span>
+    </p>
+  </header>
 
-    <section class="grid gap-2 rounded border border-red-200 p-4 text-sm">
-      <h2 class="font-semibold text-red-700">開催を中止する</h2>
-      <p class="text-gray-600">予約済みの参加者全員に中止の通知が送られ、参加費は返金されます。</p>
-      <form method="post" action={`/api/v1/organization/walk-slots/${slot.id}/cancel`}>
-        <button type="submit" class="rounded border border-red-300 px-3 py-2 text-red-700">中止する</button>
-      </form>
-    </section>
-  </main>
-</Layout>
+  <form class="grid max-w-2xl gap-4" method="post" action={`/api/v1/organization/walk-slots/${slot.id}`}>
+    <FormSection legend="開催の内容">
+      <label class="grid gap-1.5">
+        <span class="font-bold">タイトル</span>
+        <input type="text" name="title" value={slot.title} class="field w-full" />
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">集合場所</span>
+        <input type="text" name="meetingPlace" value={slot.meetingPlace} class="field w-full" />
+      </label>
+    </FormSection>
+
+    <FormSection legend="参加者への案内">
+      <label class="grid gap-1.5">
+        <span class="font-bold">注意事項</span>
+        <textarea name="precautions" rows="3" class="field w-full rounded-2xl">{slot.precautions}</textarea>
+      </label>
+    </FormSection>
+
+    <button type="submit" class="btn btn-sun w-fit px-6 py-3">保存する</button>
+  </form>
+
+  <section class="card grid max-w-2xl gap-3 border-2 border-red-200 p-6">
+    <h2 class="font-bold text-red-800">開催を中止する</h2>
+    <p class="text-sm text-pretty text-brand-ink-soft">予約済みの参加者全員に中止の通知が送られ、参加費は全額返金されます。取り消せません。</p>
+    <ConfirmDialog client:load action={`/api/v1/organization/walk-slots/${slot.id}/cancel`} triggerLabel="中止する" title="このおさんぽを中止しますか？" message="予約済みの参加者全員に通知が送られ、参加費は全額返金されます。この操作は取り消せません。" confirmLabel="中止する" />
+  </section>
+</OrganizationLayout>

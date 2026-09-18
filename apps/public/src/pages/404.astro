@@ -1,10 +1,13 @@
 ---
-// SCR-44 404 — PRD-04 §3-1
+// SCR-44 — PRD-04 §3-1
 import Layout from "../layouts/Layout.astro";
+import CompletionPanel from "$lib/components/completion-panel.astro";
 ---
 
-<Layout title="Page not found">
-  <h1>404</h1>
-  <p>The page you are looking for doesn't exist or has been moved.</p>
-  <a href="/">Back to top</a>
+<Layout title="ページが見つかりません | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto max-w-2xl px-4 py-16">
+    <CompletionPanel tone="attention" title="ページが見つかりません" message="お探しのページは移動したか、URL が変わった可能性があります。おさんぽ一覧からさがし直してみてください。" actionHref="/walks" actionLabel="おさんぽ一覧へ">
+      <a href="/" class="rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">トップページへ戻る</a>
+    </CompletionPanel>
+  </main>
 </Layout>

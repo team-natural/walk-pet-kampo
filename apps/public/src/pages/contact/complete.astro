@@ -1,12 +1,11 @@
 ---
 // SCR-42 — PRD-04 §3-1
 import Layout from "../../layouts/Layout.astro";
+import CompletionPanel from "$lib/components/completion-panel.astro";
 ---
 
-<Layout title="お問い合わせを受け付けました">
-  <main class="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
-    <h1 class="text-2xl font-bold">お問い合わせを受け付けました</h1>
-    <p class="text-sm text-gray-600">内容を確認のうえ、ご登録のメールアドレスにご返信します。</p>
-    <a href="/" class="underline">トップページへ</a>
+<Layout title="お問い合わせを受け付けました | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto max-w-2xl px-4 py-16">
+    <CompletionPanel title="お問い合わせを受け付けました" message="内容を確認のうえ、ご登録のメールアドレスにご返信します。数日たっても返信がない場合は、お手数ですがもう一度ご連絡ください。" actionHref="/" actionLabel="トップページへ" />
   </main>
 </Layout>

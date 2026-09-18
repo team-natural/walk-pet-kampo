@@ -2,39 +2,52 @@
 // SCR-15 — PRD-04 §3-1
 // TODO(SCR-15): post to createOrganizationApplication() — F-03-01, F-03-02.
 import Layout from "../../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
+import { formatYen, ORGANIZATION_SHARE, PARTICIPATION_FEE } from "$lib/pricing";
 ---
 
-<Layout title="保護団体の登録申請">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">保護団体の登録申請</h1>
-    <p class="text-sm text-gray-600">運営による審査のうえ、登録の可否をご連絡します。</p>
+<Layout title="保護団体の登録申請 | 保護犬おさんぽマッチング" description="保護団体としておさんぽの受け入れを始めるための登録申請です。">
+  <main id="main-content" class="mx-auto grid max-w-2xl gap-6 px-4 py-12">
+    <PageHeader title="保護団体の登録申請" lead="運営による審査のうえ、登録の可否をご連絡します。掲載にあたって費用はいただきません。" />
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization-applications" enctype="multipart/form-data">
-      <label class="grid gap-1">
-        <span>団体名</span>
-        <input type="text" name="name" required class="rounded border border-gray-300 px-3 py-2" />
+    <div class="card grid gap-2 p-6 text-sm">
+      <p class="font-bold">参加費の配分</p>
+      <p class="text-pretty text-brand-ink-soft">1 回のおさんぽ {formatYen(PARTICIPATION_FEE)} のうち、{formatYen(ORGANIZATION_SHARE)} が団体への還元となります。</p>
+    </div>
+
+    <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action="/api/v1/organization-applications" enctype="multipart/form-data">
+      <label class="grid gap-1.5">
+        <span class="font-bold">団体名</span>
+        <input type="text" name="name" required autocomplete="organization" class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>代表者名</span>
-        <input type="text" name="representativeName" required class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">代表者名</span>
+        <input type="text" name="representativeName" required autocomplete="name" class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>連絡先メールアドレス</span>
-        <input type="email" name="email" required class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">連絡先メールアドレス</span>
+        <input type="email" name="email" required autocomplete="email" spellcheck="false" class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>活動エリア</span>
-        <input type="text" name="activityArea" class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">活動エリア</span>
+        <input type="text" name="activityArea" placeholder="例: 東京都北区・板橋区" class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>活動内容</span>
-        <textarea name="introduction" rows="5" class="rounded border border-gray-300 px-3 py-2"></textarea>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">活動内容</span>
+        <textarea name="introduction" rows="5" class="field w-full rounded-2xl"></textarea>
       </label>
-      <label class="grid gap-1">
-        <span>提出書類</span>
-        <input type="file" name="documents" multiple class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">提出書類</span>
+        <input type="file" name="documents" multiple class="field w-full" />
+        <span class="text-brand-ink-soft">団体の活動が確認できる書類をご提出ください。</span>
       </label>
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">申請する</button>
+
+      <button type="submit" class="btn btn-sun px-6 py-3">申請する</button>
     </form>
   </main>
 </Layout>

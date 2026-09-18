@@ -2,7 +2,9 @@
 // ADM-03 — PRD-04 §3-2 (guarded, org_admin only)
 // TODO(ADM-03): replace mockOrganizationMembers with listOrganizationMembers() — F-04-03.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import DataTable from "$lib/components/organization/data-table.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
 import { getOrganizationSession, isOrganizationAdmin } from "$lib/server/auth/organization-session";
 import { mockOrganizationMembers } from "$lib/mocks";
 import type { OrganizationMemberView } from "$lib/view-models/organization-member";
@@ -16,34 +18,26 @@ if (!isOrganizationAdmin(session)) return Astro.redirect("/organization", 302);
 const members: OrganizationMemberView[] = mockOrganizationMembers;
 ---
 
-<Layout title="スタッフ一覧">
-  <main class="mx-auto flex min-h-dvh max-w-4xl flex-col gap-6 p-6">
-    <header class="flex items-center justify-between gap-4">
-      <h1 class="text-2xl font-bold">スタッフ</h1>
-      <a href="/organization/members/add" class="text-sm underline">スタッフを招待する</a>
-    </header>
+<OrganizationLayout title="スタッフ | 団体ページ" session={session}>
+  <FlashMessage />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">氏名</th>
-          <th class="py-2">メールアドレス</th>
-          <th class="py-2">権限</th>
-          <th class="py-2">状態</th>
+  <header class="flex flex-wrap items-center justify-between gap-4">
+    <h1 class="text-xl font-bold">スタッフ</h1>
+    <a href="/organization/members/add" class="btn btn-sun px-5 text-sm">スタッフを招待する</a>
+  </header>
+
+  <DataTable columns={["氏名", "メールアドレス", "権限", "状態"]} rowCount={members.length} caption="この団体のスタッフ一覧" emptyMessage="まだスタッフがいません。" emptyActionHref="/organization/members/add" emptyActionLabel="スタッフを招待する">
+    {
+      members.map((member) => (
+        <tr>
+          <td class="font-bold">{member.name}</td>
+          <td>{member.email}</td>
+          <td>{member.role === "org_admin" ? "管理者" : "スタッフ"}</td>
+          <td>
+            <span class="badge badge-quiet">{member.status}</span>
+          </td>
         </tr>
-      </thead>
-      <tbody>
-        {
-          members.map((member) => (
-            <tr class="border-b">
-              <td class="py-2">{member.name}</td>
-              <td class="py-2">{member.email}</td>
-              <td class="py-2">{member.role}</td>
-              <td class="py-2">{member.status}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+      ))
+    }
+  </DataTable>
+</OrganizationLayout>

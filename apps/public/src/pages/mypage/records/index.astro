@@ -3,6 +3,8 @@
 // TODO(SCR-26): replace mockWalkRecords with listWalkerRecords() — F-10-02.
 import { env } from "cloudflare:workers";
 import Layout from "../../../layouts/Layout.astro";
+import EmptyState from "$lib/components/empty-state.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
 import { mockWalkRecords } from "$lib/mocks";
 import type { WalkRecordSummary } from "$lib/view-models/walk-record";
@@ -13,22 +15,36 @@ const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/auth/login", 302);
 
 const records: WalkRecordSummary[] = mockWalkRecords;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="お散歩の記録">
-  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">お散歩の記録</h1>
-    <ul class="grid gap-3 text-sm">
-      {
-        records.map((record) => (
-          <li class="rounded border border-gray-200 p-4">
-            <a href={`/mypage/records/${record.id}`} class="font-semibold">
-              {record.walkSlot.title}
-            </a>
-            <p class="text-gray-600">{record.conductedAt}</p>
-          </li>
-        ))
-      }
-    </ul>
+<Layout title="おさんぽの記録 | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-3xl gap-8 px-4 py-12">
+    <PageHeader title="おさんぽの記録" lead="参加したおさんぽの様子を、保護団体が記録しています。" backHref="/mypage" backLabel="マイページ" />
+
+    {
+      records.length > 0 ? (
+        <ul class="grid gap-4">
+          {records.map((record) => (
+            <li class="card p-6">
+              <p class="text-sm font-bold text-brand-ink-soft tabular-nums">{record.conductedAt ? dateFormat.format(new Date(record.conductedAt)) : "日程調整中"}</p>
+              <h2 class="mt-2 text-lg font-bold text-balance">
+                <a href={`/mypage/records/${record.id}`} class="rounded underline-offset-4 hover:underline">
+                  {record.walkSlot.title}
+                </a>
+              </h2>
+              {record.incidentFlag === 1 && (
+                <p class="mt-3">
+                  <span class="badge">報告あり</span>
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState message="まだおさんぽの記録はありません。" actionHref="/walks" actionLabel="おさんぽをさがす" />
+      )
+    }
   </main>
 </Layout>

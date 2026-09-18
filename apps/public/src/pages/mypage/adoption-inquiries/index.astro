@@ -3,6 +3,8 @@
 // TODO(SCR-30): replace mockAdoptionInquiries with listWalkerAdoptionInquiries() — F-11-03.
 import { env } from "cloudflare:workers";
 import Layout from "../../../layouts/Layout.astro";
+import EmptyState from "$lib/components/empty-state.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
 import { mockAdoptionInquiries } from "$lib/mocks";
 import type { AdoptionInquirySummary } from "$lib/view-models/adoption-inquiry";
@@ -13,24 +15,34 @@ const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/auth/login", 302);
 
 const inquiries: AdoptionInquirySummary[] = mockAdoptionInquiries;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="里親相談">
-  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">里親相談</h1>
-    <ul class="grid gap-3 text-sm">
-      {
-        inquiries.map((inquiry) => (
-          <li class="rounded border border-gray-200 p-4">
-            <a href={`/mypage/adoption-inquiries/${inquiry.id}`} class="font-semibold">
-              {inquiry.dog.name}
-            </a>
-            <p class="text-gray-600">
-              {inquiry.createdAt} / {inquiry.status}
-            </p>
-          </li>
-        ))
-      }
-    </ul>
+<Layout title="里親相談 | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-3xl gap-8 px-4 py-12">
+    <PageHeader title="里親相談" lead="送った相談と、そのやり取りの状況です。連絡は保護団体から直接あります。" backHref="/mypage" backLabel="マイページ" />
+
+    {
+      inquiries.length > 0 ? (
+        <ul class="grid gap-4">
+          {inquiries.map((inquiry) => (
+            <li class="card p-6">
+              <p class="text-sm font-bold text-brand-ink-soft tabular-nums">{dateFormat.format(new Date(inquiry.createdAt))}</p>
+              <h2 class="mt-2 text-lg font-bold text-balance">
+                <a href={`/mypage/adoption-inquiries/${inquiry.id}`} class="rounded underline-offset-4 hover:underline">
+                  {inquiry.dog.name}
+                </a>
+              </h2>
+              <p class="mt-3">
+                <span class="badge badge-blossom">{inquiry.status}</span>
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState message="まだ相談はありません。" actionHref="/dogs" actionLabel="保護犬をさがす" />
+      )
+    }
   </main>
 </Layout>

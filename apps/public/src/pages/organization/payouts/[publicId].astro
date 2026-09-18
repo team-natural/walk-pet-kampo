@@ -2,9 +2,10 @@
 // ADM-16 — PRD-04 §3-2 (guarded, org_admin only)
 // TODO(ADM-16): replace mockPayoutDetail with getOwnPayout() — F-09-02.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
 import { getOrganizationSession, isOrganizationAdmin } from "$lib/server/auth/organization-session";
 import { mockPayoutDetail } from "$lib/mocks";
+import { formatYen } from "$lib/pricing";
 import type { PayoutDetail } from "$lib/view-models/payout";
 import { createDb } from "@app/schema/client";
 
@@ -17,17 +18,41 @@ const { publicId } = Astro.params;
 const payout: PayoutDetail = mockPayoutDetail;
 ---
 
-<Layout title="還元の明細">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{payout.periodStart} 〜 {payout.periodEnd} の還元</h1>
+<OrganizationLayout title="還元の明細 | 団体ページ" session={session}>
+  <header class="grid gap-2" data-public-id={publicId}>
+    <a href="/organization/payouts" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← 還元・振込</a>
+    <h1 class="text-xl font-bold tabular-nums">{payout.periodStart} 〜 {payout.periodEnd}</h1>
+    <p><span class="badge badge-quiet">{payout.status}</span></p>
+  </header>
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-gray-500">対象予約</dt> <dd class="inline">{payout.totalReservations} 件 / {payout.totalParticipants} 名</dd></div>
-      <div><dt class="inline text-gray-500">還元対象額</dt> <dd class="inline">{payout.grossAmount} 円</dd></div>
-      <div><dt class="inline text-gray-500">調整額</dt> <dd class="inline">{payout.adjustmentAmount} 円</dd></div>
-      <div><dt class="inline text-gray-500">振込額</dt> <dd class="inline">{payout.payoutAmount} 円</dd></div>
-      <div><dt class="inline text-gray-500">状態</dt> <dd class="inline">{payout.status}</dd></div>
-      <div><dt class="inline text-gray-500">振込予定</dt> <dd class="inline">{payout.scheduledAt}</dd></div>
+  <div class="card max-w-2xl p-6 sm:p-8">
+    <dl class="detail-list">
+      <div>
+        <dt>対象予約</dt>
+        <dd class="tabular-nums">{payout.totalReservations} 件 / {payout.totalParticipants} 名</dd>
+      </div>
+      <div>
+        <dt>還元対象額</dt>
+        <dd class="whitespace-nowrap tabular-nums">{formatYen(payout.grossAmount)}</dd>
+      </div>
+      <div>
+        <dt>調整額</dt>
+        <dd class="whitespace-nowrap tabular-nums">{formatYen(payout.adjustmentAmount)}</dd>
+      </div>
+      <div>
+        <dt>振込額</dt>
+        <dd class="text-xl font-bold whitespace-nowrap tabular-nums">{formatYen(payout.payoutAmount)}</dd>
+      </div>
+      <div>
+        <dt>振込予定</dt>
+        <dd class="tabular-nums">{payout.scheduledAt ?? "—"}</dd>
+      </div>
+      <div>
+        <dt>備考</dt>
+        <dd class="text-pretty">{payout.notes ?? "—"}</dd>
+      </div>
     </dl>
-  </main>
-</Layout>
+  </div>
+
+  <p class="max-w-2xl text-sm text-pretty text-brand-ink-soft">金額に相違がある場合は、お問い合わせからご連絡ください。振込の実行は運営が行います。</p>
+</OrganizationLayout>

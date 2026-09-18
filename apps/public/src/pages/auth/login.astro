@@ -11,9 +11,21 @@ const session = await getSession(Astro.cookies, createDb(env.DB));
 if (session) return Astro.redirect("/mypage", 302);
 ---
 
-<Layout title="ログイン">
-  <main class="mx-auto flex min-h-dvh max-w-sm flex-col items-center justify-center gap-6 px-4">
+<Layout title="ログイン | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-md gap-6 px-4 py-16">
     <h1 class="text-2xl font-bold">ログイン</h1>
-    <LoginForm client:load />
+
+    <div class="card p-6 sm:p-8">
+      <LoginForm client:load />
+    </div>
+
+    <div class="grid gap-2 text-sm">
+      <a href="/auth/forgot-password" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">パスワードをお忘れの方</a>
+      <p class="text-brand-ink-soft">
+        はじめての方は
+        <a href="/register" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">参加者登録</a>
+        から。
+      </p>
+    </div>
   </main>
 </Layout>

@@ -2,7 +2,8 @@
 // ADM-23 — PRD-04 §3-2 (guarded, org_admin only)
 // TODO(ADM-23): post to requestOrganizationWithdrawal() — F-04-05.
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
+import OrganizationLayout from "../../layouts/OrganizationLayout.astro";
+import ConfirmDialog from "$lib/components/organization/confirm-dialog.svelte";
 import { getOrganizationSession, isOrganizationAdmin } from "$lib/server/auth/organization-session";
 import { createDb } from "@app/schema/client";
 
@@ -12,21 +13,29 @@ if (!session) return Astro.redirect("/organization/login", 302);
 if (!isOrganizationAdmin(session)) return Astro.redirect("/organization", 302);
 ---
 
-<Layout title="掲載終了・退会の申請">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">掲載終了・退会の申請</h1>
-    <p class="text-sm text-gray-600">公開中のお散歩募集は非公開になり、予約済みの参加者には中止の連絡が送られます。未振込の還元額がある場合は、退会後もお振り込みします。</p>
+<OrganizationLayout title="掲載終了・退会 | 団体ページ" session={session}>
+  <header class="grid gap-2">
+    <a href="/organization/profile" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← 団体情報</a>
+    <h1 class="text-xl font-bold">掲載終了・退会の申請</h1>
+  </header>
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/withdrawal">
-      <label class="grid gap-1">
-        <span>理由</span>
-        <textarea name="reason" rows="4" class="rounded border border-gray-300 px-3 py-2"></textarea>
+  <div class="card grid max-w-2xl gap-3 p-6 text-sm">
+    <h2 class="font-bold">申請の前にご確認ください</h2>
+    <ul class="grid gap-2 text-pretty text-brand-ink-soft">
+      <li>公開中のおさんぽ募集は非公開になります。</li>
+      <li>予約済みの参加者には中止の連絡が送られ、参加費は返金されます。</li>
+      <li>未振込の還元額がある場合は、退会後もお振り込みします。</li>
+    </ul>
+  </div>
+
+  <section class="card grid max-w-2xl gap-4 border-2 border-red-200 p-6">
+    <h2 class="font-bold text-red-800">掲載終了を申請する</h2>
+    <form class="grid gap-3 text-sm" method="post" action="/api/v1/organization/withdrawal">
+      <label class="grid gap-1.5">
+        <span class="font-bold">理由</span>
+        <textarea name="reason" rows="4" class="field w-full rounded-2xl"></textarea>
       </label>
-      <label class="flex items-start gap-2">
-        <input type="checkbox" name="confirmed" required />
-        <span>予約済みの参加者に中止の連絡が送られることを理解しました</span>
-      </label>
-      <button type="submit" class="rounded border border-red-300 px-3 py-2 text-red-700">申請する</button>
     </form>
-  </main>
-</Layout>
+    <ConfirmDialog client:load action="/api/v1/organization/withdrawal" triggerLabel="掲載終了を申請する" title="掲載を終了しますか？" message="公開中のおさんぽ募集は非公開になり、予約済みの参加者には中止の連絡が送られます。この操作は取り消せません。" confirmLabel="申請する" />
+  </section>
+</OrganizationLayout>

@@ -1,6 +1,6 @@
 <script lang="ts">
-  // Plain markup, not shadcn: shadcn-svelte is admin-only, and a public site's design is
-  // rebuilt per project anyway. This is the working skeleton to restyle.
+  // Plain markup, not shadcn: shadcn-svelte is admin-only (DEV-06 §5). Styling comes from the
+  // shared .field / .btn classes in global.css so this matches the rest of the public site.
   import { onMount } from "svelte";
 
   const LANDING_ROUTE = "/mypage";
@@ -19,12 +19,12 @@
   let fieldErrors = $state<Record<string, string[] | undefined>>({});
   let formError = $state("");
 
-  // The API answers in Japanese; mapping by status keeps this screen in one language. None of
-  // these distinguish "no such account" from "wrong password".
+  // Mapped by status so the screen stays in one language. None of these distinguish "no such
+  // account" from "wrong password" — that difference is an enumeration oracle.
   function messageFor(status: number) {
-    if (status === 401) return "Incorrect email or password.";
-    if (status === 429) return "Too many attempts. Please wait and try again.";
-    return "Login failed. Please try again later.";
+    if (status === 401) return "メールアドレスまたはパスワードが違います。";
+    if (status === 429) return "試行回数が多すぎます。しばらく待ってからお試しください。";
+    return "ログインできませんでした。時間をおいてお試しください。";
   }
 
   async function handleSubmit(event: SubmitEvent) {
@@ -55,7 +55,7 @@
         formError = messageFor(response.status);
       }
     } catch {
-      formError = "Could not reach the server. Check your connection.";
+      formError = "サーバーに接続できませんでした。通信環境をご確認ください。";
     } finally {
       // Unreached on success (navigating away) — re-enabling first would allow a double submit.
       submitting = false;
@@ -63,28 +63,28 @@
   }
 </script>
 
-<form class="flex w-full max-w-sm flex-col gap-4" onsubmit={handleSubmit}>
+<form class="grid w-full gap-4" onsubmit={handleSubmit}>
   {#if formError}
-    <p role="alert" class="rounded border border-red-500 px-3 py-2 text-sm text-red-700">{formError}</p>
+    <p role="alert" class="rounded-2xl border-2 border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">{formError}</p>
   {/if}
 
-  <div class="flex flex-col gap-1">
-    <label for="email-{id}">Email</label>
-    <input id="email-{id}" class="rounded border px-3 py-2" type="email" autocomplete="username" bind:value={email} required aria-invalid={fieldErrors.email ? "true" : undefined} />
+  <label class="grid gap-1.5 text-sm" for="email-{id}">
+    <span class="font-bold">メールアドレス</span>
+    <input id="email-{id}" class="field w-full" type="email" autocomplete="username" spellcheck="false" bind:value={email} required aria-invalid={fieldErrors.email ? "true" : undefined} aria-describedby={fieldErrors.email ? `email-error-${id}` : undefined} />
     {#if fieldErrors.email}
-      <p role="alert" class="text-sm text-red-700">{fieldErrors.email.join(" ")}</p>
+      <p id="email-error-{id}" role="alert" class="text-sm text-red-800">{fieldErrors.email.join(" ")}</p>
     {/if}
-  </div>
+  </label>
 
-  <div class="flex flex-col gap-1">
-    <label for="password-{id}">Password</label>
-    <input id="password-{id}" class="rounded border px-3 py-2" type="password" autocomplete="current-password" bind:value={password} required aria-invalid={fieldErrors.password ? "true" : undefined} />
+  <label class="grid gap-1.5 text-sm" for="password-{id}">
+    <span class="font-bold">パスワード</span>
+    <input id="password-{id}" class="field w-full" type="password" autocomplete="current-password" bind:value={password} required aria-invalid={fieldErrors.password ? "true" : undefined} aria-describedby={fieldErrors.password ? `password-error-${id}` : undefined} />
     {#if fieldErrors.password}
-      <p role="alert" class="text-sm text-red-700">{fieldErrors.password.join(" ")}</p>
+      <p id="password-error-{id}" role="alert" class="text-sm text-red-800">{fieldErrors.password.join(" ")}</p>
     {/if}
-  </div>
+  </label>
 
-  <button type="submit" class="rounded bg-black px-4 py-2 text-white disabled:opacity-50" disabled={!hydrated || submitting}>
-    {submitting ? "Logging in…" : "Login"}
+  <button type="submit" class="btn btn-blossom px-6 py-3 disabled:opacity-60" disabled={!hydrated || submitting}>
+    {submitting ? "ログインしています…" : "ログイン"}
   </button>
 </form>

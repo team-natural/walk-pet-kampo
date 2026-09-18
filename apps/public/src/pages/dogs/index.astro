@@ -2,28 +2,41 @@
 // SCR-04 — PRD-04 §3-1
 // TODO(SCR-04): replace mockDogs with listDogs() — F-07-02.
 import Layout from "../../layouts/Layout.astro";
+import EmptyState from "$lib/components/empty-state.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { mockDogs } from "$lib/mocks";
 import type { DogSummary } from "$lib/view-models/dog";
 
 const dogs: DogSummary[] = mockDogs;
 ---
 
-<Layout title="保護犬をさがす">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-8 p-6">
-    <h1 class="text-2xl font-bold">保護犬をさがす</h1>
-    <ul class="grid gap-4">
-      {
-        dogs.map((dog) => (
-          <li class="rounded border border-gray-200 p-4">
-            <a href={`/dogs/${dog.slug}`} class="font-semibold">
-              {dog.name}
-            </a>
-            <p class="text-sm text-gray-600">
-              {dog.breed} / {dog.size} / {dog.estimatedAge}
-            </p>
-          </li>
-        ))
-      }
-    </ul>
+<Layout title="保護犬をさがす | 保護犬おさんぽマッチング" description="おさんぽに参加できる保護犬の一覧です。性格や散歩時の注意を見てから選べます。">
+  <main id="main-content" class="mx-auto grid max-w-6xl gap-8 px-4 py-12">
+    <PageHeader title="保護犬をさがす" lead="おさんぽに参加できる子の一覧です。性格や散歩のときの注意は、それぞれの詳細ページに書いてあります。" />
+
+    {
+      dogs.length > 0 ? (
+        <ul class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {dogs.map((dog, index) => (
+            <li class="anim-rise card p-6" style={`--delay: ${index * 0.06}s`}>
+              <h2 class="line-clamp-2 text-lg font-bold text-balance">
+                <a href={`/dogs/${dog.slug}`} class="rounded underline-offset-4 hover:underline">
+                  {dog.name}
+                </a>
+              </h2>
+              <p class="mt-2 text-sm text-brand-ink-soft">
+                {dog.breed} / {dog.size} / {dog.estimatedAge}
+              </p>
+              <div class="mt-4 flex flex-wrap gap-2">
+                {dog.walkEligible === 1 && <span class="badge badge-blossom">おさんぽ参加中</span>}
+                <span class="badge badge-quiet">{dog.adoptionStatus}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState message="いま掲載中の保護犬はいません。" actionHref="/organizations" actionLabel="参加している保護団体を見る" />
+      )
+    }
   </main>
 </Layout>

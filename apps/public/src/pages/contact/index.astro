@@ -4,34 +4,45 @@
 // only needs the form.
 // TODO(SCR-41): wire the form to POST /api/v1/inquiries and show validation errors — F-14-03.
 import Layout from "../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 ---
 
-<Layout title="お問い合わせ">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">お問い合わせ</h1>
+<Layout title="お問い合わせ | 保護犬おさんぽマッチング" description="サービスについてのご質問・ご相談はこちらから。">
+  <main id="main-content" class="mx-auto grid max-w-2xl gap-6 px-4 py-12">
+    <PageHeader title="お問い合わせ" lead="内容を確認のうえ、ご登録のメールアドレスにご返信します。" />
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/inquiries">
-      <label class="grid gap-1">
-        <span>お問い合わせ種別</span>
-        <select name="type" class="rounded border border-gray-300 px-3 py-2">
+    <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action="/api/v1/inquiries">
+      <label class="grid gap-1.5">
+        <span class="font-bold">お問い合わせ種別</span>
+        <select name="type" class="field w-full">
           <option value="general">サービスについて</option>
           <option value="reservation">予約について</option>
           <option value="organization">保護団体の登録について</option>
         </select>
       </label>
-      <label class="grid gap-1">
-        <span>お名前</span>
-        <input type="text" name="name" required class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">お名前</span>
+        <input type="text" name="name" required autocomplete="name" class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>メールアドレス</span>
-        <input type="email" name="email" required class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">メールアドレス</span>
+        <input type="email" name="email" required autocomplete="email" spellcheck="false" class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>お問い合わせ内容</span>
-        <textarea name="message" rows="6" required class="rounded border border-gray-300 px-3 py-2"></textarea>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">お問い合わせ内容</span>
+        <textarea name="message" rows="6" required class="field w-full rounded-2xl"></textarea>
       </label>
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">送信する</button>
+
+      <button type="submit" class="btn btn-blossom px-6 py-3">送信する</button>
     </form>
+
+    <p class="text-sm text-pretty text-brand-ink-soft">
+      よくいただく質問は
+      <a href="/faq" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">よくある質問</a>
+      にまとめています。
+    </p>
   </main>
 </Layout>

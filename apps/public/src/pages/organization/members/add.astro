@@ -3,7 +3,8 @@
 // Sends an invitation; the invitee sets their own password on ADM-26. No password is entered here.
 // TODO(ADM-04): post to createInvitation() — F-04-03.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import FormSection from "$lib/components/organization/form-section.astro";
 import { getOrganizationSession, isOrganizationAdmin } from "$lib/server/auth/organization-session";
 import { createDb } from "@app/schema/client";
 
@@ -13,23 +14,28 @@ if (!session) return Astro.redirect("/organization/login", 302);
 if (!isOrganizationAdmin(session)) return Astro.redirect("/organization", 302);
 ---
 
-<Layout title="スタッフの招待">
-  <main class="mx-auto flex min-h-dvh max-w-xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">スタッフの招待</h1>
+<OrganizationLayout title="スタッフの招待 | 団体ページ" session={session}>
+  <header class="grid gap-2">
+    <a href="/organization/members" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← スタッフ</a>
+    <h1 class="text-xl font-bold">スタッフの招待</h1>
+  </header>
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/members/invite">
-      <label class="grid gap-1">
-        <span>メールアドレス</span>
-        <input type="email" name="email" required class="rounded border border-gray-300 px-3 py-2" />
+  <form class="grid max-w-2xl gap-4" method="post" action="/api/v1/organization/members/invite">
+    <FormSection legend="招待する相手" description="招待メールのリンクから、ご本人がパスワードを設定します。">
+      <label class="grid gap-1.5">
+        <span class="font-bold">メールアドレス</span>
+        <input type="email" name="email" required autocomplete="off" spellcheck="false" class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>権限</span>
-        <select name="role" class="rounded border border-gray-300 px-3 py-2">
-          <option value="org_staff">スタッフ</option>
-          <option value="org_admin">管理者</option>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">権限</span>
+        <select name="role" class="field w-full">
+          <option value="org_staff">スタッフ（保護犬・おさんぽ枠・予約の管理）</option>
+          <option value="org_admin">管理者（団体情報・スタッフ・還元の管理を含む）</option>
         </select>
       </label>
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">招待メールを送る</button>
-    </form>
-  </main>
-</Layout>
+    </FormSection>
+
+    <button type="submit" class="btn btn-sun w-fit px-6 py-3">招待メールを送る</button>
+  </form>
+</OrganizationLayout>

@@ -2,7 +2,7 @@
 // ADM-19 — PRD-04 §3-2 (guarded)
 // TODO(ADM-19): replace mockIncidentDetail with getOwnIncident() — F-12-03.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { mockIncidentDetail } from "$lib/mocks";
 import type { IncidentDetail } from "$lib/view-models/incident";
@@ -14,19 +14,44 @@ if (!session) return Astro.redirect("/organization/login", 302);
 
 const { publicId } = Astro.params;
 const incident: IncidentDetail = mockIncidentDetail;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="事故・トラブル報告の詳細">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{incident.category}（{incident.severity}）</h1>
+<OrganizationLayout title="事故・トラブルの詳細 | 団体ページ" session={session}>
+  <header class="grid gap-2" data-public-id={publicId}>
+    <a href="/organization/incidents" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← 事故・トラブル</a>
+    <h1 class="text-xl font-bold">{incident.category}</h1>
+    <p class="flex flex-wrap gap-2">
+      <span class="badge badge-blossom">{incident.severity}</span>
+      <span class="badge badge-quiet">{incident.status}</span>
+    </p>
+  </header>
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-gray-500">発生日時</dt> <dd class="inline">{incident.occurredAt}</dd></div>
-      <div><dt class="inline text-gray-500">場所</dt> <dd class="inline">{incident.location}</dd></div>
-      <div><dt class="inline text-gray-500">報告者</dt> <dd class="inline">{incident.reportedByName}</dd></div>
-      <div><dt class="inline text-gray-500">状態</dt> <dd class="inline">{incident.status}</dd></div>
-      <div><dt class="inline text-gray-500">状況</dt> <dd class="inline">{incident.description}</dd></div>
-      <div><dt class="inline text-gray-500">再発防止</dt> <dd class="inline">{incident.preventionMeasures}</dd></div>
+  <div class="card max-w-2xl p-6 sm:p-8">
+    <dl class="detail-list">
+      <div>
+        <dt>発生日時</dt>
+        <dd class="tabular-nums">{dateFormat.format(new Date(incident.occurredAt))}</dd>
+      </div>
+      <div>
+        <dt>場所</dt>
+        <dd>{incident.location}</dd>
+      </div>
+      <div>
+        <dt>報告者</dt>
+        <dd>{incident.reportedByName}</dd>
+      </div>
+      <div>
+        <dt>状況</dt>
+        <dd class="text-pretty">{incident.description}</dd>
+      </div>
+      <div>
+        <dt>再発防止</dt>
+        <dd class="text-pretty">{incident.preventionMeasures ?? "—"}</dd>
+      </div>
     </dl>
-  </main>
-</Layout>
+  </div>
+
+  <p class="max-w-2xl text-sm text-pretty text-brand-ink-soft">対応状況の更新は運営が行います。追加の情報があればお問い合わせからご連絡ください。</p>
+</OrganizationLayout>

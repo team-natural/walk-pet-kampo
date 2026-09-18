@@ -3,6 +3,7 @@
 // TODO(SCR-27): replace mockWalkRecordDetail with getWalkerRecord() — F-10-02.
 import { env } from "cloudflare:workers";
 import Layout from "../../../layouts/Layout.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
 import { mockWalkRecordDetail } from "$lib/mocks";
 import type { WalkRecordDetail } from "$lib/view-models/walk-record";
@@ -14,16 +15,31 @@ if (!session) return Astro.redirect("/auth/login", 302);
 
 const { publicId } = Astro.params;
 const record: WalkRecordDetail = mockWalkRecordDetail;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="お散歩の記録">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{record.walkSlot.title}</h1>
+<Layout title="おさんぽの記録 | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto grid max-w-3xl gap-6 px-4 py-12" data-public-id={publicId}>
+    <PageHeader title={record.walkSlot.title} backHref="/mypage/records" backLabel="おさんぽの記録" />
 
-    <dl class="grid gap-1 text-sm">
-      <div><dt class="inline text-gray-500">実施日</dt> <dd class="inline">{record.conductedAt}</dd></div>
-      <div><dt class="inline text-gray-500">一緒に歩いた犬</dt> <dd class="inline">{record.dogsWalked}</dd></div>
-      <div><dt class="inline text-gray-500">スタッフより</dt> <dd class="inline">{record.staffComment}</dd></div>
-    </dl>
+    <div class="card p-6 sm:p-8">
+      <dl class="detail-list">
+        <div>
+          <dt>実施日</dt>
+          <dd class="tabular-nums">{record.conductedAt ? dateFormat.format(new Date(record.conductedAt)) : "—"}</dd>
+        </div>
+        <div>
+          <dt>いっしょに歩いた子</dt>
+          <dd>{record.dogsWalked}</dd>
+        </div>
+        <div>
+          <dt>スタッフより</dt>
+          <dd class="text-pretty">{record.staffComment}</dd>
+        </div>
+      </dl>
+    </div>
+
+    <p class="text-sm text-pretty text-brand-ink-soft">写真は保護団体が登録したもので、しばらくしてから追加されることがあります。</p>
   </main>
 </Layout>

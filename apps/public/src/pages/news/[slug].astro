@@ -19,15 +19,25 @@ export async function getStaticPaths() {
 
 const { entry } = Astro.props;
 const { Content } = await render(entry);
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title={entry.data.title}>
-  <article>
-    <h1>{entry.data.title}</h1>
-    <p>
-      <time datetime={entry.data.publishedDate.toISOString()}>{entry.data.publishedDate.toLocaleDateString("ja-JP")}</time>
-      <span>{entry.data.category}</span>
-    </p>
-    <Content />
-  </article>
+<Layout title={`${entry.data.title} | 保護犬おさんぽマッチング`}>
+  <main id="main-content" class="mx-auto grid max-w-3xl gap-8 px-4 py-12">
+    <a href="/news" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← お知らせ一覧</a>
+
+    <article class="card p-6 sm:p-10">
+      <p class="flex flex-wrap items-center gap-3 text-sm font-bold text-brand-ink-soft">
+        <time datetime={entry.data.publishedDate.toISOString()} class="tabular-nums">{dateFormat.format(entry.data.publishedDate)}</time>
+        <span class="badge badge-quiet">{entry.data.category}</span>
+      </p>
+
+      <h1 class="mt-3 text-2xl font-bold text-balance sm:text-3xl">{entry.data.title}</h1>
+
+      <div class="prose-jp mt-8">
+        <Content />
+      </div>
+    </article>
+  </main>
 </Layout>

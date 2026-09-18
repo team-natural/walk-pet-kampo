@@ -2,7 +2,9 @@
 // ADM-05 — PRD-04 §3-2 (guarded)
 // TODO(ADM-05): replace mockDogs with listOwnDogs() — F-05-01.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import DataTable from "$lib/components/organization/data-table.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { mockDogs } from "$lib/mocks";
 import type { DogSummary } from "$lib/view-models/dog";
@@ -15,38 +17,31 @@ if (!session) return Astro.redirect("/organization/login", 302);
 const dogs: DogSummary[] = mockDogs;
 ---
 
-<Layout title="保護犬">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 p-6">
-    <header class="flex items-center justify-between gap-4">
-      <h1 class="text-2xl font-bold">保護犬</h1>
-      <a href="/organization/dogs/add" class="text-sm underline">保護犬を登録する</a>
-    </header>
+<OrganizationLayout title="保護犬 | 団体ページ" session={session}>
+  <FlashMessage />
 
-    <table class="w-full text-left text-sm">
-      <thead>
-        <tr class="border-b">
-          <th class="py-2">名前</th>
-          <th class="py-2">犬種</th>
-          <th class="py-2">サイズ</th>
-          <th class="py-2">譲渡状況</th>
-          <th class="py-2">お散歩</th>
+  <header class="flex flex-wrap items-center justify-between gap-4">
+    <h1 class="text-xl font-bold">保護犬</h1>
+    <a href="/organization/dogs/add" class="btn btn-sun px-5 text-sm">保護犬を登録する</a>
+  </header>
+
+  <DataTable columns={["名前", "犬種", "サイズ", "譲渡状況", "おさんぽ"]} rowCount={dogs.length} caption="登録されている保護犬の一覧" emptyMessage="まだ保護犬を登録していません。" emptyActionHref="/organization/dogs/add" emptyActionLabel="保護犬を登録する">
+    {
+      dogs.map((dog) => (
+        <tr>
+          <td>
+            <a href={`/organization/dogs/${dog.id}`} class="rounded font-bold underline-offset-4 hover:underline">
+              {dog.name}
+            </a>
+          </td>
+          <td>{dog.breed}</td>
+          <td>{dog.size}</td>
+          <td>
+            <span class="badge badge-quiet">{dog.adoptionStatus}</span>
+          </td>
+          <td>{dog.walkEligible === 1 ? "可" : "不可"}</td>
         </tr>
-      </thead>
-      <tbody>
-        {
-          dogs.map((dog) => (
-            <tr class="border-b">
-              <td class="py-2">
-                <a href={`/organization/dogs/${dog.id}`}>{dog.name}</a>
-              </td>
-              <td class="py-2">{dog.breed}</td>
-              <td class="py-2">{dog.size}</td>
-              <td class="py-2">{dog.adoptionStatus}</td>
-              <td class="py-2">{dog.walkEligible ? "可" : "不可"}</td>
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </main>
-</Layout>
+      ))
+    }
+  </DataTable>
+</OrganizationLayout>

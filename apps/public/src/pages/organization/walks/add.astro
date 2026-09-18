@@ -2,9 +2,11 @@
 // ADM-09 — PRD-04 §3-2 (guarded)
 // TODO(ADM-09): post to createWalkSlot() — F-06-01.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import FormSection from "$lib/components/organization/form-section.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { mockDogs } from "$lib/mocks";
+import { formatYen, PARTICIPATION_FEE } from "$lib/pricing";
 import type { DogSummary } from "$lib/view-models/dog";
 import { createDb } from "@app/schema/client";
 
@@ -15,43 +17,72 @@ if (!session) return Astro.redirect("/organization/login", 302);
 const dogs: DogSummary[] = mockDogs;
 ---
 
-<Layout title="お散歩募集の作成">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6">
-    <h1 class="text-2xl font-bold">お散歩募集の作成</h1>
+<OrganizationLayout title="おさんぽ募集の作成 | 団体ページ" session={session}>
+  <header class="grid gap-2">
+    <a href="/organization/walks" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← おさんぽ募集</a>
+    <h1 class="text-xl font-bold">おさんぽ募集の作成</h1>
+  </header>
 
-    <form class="grid gap-4 text-sm" method="post" action="/api/v1/organization/walk-slots">
-      <label class="grid gap-1">
-        <span>タイトル</span>
-        <input type="text" name="title" required class="rounded border border-gray-300 px-3 py-2" />
+  <form class="grid max-w-2xl gap-4" method="post" action="/api/v1/organization/walk-slots">
+    <FormSection legend="開催の内容">
+      <label class="grid gap-1.5">
+        <span class="font-bold">タイトル</span>
+        <input type="text" name="title" required class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>開催日時</span>
-        <input type="datetime-local" name="startAt" required class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">開催日時</span>
+        <input type="datetime-local" name="startAt" required class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>所要時間（分）</span>
-        <input type="number" name="durationMinutes" value="60" class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">所要時間（分）</span>
+        <input type="number" name="durationMinutes" value="60" min="15" class="field w-full tabular-nums" />
       </label>
-      <label class="grid gap-1">
-        <span>集合場所</span>
-        <input type="text" name="meetingPlace" required class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">集合場所</span>
+        <input type="text" name="meetingPlace" required class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>定員</span>
-        <input type="number" name="capacity" min="1" value="4" class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">定員</span>
+        <input type="number" name="capacity" min="1" value="4" class="field w-full tabular-nums" />
       </label>
-      <fieldset class="grid gap-2 rounded border border-gray-200 p-4">
-        <legend class="px-1">参加する保護犬</legend>
+
+      <p class="text-brand-ink-soft">参加費は {formatYen(PARTICIPATION_FEE)} 固定です。</p>
+    </FormSection>
+
+    <FormSection legend="参加する保護犬" description="おさんぽに参加できる設定の子だけが選べます。">
+      <div class="grid gap-2">
         {
           dogs.map((dog) => (
-            <label class="flex items-center gap-2">
-              <input type="checkbox" name="dogIds" value={dog.id} />
+            <label class="flex items-center gap-3">
+              <input type="checkbox" name="dogIds" value={dog.id} class="size-5 accent-brand-blossom-deep" />
               <span>{dog.name}</span>
             </label>
           ))
         }
-      </fieldset>
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">作成する</button>
-    </form>
-  </main>
-</Layout>
+      </div>
+    </FormSection>
+
+    <FormSection legend="参加者への案内">
+      <label class="grid gap-1.5">
+        <span class="font-bold">持ち物・服装</span>
+        <input type="text" name="clothingNotes" class="field w-full" />
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">注意事項</span>
+        <textarea name="precautions" rows="3" class="field w-full rounded-2xl"></textarea>
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">雨天時の対応</span>
+        <input type="text" name="weatherPolicy" class="field w-full" />
+      </label>
+    </FormSection>
+
+    <button type="submit" class="btn btn-sun w-fit px-6 py-3">作成する</button>
+  </form>
+</OrganizationLayout>

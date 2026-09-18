@@ -1,12 +1,11 @@
 ---
 // SCR-16 — PRD-04 §3-1
 import Layout from "../../../layouts/Layout.astro";
+import CompletionPanel from "$lib/components/completion-panel.astro";
 ---
 
-<Layout title="申請を受け付けました">
-  <main class="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 p-6 text-center">
-    <h1 class="text-2xl font-bold">申請を受け付けました</h1>
-    <p class="text-sm text-gray-600">審査の結果はご登録のメールアドレスにご連絡します。追加の確認が必要な場合は、メールのリンクから再提出いただきます。</p>
-    <a href="/" class="underline">トップページへ</a>
+<Layout title="申請を受け付けました | 保護犬おさんぽマッチング">
+  <main id="main-content" class="mx-auto max-w-2xl px-4 py-16">
+    <CompletionPanel title="申請を受け付けました" message="審査の結果はご登録のメールアドレスにご連絡します。追加の確認が必要な場合は、メールのリンクから再提出いただきます。" actionHref="/" actionLabel="トップページへ" />
   </main>
 </Layout>

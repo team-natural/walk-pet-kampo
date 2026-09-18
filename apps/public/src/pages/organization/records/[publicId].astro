@@ -3,7 +3,9 @@
 // TODO(ADM-14): replace mockWalkRecordDetail with getOwnWalkRecord() and post updateWalkRecord()
 // — F-10-01.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
+import FormSection from "$lib/components/organization/form-section.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { mockWalkRecordDetail } from "$lib/mocks";
 import type { WalkRecordDetail } from "$lib/view-models/walk-record";
@@ -17,28 +19,45 @@ const { publicId } = Astro.params;
 const record: WalkRecordDetail = mockWalkRecordDetail;
 ---
 
-<Layout title="実施記録の登録">
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{record.walkSlot.title}</h1>
+<OrganizationLayout title="実施記録の登録 | 団体ページ" session={session}>
+  <FlashMessage />
 
-    <form class="grid gap-4 text-sm" method="post" action={`/api/v1/organization/walk-records/${record.id}`} enctype="multipart/form-data">
-      <label class="flex items-center gap-2">
-        <input type="checkbox" name="conducted" checked={record.conducted === 1} />
+  <header class="grid gap-2" data-public-id={publicId}>
+    <a href="/organization/records" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← 実施記録</a>
+    <h1 class="text-xl font-bold">{record.walkSlot.title}</h1>
+  </header>
+
+  <form class="grid max-w-2xl gap-4" method="post" action={`/api/v1/organization/walk-records/${record.id}`} enctype="multipart/form-data">
+    <FormSection legend="実施の結果">
+      <label class="flex items-center gap-3">
+        <input type="checkbox" name="conducted" checked={record.conducted === 1} class="size-5 accent-brand-blossom-deep" />
         <span>実施した</span>
       </label>
-      <label class="grid gap-1">
-        <span>一緒に歩いた犬</span>
-        <input type="text" name="dogsWalked" value={record.dogsWalked} class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">いっしょに歩いた子</span>
+        <input type="text" name="dogsWalked" value={record.dogsWalked} class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>当日の様子</span>
-        <textarea name="staffComment" rows="5" class="rounded border border-gray-300 px-3 py-2">{record.staffComment}</textarea>
+    </FormSection>
+
+    <FormSection legend="当日の様子" description="参加者のマイページに表示されます。">
+      <label class="grid gap-1.5">
+        <span class="sr-only">当日の様子</span>
+        <textarea name="staffComment" rows="5" class="field w-full rounded-2xl">{record.staffComment}</textarea>
       </label>
-      <label class="grid gap-1">
-        <span>写真</span>
-        <input type="file" name="photos" multiple class="rounded border border-gray-300 px-3 py-2" />
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">写真</span>
+        <input type="file" name="photos" accept="image/*" multiple class="field w-full" />
       </label>
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">保存する</button>
-    </form>
-  </main>
-</Layout>
+    </FormSection>
+
+    <button type="submit" class="btn btn-sun w-fit px-6 py-3">保存する</button>
+  </form>
+
+  <p class="max-w-2xl text-sm text-pretty text-brand-ink-soft">
+    事故やトラブルがあった場合は、あわせて
+    <a href="/organization/incidents/add" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">報告</a>
+    をお願いします。
+  </p>
+</OrganizationLayout>

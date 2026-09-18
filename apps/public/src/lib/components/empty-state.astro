@@ -1,0 +1,19 @@
+---
+// An empty list is not an error, but it is a dead end unless it offers the next move — so the
+// action is required, not optional.
+import PawIcon from "./paw-icon.astro";
+
+interface Props {
+  message: string;
+  actionHref: string;
+  actionLabel: string;
+}
+
+const { message, actionHref, actionLabel } = Astro.props;
+---
+
+<div class="card grid justify-items-center gap-4 p-10 text-center">
+  <PawIcon class="size-10 text-brand-blossom/60" />
+  <p class="text-pretty text-brand-ink-soft">{message}</p>
+  <a href={actionHref} class="btn btn-blossom px-6">{actionLabel}</a>
+</div>

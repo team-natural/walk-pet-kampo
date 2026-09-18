@@ -1,14 +1,14 @@
 ---
 // ADM-07 — PRD-04 §3-2 (guarded)
-// internalNotes is staff-only (PRD-04 §4-3) and appears here but never on SCR-05. The public
-// DogDetail view model cannot express it, so this screen reads it separately once the Service
-// exists.
+// internalNotes is staff-only (PRD-04 §4-3) and appears here but never on SCR-05.
 // TODO(ADM-07): replace mockDogDetail with getOwnDog() and post updateDog() — F-05-02, F-05-03.
 import { env } from "cloudflare:workers";
-import Layout from "../../../layouts/Layout.astro";
+import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
+import FormSection from "$lib/components/organization/form-section.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
-import { mockDogDetail } from "$lib/mocks";
-import type { DogDetail } from "$lib/view-models/dog";
+import { mockOwnDogDetail } from "$lib/mocks";
+import type { OwnDogDetail } from "$lib/view-models/dog";
 import { createDb } from "@app/schema/client";
 
 const db = createDb(env.DB);
@@ -16,31 +16,59 @@ const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
 const { publicId } = Astro.params;
-const dog: DogDetail = mockDogDetail;
+const dog: OwnDogDetail = mockOwnDogDetail;
 ---
 
-<Layout title={`${dog.name} の編集`}>
-  <main class="mx-auto flex min-h-dvh max-w-2xl flex-col gap-6 p-6" data-public-id={publicId}>
-    <h1 class="text-2xl font-bold">{dog.name}</h1>
+<OrganizationLayout title={`${dog.name} | 団体ページ`} session={session}>
+  <FlashMessage />
 
-    <form class="grid gap-4 text-sm" method="post" action={`/api/v1/organization/dogs/${dog.id}`}>
-      <label class="grid gap-1">
-        <span>名前</span>
-        <input type="text" name="name" value={dog.name} class="rounded border border-gray-300 px-3 py-2" />
+  <header class="grid gap-2" data-public-id={publicId}>
+    <a href="/organization/dogs" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← 保護犬</a>
+    <h1 class="text-xl font-bold">{dog.name}</h1>
+    <p class="text-sm">
+      <a href={`/dogs/${dog.slug}`} class="rounded text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">公開ページを見る</a>
+    </p>
+  </header>
+
+  <form class="grid max-w-2xl gap-4" method="post" action={`/api/v1/organization/dogs/${dog.id}`}>
+    <FormSection legend="基本情報">
+      <label class="grid gap-1.5">
+        <span class="font-bold">名前</span>
+        <input type="text" name="name" value={dog.name} class="field w-full" />
       </label>
-      <label class="grid gap-1">
-        <span>散歩時の注意</span>
-        <textarea name="walkNotes" rows="4" class="rounded border border-gray-300 px-3 py-2">{dog.walkNotes}</textarea>
+
+      <label class="flex items-center gap-3">
+        <input type="checkbox" name="walkEligible" checked={dog.walkEligible === 1} class="size-5 accent-brand-blossom-deep" />
+        <span>おさんぽに参加できる</span>
       </label>
-      <label class="grid gap-1">
-        <span>紹介文</span>
-        <textarea name="introduction" rows="5" class="rounded border border-gray-300 px-3 py-2">{dog.introduction}</textarea>
+
+      <label class="flex items-center gap-3">
+        <input type="checkbox" name="isPublished" checked={dog.isPublished === 1} class="size-5 accent-brand-blossom-deep" />
+        <span>公開する</span>
       </label>
-      <label class="flex items-center gap-2">
-        <input type="checkbox" name="walkEligible" checked={dog.walkEligible === 1} />
-        <span>お散歩に参加できる</span>
+    </FormSection>
+
+    <FormSection legend="おさんぽの条件">
+      <label class="grid gap-1.5">
+        <span class="font-bold">おさんぽの注意</span>
+        <textarea name="walkNotes" rows="3" class="field w-full rounded-2xl">{dog.walkNotes}</textarea>
       </label>
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">保存する</button>
-    </form>
-  </main>
-</Layout>
+    </FormSection>
+
+    <FormSection legend="紹介文" description="公開ページに表示されます。">
+      <label class="grid gap-1.5">
+        <span class="sr-only">紹介文</span>
+        <textarea name="introduction" rows="5" class="field w-full rounded-2xl">{dog.introduction}</textarea>
+      </label>
+    </FormSection>
+
+    <FormSection legend="団体内メモ" description="公開されません。">
+      <label class="grid gap-1.5">
+        <span class="sr-only">団体内メモ</span>
+        <textarea name="internalNotes" rows="3" class="field w-full rounded-2xl">{dog.internalNotes}</textarea>
+      </label>
+    </FormSection>
+
+    <button type="submit" class="btn btn-sun w-fit px-6 py-3">保存する</button>
+  </form>
+</OrganizationLayout>

@@ -2,36 +2,67 @@
 // SCR-06 — PRD-04 §3-1
 // TODO(SCR-06): replace mockWalkSlots with searchWalkSlots() — F-07-03, F-07-04.
 import Layout from "../../layouts/Layout.astro";
+import EmptyState from "$lib/components/empty-state.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { mockWalkSlots } from "$lib/mocks";
+import { formatYen } from "$lib/pricing";
 import type { WalkSlotSummary } from "$lib/view-models/walk-slot";
 
 const walkSlots: WalkSlotSummary[] = mockWalkSlots;
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="お散歩をさがす">
-  <main class="mx-auto flex min-h-dvh max-w-5xl flex-col gap-8 p-6">
-    <h1 class="text-2xl font-bold">お散歩をさがす</h1>
+<Layout title="おさんぽをさがす | 保護犬おさんぽマッチング" description="エリアと日付から、参加できる保護犬のおさんぽを探せます。">
+  <main id="main-content" class="mx-auto grid max-w-6xl gap-8 px-4 py-12">
+    <PageHeader title="おさんぽをさがす" lead="エリアと日付で絞り込めます。はじめての方でも参加できる枠には印が付いています。" />
 
-    <form class="flex flex-wrap gap-2 text-sm" method="get">
-      <input type="search" name="area" placeholder="エリア" class="rounded border border-gray-300 px-3 py-2" />
-      <input type="date" name="date" class="rounded border border-gray-300 px-3 py-2" />
-      <button type="submit" class="rounded border border-gray-300 px-3 py-2">さがす</button>
+    <form action="/walks" method="get" role="search" aria-label="おさんぽの検索" class="card grid gap-3 p-4 sm:grid-cols-[1fr_11rem_auto]">
+      <label>
+        <span class="sr-only">エリア</span>
+        <input type="search" name="area" autocomplete="off" spellcheck="false" placeholder="エリア（例: 東京都北区）" class="field w-full" />
+      </label>
+      <label>
+        <span class="sr-only">おさんぽの日付</span>
+        <input type="date" name="date" autocomplete="off" class="field w-full" />
+      </label>
+      <button type="submit" class="btn btn-blossom px-6">さがす</button>
     </form>
 
-    <ul class="grid gap-4">
-      {
-        walkSlots.map((slot) => (
-          <li class="rounded border border-gray-200 p-4">
-            <a href={`/walks/${slot.id}`} class="font-semibold">
-              {slot.title}
-            </a>
-            <p class="text-sm text-gray-600">
-              {slot.areaPrefecture}
-              {slot.areaCity} / {slot.startAt} / 残り {slot.remainingCapacity} 名 / {slot.feePerPerson} 円
-            </p>
-          </li>
-        ))
-      }
-    </ul>
+    {
+      walkSlots.length > 0 ? (
+        <ul class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {walkSlots.map((slot, index) => (
+            <li class="anim-rise card flex flex-col p-6" style={`--delay: ${index * 0.06}s`}>
+              <p class="flex flex-wrap items-center gap-x-2 text-sm font-bold text-brand-ink-soft">
+                <span>
+                  {slot.areaPrefecture}
+                  {slot.areaCity}
+                </span>
+                <span aria-hidden="true">・</span>
+                <time datetime={slot.startAt}>{dateFormat.format(new Date(slot.startAt))}</time>
+              </p>
+
+              <h2 class="mt-2 line-clamp-2 text-lg font-bold text-balance">
+                <a href={`/walks/${slot.id}`} class="rounded underline-offset-4 hover:underline">
+                  {slot.title}
+                </a>
+              </h2>
+
+              <div class="mt-4 flex flex-wrap gap-2">
+                {slot.beginnerAllowed === 1 && <span class="badge">はじめての方歓迎</span>}
+                <span class="badge badge-blossom tabular-nums">
+                  残り {slot.remainingCapacity} / {slot.capacity} 名
+                </span>
+              </div>
+
+              <p class="mt-4 font-bold whitespace-nowrap tabular-nums">{formatYen(slot.feePerPerson)} / 名</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState message="この条件で募集中のおさんぽは見つかりませんでした。" actionHref="/organizations" actionLabel="参加している保護団体を見る" />
+      )
+    }
   </main>
 </Layout>

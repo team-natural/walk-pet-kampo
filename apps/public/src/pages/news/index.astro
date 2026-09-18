@@ -1,21 +1,38 @@
 ---
 // SCR-34 — PRD-04 §3-1
 import Layout from "../../layouts/Layout.astro";
+import EmptyState from "$lib/components/empty-state.astro";
+import PageHeader from "$lib/components/page-header.astro";
 import { getCollection } from "astro:content";
 
 const news = (await getCollection("news", ({ data }) => !data.draft)).sort((a, b) => b.data.publishedDate.getTime() - a.data.publishedDate.getTime());
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Tokyo" });
 ---
 
-<Layout title="お知らせ">
-  <h1>お知らせ</h1>
-  <ul>
+<Layout title="お知らせ | 保護犬おさんぽマッチング" description="サービスからのお知らせをお届けします。">
+  <main id="main-content" class="mx-auto grid max-w-3xl gap-8 px-4 py-12">
+    <PageHeader title="お知らせ" />
+
     {
-      news.map((entry) => (
-        <li>
-          <time datetime={entry.data.publishedDate.toISOString()}>{entry.data.publishedDate.toLocaleDateString("ja-JP")}</time>
-          <a href={`/news/${entry.id}`}>{entry.data.title}</a>
-        </li>
-      ))
+      news.length > 0 ? (
+        <ul class="grid gap-3">
+          {news.map((entry) => (
+            <li class="card p-6">
+              <time datetime={entry.data.publishedDate.toISOString()} class="text-sm font-bold text-brand-ink-soft tabular-nums">
+                {dateFormat.format(entry.data.publishedDate)}
+              </time>
+              <h2 class="mt-2 text-lg font-bold text-balance">
+                <a href={`/news/${entry.id}`} class="rounded underline-offset-4 hover:underline">
+                  {entry.data.title}
+                </a>
+              </h2>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <EmptyState message="まだお知らせはありません。" actionHref="/" actionLabel="トップページへ" />
+      )
     }
-  </ul>
+  </main>
 </Layout>
