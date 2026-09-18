@@ -1,12 +1,20 @@
 ---
 // SYS-01 — PRD-04 §3-3
+// TODO(SYS-01): replace mockDashboard with getDashboard() — F-15-01.
 // Reference for how a PAGE authenticates: unlike an API route it redirects instead of
 // answering 401, and the guard is per-page (middleware.ts deliberately doesn't do auth).
 import { env } from "cloudflare:workers";
-import Layout from "../../layouts/Layout.astro";
-import LogoutButton from "../../lib/components/logout-button.svelte";
+import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
+import SeverityBadge from "$lib/components/severity-badge.svelte";
+import { Button } from "$lib/components/ui/button/index.js";
+import * as Card from "$lib/components/ui/card/index.js";
+import * as Empty from "$lib/components/ui/empty/index.js";
+import * as Table from "$lib/components/ui/table/index.js";
+import { formatDateTime } from "$lib/format";
+import { mockDashboard } from "$lib/mocks";
 import { getSession } from "$lib/server/auth/session";
 import { getAdminUserByPublicId, toPublicAdminUser } from "$lib/server/services/admin-users";
+import type { DashboardView } from "$lib/view-models/dashboard";
 import { createDb } from "@app/schema/client";
 
 const db = createDb(env.DB);
@@ -17,17 +25,144 @@ if (!session) return Astro.redirect("/", 302);
 const row = await getAdminUserByPublicId(db, session.adminUserPublicId);
 if (!row) return Astro.redirect("/", 302);
 const user = toPublicAdminUser(row);
+
+const dashboard: DashboardView = mockDashboard;
 ---
 
-<Layout title="Dashboard — Admin console">
-  <main class="mx-auto flex min-h-dvh max-w-3xl flex-col gap-8 p-6">
-    <header class="flex items-center justify-between gap-4">
-      <h1 class="text-2xl font-bold">Dashboard</h1>
-      <LogoutButton client:load />
-    </header>
+<ConsoleLayout title="ダッシュボード" user={{ name: user.name, email: user.email }} breadcrumbs={[{ label: "ダッシュボード" }]}>
+  <header class="flex flex-col gap-1">
+    <h1 class="text-2xl font-semibold">ダッシュボード</h1>
+    <p class="text-sm text-muted-foreground">審査・安全対応・お問い合わせの未処理をまとめて確認できます。</p>
+  </header>
 
-    <section class="grid gap-2 text-sm">
-      <p><span class="text-muted-foreground">Signed in as</span> {user.name} ({user.email})</p>
-    </section>
-  </main>
-</Layout>
+  <section class="flex flex-col gap-3" aria-labelledby="kpi-heading">
+    <h2 id="kpi-heading" class="sr-only">未処理の件数</h2>
+    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {
+        dashboard.tiles.map((tile) => (
+          <Card.Root class="relative" size="sm">
+            <Card.Header>
+              <Card.Description>{tile.label}</Card.Description>
+              <Card.Title class="text-3xl tabular-nums">
+                {tile.value}
+                <span class="ms-1 text-sm font-normal text-muted-foreground">件</span>
+              </Card.Title>
+            </Card.Header>
+            {tile.href && (
+              <Card.Footer>
+                <a href={tile.href} class="rounded-sm text-sm font-medium text-primary underline-offset-4 after:absolute after:inset-0 hover:underline">
+                  一覧を開く
+                </a>
+              </Card.Footer>
+            )}
+          </Card.Root>
+        ))
+      }
+    </div>
+  </section>
+
+  <div class="grid gap-6 xl:grid-cols-2">
+    <Card.Root>
+      <Card.Header class="border-b">
+        {/* Card.Title is a div; the panel still needs a real level-2 heading in the outline. */}
+        <Card.Title><h2>審査待ちの登録申請</h2></Card.Title>
+        <Card.Description>申請の古い順に表示しています。</Card.Description>
+        <Card.Action>
+          <Button href="/organization-applications" variant="outline" size="sm">すべて見る</Button>
+        </Card.Action>
+      </Card.Header>
+      <Card.Content class="px-0">
+        {
+          dashboard.pendingApplications.length === 0 ? (
+            <Empty.Root>
+              <Empty.Header>
+                <Empty.Title>審査待ちの申請はありません</Empty.Title>
+                <Empty.Description>新しい申請が届くとここに表示されます。</Empty.Description>
+              </Empty.Header>
+              <Empty.Content>
+                <Button href="/organizations" variant="outline" size="sm">
+                  保護団体一覧を見る
+                </Button>
+              </Empty.Content>
+            </Empty.Root>
+          ) : (
+            <Table.Root class="table-in-card">
+              <Table.Caption class="sr-only">審査待ちの保護団体登録申請</Table.Caption>
+              <Table.Header>
+                <Table.Row>
+                  <Table.Head>団体名</Table.Head>
+                  <Table.Head>申請日時</Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {dashboard.pendingApplications.map((application) => (
+                  <Table.Row>
+                    <Table.Cell>
+                      <a href={`/organization-applications/${application.id}`} class="rounded-sm font-medium underline-offset-4 hover:underline">
+                        {application.name}
+                      </a>
+                    </Table.Cell>
+                    <Table.Cell class="whitespace-nowrap text-muted-foreground tabular-nums">{formatDateTime(application.submittedAt)}</Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Root>
+          )
+        }
+      </Card.Content>
+    </Card.Root>
+
+    <Card.Root>
+      <Card.Header class="border-b">
+        <Card.Title><h2>直近の事故・トラブル</h2></Card.Title>
+        <Card.Description>P1 は当日中の一次対応が必要です。</Card.Description>
+        <Card.Action>
+          <Button href="/incidents" variant="outline" size="sm">すべて見る</Button>
+        </Card.Action>
+      </Card.Header>
+      <Card.Content class="px-0">
+        {
+          dashboard.recentIncidents.length === 0 ? (
+            <Empty.Root>
+              <Empty.Header>
+                <Empty.Title>未対応の報告はありません</Empty.Title>
+                <Empty.Description>団体から報告が届くとここに表示されます。</Empty.Description>
+              </Empty.Header>
+              <Empty.Content>
+                <Button href="/incidents" variant="outline" size="sm">
+                  対応済みの報告を見る
+                </Button>
+              </Empty.Content>
+            </Empty.Root>
+          ) : (
+            <Table.Root class="table-in-card">
+              <Table.Caption class="sr-only">直近に報告された事故・トラブル</Table.Caption>
+              <Table.Header>
+                <Table.Row>
+                  <Table.Head>団体名</Table.Head>
+                  <Table.Head>重大度</Table.Head>
+                  <Table.Head>発生日時</Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {dashboard.recentIncidents.map((incident) => (
+                  <Table.Row>
+                    <Table.Cell>
+                      <a href={`/incidents/${incident.id}`} class="rounded-sm font-medium underline-offset-4 hover:underline">
+                        {incident.organizationName}
+                      </a>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <SeverityBadge severity={incident.severity} />
+                    </Table.Cell>
+                    <Table.Cell class="whitespace-nowrap text-muted-foreground tabular-nums">{formatDateTime(incident.occurredAt)}</Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Root>
+          )
+        }
+      </Card.Content>
+    </Card.Root>
+  </div>
+</ConsoleLayout>

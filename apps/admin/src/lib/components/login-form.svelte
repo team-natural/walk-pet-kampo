@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import * as Card from "$lib/components/ui/card/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
+  import * as Card from "$lib/components/ui/card/index.js";
   import { FieldGroup, Field, FieldLabel, FieldError } from "$lib/components/ui/field/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
 
@@ -25,12 +25,12 @@
 
   const toFieldError = (messages: string[] | undefined) => messages?.map((message) => ({ message }));
 
-  // The API answers in Japanese; mapping by status keeps this screen in one language. None of
-  // these distinguish "no such account" from "wrong password" — the 401 text must stay generic.
+  // Mapping by status keeps the wording in one place. None of these distinguish "no such
+  // account" from "wrong password" — the 401 text must stay generic.
   function messageFor(status: number) {
-    if (status === 401) return "Incorrect email or password.";
-    if (status === 429) return "Too many attempts. Please wait and try again.";
-    return "Login failed. Please try again later.";
+    if (status === 401) return "メールアドレスまたはパスワードが違います。";
+    if (status === 429) return "試行回数が上限に達しました。しばらく待ってからお試しください。";
+    return "ログインできませんでした。時間をおいてお試しください。";
   }
 
   async function handleSubmit(event: SubmitEvent) {
@@ -61,7 +61,7 @@
         formError = messageFor(response.status);
       }
     } catch {
-      formError = "Could not reach the server. Check your connection.";
+      formError = "サーバーに接続できませんでした。通信環境をご確認ください。";
     } finally {
       // Unreached on success (navigating away) — re-enabling first would allow a double submit.
       submitting = false;
@@ -71,8 +71,8 @@
 
 <Card.Root class="mx-auto w-full max-w-sm">
   <Card.Header>
-    <Card.Title class="text-2xl">Login</Card.Title>
-    <Card.Description>Enter your email below to login to your account</Card.Description>
+    <Card.Title class="text-2xl">ログイン</Card.Title>
+    <Card.Description>運営管理画面にログインします。</Card.Description>
   </Card.Header>
   <Card.Content>
     <form onsubmit={handleSubmit}>
@@ -81,18 +81,18 @@
           <FieldError>{formError}</FieldError>
         {/if}
         <Field>
-          <FieldLabel for="email-{id}">Email</FieldLabel>
-          <Input id="email-{id}" name="email" type="email" autocomplete="username" placeholder="m@example.com" bind:value={email} required aria-invalid={fieldErrors.email ? "true" : undefined} />
+          <FieldLabel for="email-{id}">メールアドレス</FieldLabel>
+          <Input id="email-{id}" name="email" type="email" autocomplete="username" placeholder="admin@example.com" bind:value={email} required aria-invalid={fieldErrors.email ? "true" : undefined} />
           <FieldError errors={toFieldError(fieldErrors.email)} />
         </Field>
         <Field>
-          <FieldLabel for="password-{id}">Password</FieldLabel>
+          <FieldLabel for="password-{id}">パスワード</FieldLabel>
           <Input id="password-{id}" name="password" type="password" autocomplete="current-password" bind:value={password} required aria-invalid={fieldErrors.password ? "true" : undefined} />
           <FieldError errors={toFieldError(fieldErrors.password)} />
         </Field>
         <Field>
           <Button type="submit" class="w-full" disabled={!hydrated || submitting}>
-            {submitting ? "Logging in…" : "Login"}
+            {submitting ? "ログインしています…" : "ログイン"}
           </Button>
         </Field>
       </FieldGroup>

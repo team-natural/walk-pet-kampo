@@ -4,9 +4,12 @@ import Layout from "../layouts/Layout.astro";
 import LoginForm from "../lib/components/login-form.svelte";
 ---
 
-<Layout title="apps/admin — ログイン">
-  <main class="flex min-h-screen w-full flex-col items-center justify-center gap-8 px-4">
-    <img src="/logo.svg" alt="ロゴ" width="211" height="55" />
+<Layout title="ログイン | 運営管理">
+  <main class="flex min-h-dvh w-full flex-col items-center justify-center gap-8 px-4">
+    <div class="flex flex-col items-center gap-2">
+      <img src="/logo.svg" alt="保護犬おさんぽマッチング" width="211" height="55" />
+      <h1 class="text-sm text-muted-foreground">運営管理画面</h1>
+    </div>
     <LoginForm client:load />
   </main>
 </Layout>

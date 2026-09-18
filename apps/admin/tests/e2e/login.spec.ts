@@ -4,10 +4,10 @@ import { E2E_ADMIN } from "./global-setup";
 // login-form.svelte keeps the button disabled until onMount, so "enabled" is the hydration
 // signal — and the only check that catches a page missing its client:* directive.
 async function login(page: Page, email: string, password: string) {
-  const submit = page.getByRole("button", { name: "Login" });
+  const submit = page.getByRole("button", { name: "ログイン" });
   await expect(submit).toBeEnabled();
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("メールアドレス").fill(email);
+  await page.getByLabel("パスワード").fill(password);
   await submit.click();
 }
 
@@ -16,8 +16,8 @@ test.describe("login screen", () => {
     await page.goto("/");
 
     // getByLabel only resolves through an intact <label for>/id pair, so this is an a11y check.
-    await expect(page.getByLabel("Email")).toBeVisible();
-    await expect(page.getByLabel("Password")).toHaveAttribute("type", "password");
+    await expect(page.getByLabel("メールアドレス")).toBeVisible();
+    await expect(page.getByLabel("パスワード")).toHaveAttribute("type", "password");
   });
 
   test("the middleware's security headers are present", async ({ page }) => {
@@ -70,8 +70,8 @@ test.describe("login flow", () => {
     await login(page, E2E_ADMIN.email, E2E_ADMIN.password);
 
     await page.waitForURL("**/dashboard");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
-    await expect(page.getByText(E2E_ADMIN.email)).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "ダッシュボード" })).toBeVisible();
+    await expect(page.getByText(E2E_ADMIN.email).first()).toBeVisible();
 
     const cookie = (await context.cookies()).find((c) => c.name === "admin_session");
     expect(cookie?.httpOnly).toBe(true);
@@ -83,7 +83,7 @@ test.describe("login flow", () => {
     await page.goto("/dashboard");
 
     expect(new URL(page.url()).pathname).toBe("/");
-    await expect(page.getByLabel("Password")).toBeVisible();
+    await expect(page.getByLabel("パスワード")).toBeVisible();
   });
 
   test("logging out revokes the session, not just the cookie", async ({ page }) => {
@@ -91,7 +91,9 @@ test.describe("login flow", () => {
     await login(page, E2E_ADMIN.email, E2E_ADMIN.password);
     await page.waitForURL("**/dashboard");
 
-    await page.getByRole("button", { name: "Log out" }).click();
+    // Logout lives behind the sidebar's user menu, so this also covers the shell hydrating.
+    await page.getByRole("button", { name: E2E_ADMIN.email }).click();
+    await page.getByRole("menuitem", { name: "ログアウト" }).click();
     await page.waitForURL(/\/$/);
 
     await page.goto("/dashboard");
