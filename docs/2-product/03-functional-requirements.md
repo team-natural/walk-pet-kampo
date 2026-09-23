@@ -59,14 +59,16 @@ related-docs:
 | 機能 ID | 機能名 | 優先度 | MVP | 関連エンティティ |
 | --- | --- | :---: | :---: | --- |
 | F-01-01 | メールアドレス確認 | High | ○ | Walker |
-| F-01-02 | 電話番号確認（SMS）| High | ○ `[Open]` | WalkerProfile |
+| F-01-02 | 電話番号確認（SMS。**初回予約時**に実施 — GOV-01 D-036）| High | ○ | WalkerProfile |
 | F-01-03 | ログイン / ログアウト | High | ○ | Walker |
 | F-01-04 | パスワードリセット | High | ○ | Walker |
 | F-01-05 | 年齢確認（生年月日入力・保護者同伴要件の判定）| High | ○ | WalkerProfile |
 | F-01-06 | 利用規約・誓約事項への同意 | High | ○ | Walker, WalkerProfile |
 | F-01-07 | ソーシャルログイン（Google 等）| Medium | △ | Walker |
 
-> **F-01-02 の実現手段は未確定（`Open` — GOV-02 TBD-61）。** SMS 送信手段が DEV-01 §2 にも DEV-10 にも定義されていない。本機能は DEV-09 §2-4-3 の `pending_verification → active` の条件に含まれ、`active` は予約の前提であるため、MVP に残すか（プロバイダ選定が必要）外すか（本表の MVP 判定と DEV-09 の遷移条件を変更）を DEV-11 P4 の着手前に決める。
+> **F-01-02 は「登録時の全員」ではなく「初回予約時の予約者」に対して行う**（`Decided` — GOV-01 D-036）。登録しただけで予約しない利用者にも SMS を送る設計では、送信費用が 1 予約あたりの運営取り分（BIZ-03 §2-1: 参加費 ¥500 − 団体還元 ¥400）を上回りうるため。安全上の目的（当日の到達性・制限措置の実効性）が実際に要る地点は予約なので、確認をそこへ寄せても要件は落ちない。`pending_verification → active` の条件はメール確認 + 規約同意に変更（DEV-09 §2-4-3）、予約作成の前提に電話確認を追加（同 §2-7-3）。
+>
+> SMS の**送信手段そのものは未確定**（`Open` — GOV-02 TBD-61）。必要になるのは DEV-11 P11（予約確保）であり、保険・責任分担（TBD-17/18/20）の結論次第で本人確認の水準ごと見直す可能性がある。
 
 認証実装は 3 系統に完全分離する（`Decided` — GOV-01 D-011・D-007、詳細は DEV-01 §1「アカウント系統」）：Walker（お散歩参加者）は `apps/public` の Member（`/mypage/*`）、保護団体スタッフは `apps/public` の OrganizationMember（`/organization/*`、`org_admin` / `org_staff`）、プラットフォーム運営者は `apps/admin` の AdminUser（単一ロール `admin`）。いずれも別テーブル・別セッションクッキーで、ライブラリは使わず自前実装する（DEV-01 §2「API 提供（認証）」）。本節の F-01-01〜07 は `apps/public` 側（Walker・OrganizationMember）の認証機能を指す。AdminUser（`apps/admin`）側の管理画面ログインはテンプレート標準機能として別途実装し、本書では独立した機能 ID を付与しない。
 

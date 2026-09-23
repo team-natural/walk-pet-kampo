@@ -37,7 +37,7 @@ PRD-01 §7 と完全に一致させる。標準テンプレートが前提とす
 | Organization | 8 | 運営（admin）の審査、団体（org_admin）の申請・退会 | `apps/public`（審査系トリガーのみ `apps/admin` から D1 を更新 — §3-4）|
 | OrganizationMember | 3 | 招待受諾、org_admin による停止・解除 | `apps/public` |
 | Invitation | 3 | 招待発行・受諾・期限切れバッチ | `apps/public` |
-| WalkerProfile | 6 | メール・電話確認、規約同意、admin の利用制限・停止操作 | `apps/public` |
+| WalkerProfile | 6 | メール確認、規約同意、admin の利用制限・停止操作（電話確認は初回予約時の別条件 — GOV-01 D-036）| `apps/public` |
 | Dog（adoptionStatus）| 6 | 団体スタッフ（org_admin/org_staff）による里親募集状況の更新 | `apps/public` |
 | WalkSlot | 8 | 団体スタッフの公開操作、予約充足、天候・犬の体調による中止 | `apps/public` |
 | Reservation | 12 | Walker / 団体 / 運営の操作、Stripe Webhook、WalkSlot の中止連動 | `apps/public` |
@@ -174,8 +174,8 @@ PRD-01 §7 / DEV-07（`organizations.status`、案件着手時に確定）と一
 | 状態 | 説明 |
 | --- | --- |
 | `provisional` | 仮登録（Walker アカウント作成直後）|
-| `pending_verification` | メール・電話確認待ち |
-| `active` | 利用可能（予約可能）|
+| `pending_verification` | メール確認・規約同意待ち |
+| `active` | 利用可能（予約可能）。電話確認は本状態の条件ではない（§2-4-4、GOV-01 D-036）|
 | `restricted` | 利用制限（一部機能制限）|
 | `suspended` | 利用停止 |
 | `withdrawn` | 退会（終端状態）|
@@ -195,7 +195,7 @@ PRD-01 §7 / DEV-07（`organizations.status`、案件着手時に確定）と一
 | 遷移 | トリガー | 実行者 |
 | --- | --- | --- |
 | provisional → pending_verification | Walker アカウント登録完了 | system |
-| pending_verification → active | メール確認 + 電話確認 + 利用規約同意の全完了 | system |
+| pending_verification → active | メール確認 + 利用規約同意の全完了（**電話確認は本遷移の条件ではない** — `Decided` GOV-01 D-036。初回予約時に行う）| system |
 | active → restricted | 無断キャンセル多発等の軽微な違反（基準は GOV-02 TBD-13 — 未確定）| admin |
 | active/restricted → suspended | 規約違反・事故関与等の重大な違反 | admin |
 | suspended/restricted → active | 是正確認後の解除 | admin |
@@ -205,7 +205,7 @@ PRD-01 §7 / DEV-07（`organizations.status`、案件着手時に確定）と一
 
 | 遷移 | 副作用 |
 | --- | --- |
-| → active | 予約機能が解禁される（PRD-01 §1-2 のデータ駆動な利用資格判定）|
+| → active | 予約機能が解禁される（PRD-01 §1-2 のデータ駆動な利用資格判定）。**ただし初回の予約作成時に電話確認（`walker_profiles.phone_verified_at`）を別途要求する** — `active` は「利用資格あり」であって「連絡先が検証済み」ではない（GOV-01 D-036、§2-7-3）|
 | → suspended / withdrawn | 未実施の Reservation の扱いは admin が個別判断 |
 
 ---
@@ -329,6 +329,11 @@ DEV-07 の `dogs.adoption_status` と一致させる。お散歩参加可否を�
 | scheduled | ✗ | ✗ | ✗ | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 #### 2-7-3. 遷移トリガー
+
+> **予約作成（`processing` の生成）の前提条件**: `WalkerProfile.status = active` に加えて
+> **`phone_verified_at` が NULL でないこと**（`Decided` — GOV-01 D-036）。未確認の場合は予約を
+> 拒否せず、電話確認（SCR-23）へ誘導してから予約に戻す。確認は 1 回だけで、2 回目以降の予約では
+> 通過する。**電話確認を登録時ではなくここに置く理由**は §2-4-3 と D-036 を参照。
 
 | 遷移 | トリガー | 実行者 |
 | --- | --- | --- |

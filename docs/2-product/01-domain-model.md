@@ -309,9 +309,9 @@ classDiagram
 | Organization | deactivated（活動停止）| 長期休止 |
 | Organization | withdrawn（退会）| 団体側からの退会（終端状態）|
 | OrganizationMember | invited / active / suspended | 団体スタッフの所属状態 |
-| WalkerProfile | provisional（仮登録）| 登録直後、メール・電話確認前 |
-| WalkerProfile | pending_verification（確認待ち）| メール・電話確認の完了待ち |
-| WalkerProfile | active（利用可能）| 予約可能な状態 |
+| WalkerProfile | provisional（仮登録）| 登録直後、メール確認前 |
+| WalkerProfile | pending_verification（確認待ち）| メール確認・規約同意の完了待ち |
+| WalkerProfile | active（利用可能）| 予約可能な状態。ただし初回予約時に電話確認を別途求める（GOV-01 D-036）|
 | WalkerProfile | restricted（利用制限）| 一部機能制限中 |
 | WalkerProfile | suspended（利用停止）| 規約違反等による利用停止 |
 | WalkerProfile | withdrawn（退会）| 退会済み（終端状態）|

@@ -71,7 +71,7 @@ RESTful API の設計規約、認証方式、エラー体系、バージョニ�
 | セッション発行 | `POST /api/v1/auth/register`（`walkers`/`walker_profiles` を作成）、`POST /api/v1/auth/login`（`walker_sessions` に行を作成。DEV-07 §5-1・§5-2・§5-3） |
 | セッション失効 | `POST /api/v1/auth/logout` |
 | 認証必須範囲 | `/api/v1/me/*` 全エンドポイントと、予約作成・決済・里親相談送信を伴うエンドポイント。公開検索（`/organizations`・`/dogs`・`/walk-slots` の一覧・詳細）・お問い合わせ送信・保護団体登録申請は認証不要（お知らせ・FAQ はそもそも API を持たない — §5-5） |
-| ロールなし | Walker はロールを持たない。「本人か」の所有者チェック（`requireWalker(session, walkerId)`）に加え、予約・決済等の利用資格が前提の操作は `requireActiveWalkerProfile(session)`（`walker_profiles.status = active` の検証）を必ず通す（DEV-02 §1-2・§3-1） |
+| ロールなし | Walker はロールを持たない。「本人か」の所有者チェック（`requireWalker(session, walkerId)`）に加え、予約・決済等の利用資格が前提の操作は `requireActiveWalkerProfile(session)`（`walker_profiles.status = active` の検証）を必ず通す。**予約作成のみ** `requirePhoneVerified` も通す（電話確認は初回予約時 — GOV-01 D-036）（DEV-02 §1-2・§3-1） |
 | 検証の実施箇所 | `apps/public/src/pages/api/**/*.ts` の冒頭。Walker 専用のセッション検証モジュールは OrganizationMember 用と共有しない（DEV-02 §1-4） |
 
 ### 2-3. OrganizationMember 認証（`apps/public`。保護団体スタッフ）

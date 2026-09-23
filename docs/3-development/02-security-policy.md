@@ -75,9 +75,10 @@ Organization に非所属のプラットフォーム直属アカウント（PRD-
 | パスワードハッシュ | Web Crypto PBKDF2（ハッシュ関数自体の共通ヘルパー化は可だが、認証フロー・セッション管理コードは分離する） |
 | 権限モデル | ロール階層なし。「ログイン済み Walker か否か」のみを判定する単純な認可に加え、**予約等の機能利用可否は `WalkerProfile.status` で判定するデータ駆動方式**（PRD-01 §1-2・§7）。`status = active` 以外（`provisional`/`pending_verification`/`restricted`/`suspended`/`withdrawn`）では予約系操作を拒否する |
 | マイページ・予約履歴の認可 | 「本人の Walker か」の所有者チェックのみ（`requireWalker(session, walkerId)`、§3）。ロール検証は不要 |
-| 招待・リセットトークン | 同じ技術（Web Crypto HMAC 署名）。パスワード再設定（F-01-04）で使用 |
+| 招待・リセットトークン | パスワード再設定（F-01-04）・メールアドレス確認（F-01-01）で使用。方式は GOV-02 TBD-62（実装は D1 に行を持つ単発トークン、DEV-01 §2 は HMAC 署名と記述しており未整合） |
+| 電話番号の確認 | 登録時ではなく**初回予約時**（`Decided` — GOV-01 D-036）。`walker_profiles.phone_verified_at` で表し、`status = active` とは独立した条件として予約作成時に検証する |
 
-> Walker はロールを持たないため「利用資格の判定漏れ」が最大のリスク。予約・決済・里親相談などの Service 関数は `requireWalker(session, walkerId)` に加えて `requireActiveWalkerProfile(session)`（`status = active` を検証）を必ず通す（§3-2）。
+> Walker はロールを持たないため「利用資格の判定漏れ」が最大のリスク。予約・決済・里親相談などの Service 関数は `requireWalker(session, walkerId)` に加えて `requireActiveWalkerProfile(session)`（`status = active` を検証）を必ず通す（§3-2）。**予約作成のみ**、さらに `requirePhoneVerified`（`phone_verified_at` の検証）を通す — 電話確認は初回予約時に行うため（`Decided` — GOV-01 D-036）。
 
 ### 1-3. OrganizationMember 認証（`apps/public`。保護団体スタッフ）
 
@@ -174,6 +175,7 @@ Walker 列は「本人のデータに対する操作」を示す（Organization 
 | org_admin 専用操作（スタッフ招待・ロール変更・団体退会申請） | `requireOrganizationMember` に加えて `requireRole(session, "org_admin")` を通す |
 | Walker 本人操作全般（予約・決済・プロフィール編集・里親相談） | `requireWalker(session, walkerId)`（操作対象の `walkerId` と現在の Walker が一致することを検証）を必ず通す |
 | 予約・決済等、利用資格が前提の操作 | `requireWalker` に加えて `requireActiveWalkerProfile(session)`（`WalkerProfile.status = active` を検証）を通す（§1-2）|
+| 予約作成（`reservations` の新規作成のみ） | 上記に加えて `requirePhoneVerified(profile)`（`walker_profiles.phone_verified_at !== null`）を通す。電話確認は登録時ではなく初回予約時に行うため、`active` であることと連絡先が検証済みであることは別の条件になる（`Decided` — GOV-01 D-036、DEV-09 §2-7-3）|
 | セッション/ロールの紐付け | ログイン時にロール・`organization_id`（該当する場合）をセッションに埋め込み、リクエストごとに検証する（§1 の決定に従う）|
 
 ### 3-2. 権限チェック漏れ・境界違反防止のコーディング規約
@@ -192,10 +194,11 @@ async function updateDog(db: D1Database, session: OrganizationSession, organizat
   return db.prepare("UPDATE dogs SET name = ? WHERE id = ? AND organization_id = ?").bind(input.name, dogId, organizationId).run();
 }
 
-// ✅ Good: Walker 本人 + 利用資格の二重チェック
-async function createReservation(db: D1Database, session: WalkerSession, walkerId: string, input: ReservationInput) {
-  requireWalker(session, walkerId);       // 本人以外は例外をスロー
-  requireActiveWalkerProfile(session);    // status !== "active" は例外をスロー
+// ✅ Good: Walker 本人 + 利用資格 + 連絡先検証の三重チェック
+async function createReservation(db: DbClient, session: WalkerSession, walkerId: string, input: ReservationInput) {
+  requireWalker(session, walkerId); // 本人以外は例外をスロー
+  requireActiveWalkerProfile(session); // status !== "active" は例外をスロー
+  requirePhoneVerified(profile); // phone_verified_at === null は例外（GOV-01 D-036）
   // ... 予約作成処理 ...
 }
 

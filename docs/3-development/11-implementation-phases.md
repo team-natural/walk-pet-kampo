@@ -120,12 +120,13 @@ flowchart TD
 
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
-| P4 | `feature/walker-registration` | FG-01。SCR-08/09/10/13/14。WalkerProfile `provisional → pending_verification → active`（DEV-09 §2-4）、規約同意の版番号記録。メール確認・再設定トークンは P1 の団体側（`organization-auth.ts`）と同じ形で Walker 用に実装する（コードは系統ごとに分ける — DEV-02 §1-4） | P2 | **TBD-61（SMS 送信手段が未定義）**、**TBD-62（単発トークンの方式）**。TBD-42（規約改定時の再同意） | 未着手 |
+| P4 | `feature/walker-registration` | FG-01。SCR-08/09/10/13/14。WalkerProfile `provisional → pending_verification → active`（DEV-09 §2-4。**条件はメール確認 + 規約同意** — 電話確認は P11 へ、GOV-01 D-036）、規約同意の版番号記録。メール確認・再設定トークンは P1 の団体側（`organization-auth.ts`）と同じ形で Walker 用に実装する（コードは系統ごとに分ける — DEV-02 §1-4） | P2 | TBD-62（単発トークンの方式。P1 と同じ D1 トークン方式を踏襲して進行中）、TBD-42（規約改定時の再同意） | 進行中 |
 | P5 | `feature/walker-profile` | FG-02。SCR-21/22/23/29/33。緊急連絡先、お気に入り、退会（`withdrawn`） | P4 | なし | 未着手 |
 
-> **TBD-61 は P4 の着手前に解決が必要。** `pending_verification → active` の条件が「メール確認 +
-> 電話確認 + 規約同意」であり（DEV-09 §2-4-3）、`active` は予約の前提（`requireActiveWalkerProfile`）
-> のため、コアフローのクリティカルパス上にある。
+> **電話確認は P4 では実装しない**（`Decided` — GOV-01 D-036）。`pending_verification → active`
+> の条件は「メール確認 + 規約同意」で、電話確認は初回予約時の別条件として P11 で実装する。
+> P4 では `active` への遷移可否を 1 つの述語関数に閉じ、電話確認の欠落を `TODO(TBD-61)` として
+> その 1 箇所に残す — SMS を足すときの変更点を 1 行に保つため。
 
 ### 3-3. Stage 2 — 団体オンボーディング
 
@@ -149,7 +150,7 @@ flowchart TD
 
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
-| P11 | `feature/reservation-hold` | SCR-17。Reservation `processing → awaiting_payment`（DEV-09 §2-7）、`walk_slots.reserved_count` の加算を同一 `batch()` に、予約作成の KV レート制限（10 回/時/Walker、DEV-02 §7） | P5,P9 | TBD-14/15 | 未着手 |
+| P11 | `feature/reservation-hold` | SCR-17。Reservation `processing → awaiting_payment`（DEV-09 §2-7）、`walk_slots.reserved_count` の加算を同一 `batch()` に、予約作成の KV レート制限（10 回/時/Walker、DEV-02 §7）。**電話確認（F-01-02、SCR-23）はここで実装する** — 予約作成の前提に `requirePhoneVerified` を置き、未確認なら確認画面へ誘導してから予約に戻す（GOV-01 D-036、DEV-09 §2-7-3） | P5,P9 | TBD-14/15、**TBD-61（SMS プロバイダ。着手前に確定させる）** | 未着手 |
 | P12 | `feature/payments` | FG-08 前半。SCR-18/19/20。Stripe Checkout / Payment Intent、Webhook 受信 + `stripe_event_logs` による冪等性（DEV-10 §2）、Payment 7 状態、Reservation `confirmed` 遷移 | P11 | **TBD-01/02/08/09**（料金）、**TBD-37/38/39**（ドメイン・メール・Stripe 設定） | 未着手 |
 | P13 | `feature/cancel-refund` | FG-08 後半。SCR-24/25。キャンセル規定の判定、返金 API、WalkSlot 中止と予約の連動（DEV-09 §2-6-4） | P12 | **TBD-10/11/12**（キャンセル・返金条件） | 未着手 |
 | P14 | `feature/admin-ops-rpc` | D-022 の `AdminOps`（`WorkerEntrypoint`）+ SYS-13/14/15/16。`apps/public` の `main` を `src/worker.ts` へ変更 | P13 | **TBD-58 を解決するフェーズ** | 未着手 |
