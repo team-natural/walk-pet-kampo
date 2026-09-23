@@ -417,6 +417,34 @@ related-docs:
 | 背景 | `apps/admin` は返金（F-08-06）と Stripe Connect Transfer による団体振込（F-15-09）を実行でき、Walker の住所・緊急連絡先を横断閲覧できる。DEV-08 §5 は二重課金・送金誤りを即時ロールバック対象の重大インシデントに分類している。一方 AdminUser の認証はパスワードのみで MFA が無い（DEV-02 §1-1）。Access なら SSO と MFA をアプリ側の実装ゼロで得られ、利用者は招待制の運営者のみなので Zero Trust の無料枠に収まる。**Worker 名指定**を選ぶのは、Cloudflare 公式がこれを「Worker の前に認証を置く最も安全で素直な方法」と明記しており、ルート単位の設定漏れと `workers.dev` / Preview URL からの迂回を構造的に潰せるため。**手動 JWT 検証を採らない**のは、Access 有効時は `ctx.access` が公式に提供され「manual JWT validation は不要」とされているため。これにより DEV-02 §1-1 の「`jose` / JWT は不採用」という既存判断も崩さずに済む。**Access を認可の正本にはできない**: `ctx.access` は Service Binding 越しに伝播しないと公式に明記があり（D-022 の RPC は Access の外側を通る）、`activity_log.causer_id` に実行者を残す以上 D1 セッションは必須。**`apps/public` を対象外**にするのは、保護団体スタッフと Walker が外部利用者であり、かつ両者が同一 Worker に同居しているため — 2 Worker に分けた構成（D-007）が admin だけを塞げる前提になっている |
 | 影響範囲 | DEV-02 §1-1、DEV-08 §4・§7、OPS-02 §2、CLAUDE.md、`apps/admin/src/middleware.ts`、`apps/admin/wrangler.jsonc`、`apps/admin/public/robots.txt`、`apps/admin/src/layouts/Layout.astro` |
 | 決定者 | Tech Lead |
+| 関連 TBD | TBD-60（Static Assets 構成で `ctx.access` が Worker に渡らない公式制約への対応。初回 staging デプロイで実測して確定する） |
+
+---
+
+### D-032：コレクション API は全リストをカーソル方式に統一する
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-23 |
+| カテゴリ | 設計 |
+| 決定内容 | DEV-04 §3-2 の envelope を**カーソル方式 1 種類**に統一し、ページ番号方式（`?page=2` + `meta.current_page` / `total` / `last_page` + `links`）を廃止する。`admin_users` / `inquiries` のような小規模リストも例外としない。総件数の表示が必要な画面が出た場合は、そのための集計エンドポイントを別に足し、リスト API の形は変えない |
+| 背景 | DEV-04 が 2 方式を併記していた一方、参照実装（`apps/admin` の `inquiries`）と `@app/server-kit/http` はカーソル方式のみを実装しており、文書と実装が食い違っていた。`scaffold` は `inquiries` を全リソースの手本として写すため、放置すると約 50 本の API が 2 種類の envelope で混在する。カーソル方式に寄せるのは、`OFFSET` が読み飛ばす行を毎回再スキャンすること、総件数の `COUNT` が D1 の行読み取り課金に直接乗ること、クライアント側の分岐が消えることによる。実装側の変更はゼロ |
+| 影響範囲 | DEV-04 §3-2・§8、`.claude/skills/scaffold/`、`packages/server-kit/src/http/response.ts`（変更なし・現状を追認） |
+| 決定者 | Tech Lead |
+| 関連 TBD | — |
+
+---
+
+### D-033：`activity_log.causer_type` には `Actor.type` をそのまま格納する
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-23 |
+| カテゴリ | 設計 |
+| 決定内容 | `activity_log.causer_type` に入る値を DEV-09 §3-1 の `Actor.type`（`platform` / `organization_member` / `walker` / `system`）に統一する。テーブル名由来の `AdminUser` / `OrganizationMember` / `Walker` は採らない。記録ヘルパーは `causer_type` / `causer_id` を個別に受け取らず `actor: Actor` を受け取る形とし、`causer_id` が NULL になるのは `actor.type === "system"` のときのみ。併せてヘルパーは `organizationId` を受け取り、`activity_log.organization_id`（テナント境界の監査）を書けるようにする |
+| 背景 | DEV-07 §4-4（`AdminUser` 等）・DEV-09 §3-1（`Actor.type`）・実装（既定値 `"AdminUser"`）の 3 者が食い違っていた。DB に入る値のため、書き込みが始まってから直すとデータ移行になる。`Actor.type` を選ぶのは、`system` に対応するテーブルが存在せずテーブル名方式では表現できないこと、DEV-05 §9-1 が求める「`Actor` 型をそのまま記録」が変換なしで成立すること、全 Service が変換表を繰り返さずに済むことによる。`organization_id` は列と index が既にありながら記録ヘルパーの型に無く、団体スコープの監査ログが構造的に欠測する状態だった |
+| 影響範囲 | DEV-07 §4-4、DEV-05 §9-1、DEV-09 §3-5、`apps/admin/src/lib/server/services/activity-log.ts`（`Actor` / `platformActor()` / `SYSTEM_ACTOR`）、同 `inquiries.ts` / `media.ts`、今後 `apps/public` に置く同型ヘルパー |
+| 決定者 | Tech Lead |
 | 関連 TBD | — |
 
 ---

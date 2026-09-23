@@ -207,6 +207,7 @@ flowchart TD
 - [ ] **`apps/admin` の Cloudflare Access アプリケーションが Worker 名で作成済み**（Preview deployments を含む。GOV-01 D-031、DEV-02 §1-1）
 - [ ] **Access ポリシーの ID プロバイダで MFA が必須になっている**（AdminUser 側にはパスワード以外の要素が無いため、ここが唯一の第 2 要素）
 - [ ] **ブレークグラス用の第 2 ポリシー**（別 IdP またはサービストークン）が用意され、運営者全員が締め出されない（OPS-02 §2-6）
+- [ ] **Access 有効時に `apps/admin` が 200 を返す**（GOV-02 TBD-60）。Static Assets を伴う Worker では内部ルータが `ctx.access` を渡さないという公式制約があり、該当すると Access が正しく設定されていても全リクエストが 403 になる。**この 1 項目は staging の初回デプロイ時に最初に確認する** — 後続のチェックがすべて 403 で潰れるため
 - [ ] Access を一時的に外した状態で `apps/admin` に到達すると 403 になる（`ctx.access` の fail-closed が効いている）
 
 **決済 / Payout**

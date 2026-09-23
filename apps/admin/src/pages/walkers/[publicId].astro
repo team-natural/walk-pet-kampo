@@ -30,7 +30,7 @@ const transitionAction = `/api/v1/walkers/${walker.id}/transition`;
   <div data-public-id={publicId} class="contents">
     <PageHeader title={walker.name} description={walker.email}>
       <Fragment slot="meta">
-        <p class="pt-1"><StatusBadge client:load domain="walkerProfile" value={walker.profileStatus} /></p>
+        <p class="pt-1"><StatusBadge domain="walkerProfile" value={walker.profileStatus} /></p>
       </Fragment>
       <Fragment slot="actions">
         <ConfirmAction client:load action={transitionAction} name="to" value="restricted" triggerLabel="利用制限" title="この参加者を利用制限にしますか？" message="新しい予約ができなくなります。確定済みの予約はそのまま残ります。" confirmLabel="利用制限にする" reasonLabel="理由（本人への通知には含まれません）" />

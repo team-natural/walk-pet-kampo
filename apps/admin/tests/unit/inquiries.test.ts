@@ -101,7 +101,9 @@ describe("transitions", () => {
     await transitionInquiry(db, row.publicId, "in_progress", session);
 
     const [entry] = await db.select().from(activityLog);
-    expect(entry).toMatchObject({ event: "inquiry.in_progress", subjectType: "Inquiry", causerType: "AdminUser", causerId: session.adminUserId });
+    // causer_type is Actor.type verbatim (GOV-01 D-033) — "platform", not the table name. The two
+    // apps write this column, so a second vocabulary would split the audit trail in half.
+    expect(entry).toMatchObject({ event: "inquiry.in_progress", subjectType: "Inquiry", causerType: "platform", causerId: session.adminUserId });
     expect(JSON.parse(entry!.properties!)).toEqual({ from: "new", to: "in_progress" });
   });
 

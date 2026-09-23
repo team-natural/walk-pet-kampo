@@ -154,6 +154,7 @@ DEV 文書の本文に `[Open]` / `**Open**` として残っていたが TBD-ID 
 | ~~TBD-55~~ | ~~Organization の `TRANSITIONS` 定義と `OrganizationStatus` 型の置き場所（`apps/admin` の審査系遷移と `apps/public` の団体自身の操作で 2 ファイルに分かれるため）~~ | 設計 | — | — | — | **解決済み**（2026-09-17、GOV-01 D-023）。遷移表は `packages/schema`、検証関数は `packages/server-kit`。§6 参照 | DEV-09 §3-4, DEV-05 §2, GOV-01 D-015 |
 | TBD-56 | 提携保護団体数・対応エリア数の具体的な目標値 | 事業 | P2 | 事業責任者 | 事業フェーズ計画の確定時 | 未確定。KPI ではなく BIZ-01 §7 の事業フェーズ定義に紐づく前提条件として扱う | BIZ-02 §3, BIZ-01 §7 |
 | TBD-59 | 詳細ページがサイトマップに載らない。`output: "server"` では `/dogs/{slug}`・`/walks/{public_id}`・`/organizations/{slug}` がビルド時に解決できず、`@astrojs/sitemap` の出力は静的ルートのみになる | 設計 | P1 | Tech Lead | 公開画面の検索流入を機能させる時点（詳細ページの Service 実装後） | 未確定。検索流入の主線はまさにこの 3 種の詳細ページであり、静的ルート 16 本だけのサイトマップでは目的を果たさない。`customPages` への手書きは件数が増え続けるため採らない。D1 から生成するサイトマップエンドポイント（`src/pages/sitemap-dogs.xml.ts` 等）を追加し、`sitemap-index.xml` から参照させる案が第一候補 | DEV-06 §11-1, GOV-01 D-017 |
+| TBD-60 | D-031 の fail-closed（`ctx.access` 不在で 403）が、Static Assets を伴う本構成で成立するかが未検証。Cloudflare 公式は「Workers with Static Assets は内部ルータ Worker の後ろで実行され、**ルータは `ctx.access` をユーザー Worker に渡さない**」と明記しており、`apps/admin/wrangler.jsonc` は `assets`（binding `ASSETS`）を宣言している。該当する場合、Access を正しく設定しても本番の管理画面が全リクエスト 403 になる | 設計 | P1 | Tech Lead | 初回 staging デプロイ時（機能実装はブロックしない） | 未確定。ローカルは `import.meta.env.DEV` 除外 + `access.dev` のため再現しない。初回デプロイで `Astro.locals.cfContext?.access` の有無を実測し、渡らない場合は ①`Cf-Access-Jwt-Assertion` ヘッダの存在確認に切り替える（ルータはヘッダを素通しする）②fail-closed を外し Access をゲートとしてのみ信頼する、のいずれかを選ぶ。②を選ぶ場合も `admin_sessions` による認可は不変（D-031） | DEV-02 §1-1, DEV-08 §4, GOV-01 D-031, `apps/admin/src/middleware.ts` |
 | TBD-58 | D-022 で運営者操作を RPC 化した結果、`apps/admin` の画面が書き込みを投げる先（RPC を包む admin 側の HTTP ルート）が未定義 | 設計 | P1 | Tech Lead | SYS 系の書き込み画面の実装前 | 未確定。対象は SYS-03（参加者の利用制限）・SYS-10 / SYS-12（保護犬・お散歩募集の横断編集）・SYS-14（キャンセル代行）・SYS-16（返金）。スケルトンは `/api/v1/<resource>/{id}/<action>` の形で仮置きしている。あわせて DEV-04 §5-4 の「Incident / AdoptionInquiry は §5-13 と同一のエンドポイントを `admin` 権限で用いる」という記述は D-022 と両立しない（`admin_session` は `apps/public` に届かない）ため、同じ方式へ寄せる必要がある | DEV-04 §5-4・§5-15, DEV-09 §3-1, GOV-01 D-022 |
 
 > 事業側の `[Open]` のうち、ブランドカラー（PRD-04 §8）は TBD-35（正式ブランド名）の確定に従属するため個別の TBD-ID を振らない（暫定パレットで着手する方針は GOV-01 D-018 で確定済み）。CAC（BIZ-03 §6-1）は仕様判断ではなく事業計画の数値であり、収益性試算の実施時に事業責任者が埋める。00_INTAKE §1 の `[Open]`（顧客企業名・企業規模・担当・予算上限）はヒアリング未取得項目であり、仕様判断に影響しないため同様に登録しない。
@@ -170,7 +171,7 @@ TBD-01, 02, 03, 05, 08, 09（料金・決済）／ TBD-10, 11, 12（キャンセ
 
 ### P1（早期確定推奨）
 
-TBD-04, 06, 07, 15（料金）／ TBD-14（複数名参加）／ TBD-19, 21, 22, 23（安全）／ TBD-24, 25, 28（保護団体審査）／ TBD-30〜34（里親相談）／ TBD-36（リリース時期）／ TBD-40（Google Maps API）／ TBD-42（規約改定時の再同意条件）／ TBD-58（D-022 後の admin 側書き込み経路）／ TBD-59（詳細ページのサイトマップ生成）
+TBD-04, 06, 07, 15（料金）／ TBD-14（複数名参加）／ TBD-19, 21, 22, 23（安全）／ TBD-24, 25, 28（保護団体審査）／ TBD-30〜34（里親相談）／ TBD-36（リリース時期）／ TBD-40（Google Maps API）／ TBD-42（規約改定時の再同意条件）／ TBD-58（D-022 後の admin 側書き込み経路）／ TBD-59（詳細ページのサイトマップ生成）／ TBD-60（Static Assets 下で `ctx.access` が渡るか）
 
 ### P2（猶予あり）
 

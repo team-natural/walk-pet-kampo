@@ -362,7 +362,9 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 
 ### 4-4. activity_log（自前テーブル — DEV-01 §2）
 
-専用パッケージは使わず、以下の自前スキーマで監査ログを管理する。3 系統のアカウント（AdminUser / OrganizationMember / Walker）を横断するため `causer_type` で判別する（本プロジェクト固有の要件。単一運営前提のテンプレート標準からの拡張）。
+専用パッケージは使わず、以下の自前スキーマで監査ログを管理する。3 系統のアカウント（AdminUser / OrganizationMember / Walker）に加え Cron / Webhook 起点の変更を横断するため `causer_type` で判別する（本プロジェクト固有の要件。単一運営前提のテンプレート標準からの拡張）。
+
+**`causer_type` に入る値は DEV-09 §3-1 の `Actor.type` そのもの**（`platform` / `organization_member` / `walker` / `system`）とする（`Decided` — GOV-01 D-033）。Service のシグネチャと列の語彙を 1 つに保ち、記録時の変換表を無くすための決定（実装: `apps/admin/src/lib/server/services/activity-log.ts` の `Actor` / `platformActor()` / `SYSTEM_ACTOR`。`apps/public` 側の同型ヘルパーも同じ値を書く）。テーブル名（`AdminUser` 等）を入れる案は、`system` に対応するテーブルが無く、`Actor` 型からの変換を全 Service が繰り返すことになるため採らない。
 
 | カラム | 型 | NULL | 備考 |
 | --- | --- | --- | --- |
@@ -372,8 +374,8 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | subject_type | TEXT | YES | 操作対象の種別（`Post` / `Organization` / `Dog` 等） |
 | subject_id | INTEGER | YES | 操作対象の ID |
 | event | TEXT | YES | post.published / organization.approved / payout.paid 等 |
-| causer_type | TEXT | YES | 操作者の種別。`AdminUser` / `OrganizationMember` / `Walker` のいずれか（システム処理時 NULL） |
-| causer_id | INTEGER | YES | 操作者の ID（`causer_type` のテーブルに対する ID） |
+| causer_type | TEXT | YES | 操作者の種別。`platform`（AdminUser） / `organization_member` / `walker` / `system`（Cron・Webhook 起点）のいずれか。DEV-09 §3-1 の `Actor.type` をそのまま格納する |
+| causer_id | INTEGER | YES | 操作者の ID（`causer_type` に対応するテーブル: `platform` → `admin_users`、`organization_member` → `organization_members`、`walker` → `walkers`）。`causer_type = "system"` のときのみ NULL |
 | organization_id | INTEGER | YES | 操作が Organization に紐づく場合の FK → organizations.id（Platform 横断操作時は NULL。旧仕様の追加カラムを踏襲） |
 | properties | TEXT | YES | JSON 文字列。変更前後（`old` / `attributes`）と ip_address / user_agent 等の付帯情報 |
 | batch_id | TEXT | YES | 一括操作のグルーピング（UUID） |

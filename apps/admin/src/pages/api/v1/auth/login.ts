@@ -19,11 +19,11 @@ export async function POST({ request, cookies, clientAddress }: APIContext): Pro
     // Check lockout before verifying credentials.
     const ip = request.headers.get("cf-connecting-ip") ?? clientAddress;
     lockoutScope = { ip, email };
-    await assertNotLockedOut(env.KV, ip, email);
+    await assertNotLockedOut(env.KV, "admin", ip, email);
 
     const ttlDays = Number(env.SESSION_TTL_DAYS);
     const { session, user } = await login(db, email, password, ttlDays);
-    await clearAuthFailures(env.KV, ip, email);
+    await clearAuthFailures(env.KV, "admin", ip, email);
 
     cookies.set(ADMIN_SESSION_COOKIE, session.token, {
       httpOnly: true,
@@ -36,7 +36,7 @@ export async function POST({ request, cookies, clientAddress }: APIContext): Pro
     return jsonItem(toPublicAdminUser(user));
   } catch (error) {
     if (error instanceof UnauthenticatedError && lockoutScope) {
-      await recordAuthFailure(env.KV, lockoutScope.ip, lockoutScope.email, {
+      await recordAuthFailure(env.KV, "admin", lockoutScope.ip, lockoutScope.email, {
         maxAttempts: Number(env.AUTH_LOCKOUT_MAX_ATTEMPTS),
         lockoutMinutes: Number(env.AUTH_LOCKOUT_MINUTES),
       });

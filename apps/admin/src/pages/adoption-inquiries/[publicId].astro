@@ -26,7 +26,7 @@ const inquiry: AdoptionInquiryDetail = mockAdoptionInquiryDetail;
   <div data-public-id={publicId} class="contents">
     <PageHeader title={inquiry.dogName} description={`${inquiry.walkerName} さんからの相談 / ${inquiry.organizationName}`}>
       <Fragment slot="meta">
-        <p class="pt-1"><StatusBadge client:load domain="adoptionInquiry" value={inquiry.status} /></p>
+        <p class="pt-1"><StatusBadge domain="adoptionInquiry" value={inquiry.status} /></p>
       </Fragment>
     </PageHeader>
 

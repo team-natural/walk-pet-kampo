@@ -30,7 +30,7 @@ const transitionAction = `/api/v1/organizations/${organization.id}/transition`;
   <div data-public-id={publicId} class="contents">
     <PageHeader title={organization.name} description={organization.nameKana ?? undefined}>
       <Fragment slot="meta">
-        <p class="pt-1"><StatusBadge client:load domain="organization" value={organization.status} /></p>
+        <p class="pt-1"><StatusBadge domain="organization" value={organization.status} /></p>
       </Fragment>
       <Fragment slot="actions">
         <ConfirmAction client:load action={transitionAction} name="to" value="approved" triggerLabel="承認する" title="この団体を承認しますか？" message="承認すると団体ページが使えるようになり、おさんぽ募集の公開が可能になります。承認の通知メールが送られます。" confirmLabel="承認する" />

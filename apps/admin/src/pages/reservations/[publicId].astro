@@ -29,7 +29,7 @@ const reservation: ReservationDetail = mockReservationDetail;
   <div data-public-id={publicId} class="contents">
     <PageHeader title={reservation.walkSlotTitle} description={`${reservation.walkerName} さん / ${reservation.organizationName}`}>
       <Fragment slot="meta">
-        <p class="pt-1"><StatusBadge client:load domain="reservation" value={reservation.status} /></p>
+        <p class="pt-1"><StatusBadge domain="reservation" value={reservation.status} /></p>
       </Fragment>
       <Fragment slot="actions">
         {
@@ -68,7 +68,7 @@ const reservation: ReservationDetail = mockReservationDetail;
           <div>
             <dt>状態</dt>
             <dd>
-              <StatusBadge client:load domain="payment" value={reservation.payment.status} />
+              <StatusBadge domain="payment" value={reservation.payment.status} />
             </dd>
           </div>
           <div>

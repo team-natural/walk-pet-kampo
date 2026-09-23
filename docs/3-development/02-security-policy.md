@@ -54,7 +54,7 @@ related-docs:
 | 項目 | 方針 |
 | --- | --- |
 | 適用対象 | **Worker 名で指定**する（`walk-pet-kampo-admin`）。ホスト名・ルート単位では指定しない — ルートごとの設定漏れと `workers.dev` / Preview URL からの迂回を構造的に潰すため。Preview deployments も対象に含める |
-| アプリ側の検証 | `ctx.access`（Astro からは `Astro.locals.cfContext.access`）の**存在**を `apps/admin/src/middleware.ts` で確認し、無ければ 403 を返す。Access アプリケーションが外れた・付け替え漏れがあった場合に、パスワードのみの状態へ黙って退行しないための fail-closed |
+| アプリ側の検証 | `ctx.access`（Astro からは `Astro.locals.cfContext.access`）の**存在**を `apps/admin/src/middleware.ts` で確認し、無ければ 403 を返す。Access アプリケーションが外れた・付け替え漏れがあった場合に、パスワードのみの状態へ黙って退行しないための fail-closed。**⚠ 未検証（GOV-02 TBD-60）**: Cloudflare 公式は Static Assets を伴う Worker では内部ルータが `ctx.access` を渡さないとしており、本構成（`assets` binding `ASSETS`）は該当しうる。その場合この検証は本番で全リクエストを 403 にするため、初回 staging デプロイで実測してから確定する |
 | JWT の手動検証 | **行わない。** Access 有効時は `ctx.access` が提供され、`Cf-Access-Jwt-Assertion` を `jose` + JWKS で検証する必要はない（Cloudflare 公式）。`jose` / JWT 不採用の判断（本節冒頭）はそのまま維持される |
 | 認可の正本 | **`admin_sessions` のまま。** Access は入口のゲートであって認可ではない。`activity_log.causer_id`（DEV-09 §3-5）に実行者を記録する以上、D1 セッションは必須 |
 | MFA | Access の ID プロバイダ側で担保する。アプリ側に TOTP を実装しない（DEV-01 §2 の `otpauth` は引き続き不採用） |

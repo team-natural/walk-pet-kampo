@@ -84,8 +84,9 @@ apps/admin/src/
 │   │   │                            #   トークン生成・TTL・期限判定は @app/server-kit/auth に委譲する
 │   │   └── validation/              #   drizzle-zod で導出した Zod スキーマ
 │   └── hooks/                       # shadcn-svelte 用フック
-├── middleware.ts                    # セキュリティヘッダーのみ（認証はここでは行わない）
-└── env.d.ts                         # Cloudflare bindings 型（Cloudflare.Env として DB / BUCKET / KV）
+├── middleware.ts                    # セキュリティヘッダー + Cloudflare Access の存在確認（認証は行わない）
+└── （worker-configuration.d.ts）     # Cloudflare bindings 型（DB / BUCKET / KV）。src/ ではなくアプリ直下に
+                                     #   `wrangler types` が生成する（既定のファイル名。手で書かない）
 
 packages/schema/                     # 共有パッケージ @app/schema（apps/public・apps/admin 双方が参照）
 ├── src/schema.ts                    # Drizzle スキーマ本体（DEV-07 から生成）
@@ -122,7 +123,7 @@ apps/public/src/
         │                            #   geocoding.ts（DEV-10 §9） 等
         │                            #   + organizations.ts（団体自身の操作のみ。審査系は apps/admin 側、§2-1-5）
         │                            #   + payouts.ts（org_admin 向けの参照専用クエリのみ。集計・確定は apps/admin 側、§7）
-        ├── auth/                    #   系統ごとのセッション検証。session.ts〈Walker〉/
+        ├── auth/                    #   系統ごとのセッション検証（実装済み）。session.ts〈Walker〉/
         │                            #   organization-session.ts〈OrganizationMember〉。apps/admin と同じ
         │                            #   `auth/` の並びに揃えるが、テーブル・クッキー・コードパスは
         │                            #   系統間で一切共有しない（DEV-02 §1-4）
@@ -151,11 +152,13 @@ apps/public/src/
 > `import { env } from "cloudflare:workers"` で取得する（`Astro.locals.runtime.env` は Astro v6 で
 > 削除済みの旧 API であり、採用バージョンの v7 — DEV-01 §1 — にも存在しない）。
 
-> **`apps/admin/src/lib/server/auth/`（AdminUser）と `apps/public/src/lib/server/{walker,organization}/`
+> **`apps/admin/src/lib/server/auth/`（AdminUser）と `apps/public/src/lib/server/auth/`
 > （Walker・OrganizationMember）は完全に分離する**（DEV-02 §1-4、GOV-01 D-004・D-007）。Walker と
 > OrganizationMember はいずれも `apps/public` に同居するが、汎用的な「auth」ヘルパー（複数の利用
 > 者種別を前提にした共通関数）は書かず、テーブル・クッキー名・セッション検証コードを分けたまま
-> `walker/` / `organization/` に個別実装する。共通化してよいのは `packages/server-kit/src/auth/`
+> **ファイル単位で**個別実装する（実装済み: `auth/session.ts`〈Walker〉/
+> `auth/organization-session.ts`〈OrganizationMember〉。系統ごとのディレクトリは切らない —
+> 上のツリーが正本）。共通化してよいのは `packages/server-kit/src/auth/`
 > の純粋関数（PBKDF2 ハッシュ、セッショントークン生成・TTL 算出・期限判定、ロックアウトカウンタ）
 > に限る（DEV-02 §1-4、GOV-01 D-015）。
 
@@ -352,11 +355,14 @@ F-15-09、DEV-02 §2-3「振込処理の実行」は admin/system 専用）、or
   用意する）を経由して INSERT する。免除する場合は理由をコメントで明記する。
 - 記録は Service 内にインラインで行う（ヘルパー関数の呼び出し程度は可）。横断的な単一の
   「AuditLogService」に判定ロジックそのものを持たせない。コード例は `CLAUDE.md` 参照。
-- `causer_type` は DEV-09 §3-1 の `Actor` 型（`"walker" | "organization_member" | "platform" |
-  "system"`）をそのまま `AdminUser`/`OrganizationMember`/`Walker` の別に記録し、`actor.type ===
-  "system"` の場合は `causer_id` を NULL のまま記録する（「system ユーザーを発明しない」方針。
-  発生源は `log_name` / `properties`〈例: `source: system`〉で示す。OPS-02 の自動削除記録も同じ
-  方式）。
+- `causer_type` には DEV-09 §3-1 の `Actor.type`（`"walker" | "organization_member" | "platform" |
+  "system"`）を**変換せずそのまま**記録する（DEV-07 §4-4 が正本）。`actor.type === "system"` の
+  場合のみ `causer_id` を NULL にする（「system ユーザーを発明しない」方針 — 発生源は `log_name` /
+  `properties`〈例: `source: cron`〉で補う。OPS-02 の自動削除記録も同じ方式）。ヘルパーは
+  `ActivityLogEntry` に `actor: Actor` を受け取る形とし、`causer_type` / `causer_id` を呼び出し側が
+  個別に組み立てることはしない（実装: `apps/admin/src/lib/server/services/activity-log.ts`）。
+- Organization に紐づく操作は `organizationId` を必ず渡す（テナント境界の監査は
+  `activity_log.organization_id` に載る。Platform 横断操作のみ省略可）。
 - **テストや静的解析では「呼び出しの欠落」を検出しにくい**（Vitest / `eslint-plugin-boundaries`
   でも記録漏れ自体は捕捉できない）。状態を変更する Service の関数の新設・レビュー時に
   「`activity_log` への記録はどこか」を必ず確認するコードレビュー必須観点とする（DEV-03 §4）。

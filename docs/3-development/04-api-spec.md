@@ -118,29 +118,7 @@ Reservation / Payment / Payout / Incident / AdoptionInquiry / WalkerProfile は 
 
 ### 3-2. 成功（コレクション）
 
-ページ番号方式（件数が少なく安定しているリスト。例: `admin_users` / `inquiries`）とカーソル方式（§8 が指定する大規模リスト。例: `dogs` / `walk_slots` / `reservations` / `activity_log`）で envelope の形が異なる — どちらを使うかは §8 のリスト側で決まり、両方を同時に持つエンドポイントは無い。
-
-**ページ番号方式**
-
-```json
-{
-  "data": [{ "id": "01HXXXX..." }, { "id": "01HYYYY..." }],
-  "meta": {
-    "current_page": 1,
-    "per_page": 20,
-    "total": 100,
-    "last_page": 5
-  },
-  "links": {
-    "first": "...",
-    "last": "...",
-    "prev": null,
-    "next": "..."
-  }
-}
-```
-
-**カーソル方式**（`total`/`last_page` は持たない — カーソル走査では総件数を数えない）
+**コレクションは全リストがカーソル方式**（`Decided` — GOV-01 D-032）。envelope は 1 種類だけで、リストごとに形が変わることはない。`total` / `last_page` は持たない — カーソル走査では総件数を数えないため（§8）。
 
 ```json
 {
@@ -179,7 +157,7 @@ Reservation / Payment / Payout / Incident / AdoptionInquiry / WalkerProfile は 
 | 403 | `FORBIDDEN` | 認証済みだが権限不足。(a) ロール不足（`admin`/`org_admin`/`org_staff`）、(b) 他 Organization のデータへのアクセス（`organization_id` 不一致）のいずれかを指す（DEV-02 §2-3・§3、§1 参照） |
 | 404 | `NOT_FOUND` | リソース不存在 |
 | 409 | `CONFLICT` | リソースの状態と操作が矛盾 |
-| 409 | `INVALID_STATE_TRANSITION` | StateMachine の不正遷移（DEV-09 §3-1 の `InvalidTransitionError`） |
+| 409 | `INVALID_STATE_TRANSITION` | StateMachine の不正遷移（DEV-09 §3-1。`@app/server-kit/http` の `InvalidStateTransitionError`） |
 | 422 | `VALIDATION_FAILED` | バリデーションエラー |
 | 429 | `RATE_LIMIT_EXCEEDED` | レート制限超過（DEV-02 §7。ログイン等のブルートフォース対策に加え、予約作成・決済試行等の業務乱用防止も含む） |
 | 500 | `INTERNAL_ERROR` | サーバー内部エラー |
@@ -523,10 +501,9 @@ Cookie: walker_session={session_token}
 
 - デフォルト 20 件 / ページ
 - 最大 100 件 / ページ
-- クエリパラメータ: `?page=2&per_page=50`
-- 大規模リスト（`dogs`・`walk_slots`・`reservations`・`payments`・`payouts`・`activity_log` 等）はカーソルベース：`?cursor=eyJpZCI6MTAwfQ`
-- 件数が少なく安定しているリスト（`admin_users`・`inquiries`）はページ番号方式
-- 実装: D1 への `LIMIT`/`OFFSET`（カーソルベースは `WHERE id > ?` 等）クエリを Service 層で組み立て、§3-2 の `meta`/`links` envelope は両アプリ共通の `@app/server-kit/http`（`jsonCursorCollection` / `encodeCursor` / `decodeCursor`）で生成する（GOV-01 D-015、§3-2）
+- クエリパラメータ: `?cursor=eyJpZCI6MTAwfQ&per_page=50`。`cursor` は不透明な文字列で、クライアントは中身を解釈しない
+- **全リストがカーソル方式**（`Decided` — GOV-01 D-032）。ページ番号方式（`?page=2` + `total` / `last_page` / `links`）は採らない: envelope が 2 種類に割れて `scaffold` の参照実装が分岐すること、`OFFSET` が読み飛ばす行を毎回再スキャンすること、総件数の `COUNT` が D1 の行読み取り課金に直接乗ることの 3 点による。総件数を表示したい画面が出てきた場合は、その画面専用の集計エンドポイントを足す（リスト API の形は変えない）
+- 実装: Service 層でキーセット走査（`WHERE id < ?` + `ORDER BY id DESC` + `LIMIT per_page + 1` の「次ページ有無」プローブ）を組み立て、§3-2 の envelope は両アプリ共通の `@app/server-kit/http`（`jsonCursorCollection` / `encodeCursor` / `decodeCursor`）で生成する（GOV-01 D-015、§3-2）。参照実装は `apps/admin/src/lib/server/services/inquiries.ts` の `listInquiries()` と `apps/admin/src/pages/api/v1/inquiries/index.ts`
 
 ---
 

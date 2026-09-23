@@ -33,7 +33,7 @@ const updateAction = `/api/v1/dogs/${dog.id}`;
     <PageHeader title={dog.name} description={dog.organizationName}>
       <Fragment slot="meta">
         <p class="flex flex-wrap items-center gap-2 pt-1">
-          <StatusBadge client:load domain="dog" value={dog.adoptionStatus} />
+          <StatusBadge domain="dog" value={dog.adoptionStatus} />
           <Badge variant={dog.isPublished ? "secondary" : "outline"}>{dog.isPublished ? "公開中" : "非公開"}</Badge>
         </p>
       </Fragment>

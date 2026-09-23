@@ -7,7 +7,7 @@ import { NotFoundError, ValidationError } from "@app/server-kit/http";
 import { desc, eq, lt } from "drizzle-orm";
 import type { Session } from "../auth/session";
 import type { UpdateMediaInput } from "../validation/media";
-import { activityLogInsert } from "./activity-log";
+import { activityLogInsert, platformActor } from "./activity-log";
 
 // `image/svg+xml` is absent on purpose: XML has no signature to check, and SVG can carry script.
 // Add it only alongside sanitising or serving as an attachment.
@@ -123,7 +123,7 @@ export async function deleteMedia(db: DbClient, bucket: R2Bucket, publicId: stri
       subjectType: "Media",
       subjectId: row.id,
       event: "media.deleted",
-      causerId: session.adminUserId,
+      actor: platformActor(session),
       properties: { publicId, key: row.key },
     }),
   ]);

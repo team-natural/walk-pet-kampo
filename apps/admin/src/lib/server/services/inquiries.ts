@@ -8,7 +8,7 @@ import type { DbClient } from "@app/schema/client";
 import { InvalidStateTransitionError, NotFoundError } from "@app/server-kit/http";
 import { desc, eq, lt } from "drizzle-orm";
 import type { Session } from "../auth/session";
-import { activityLogInsert } from "./activity-log";
+import { activityLogInsert, platformActor } from "./activity-log";
 
 export type InquiryStatus = "new" | "in_progress" | "resolved";
 
@@ -81,7 +81,7 @@ export async function deleteInquiry(db: DbClient, publicId: string, session: Ses
       subjectType: "Inquiry",
       subjectId: row.id,
       event: "inquiry.deleted",
-      causerId: session.adminUserId,
+      actor: platformActor(session),
       properties: { publicId, email: row.email },
     }),
   ]);
@@ -113,7 +113,7 @@ export async function transitionInquiry(db: DbClient, publicId: string, to: Inqu
       subjectType: "Inquiry",
       subjectId: row.id,
       event: `inquiry.${to}`,
-      causerId: session.adminUserId,
+      actor: platformActor(session),
       properties: { from, to },
     }),
   ]);

@@ -10,6 +10,14 @@ export class AppError extends Error {
   }
 }
 
+// The catalogue below is DEV-04 §4's error_code table, one class per row. A Service that needs a
+// code not listed there is describing a new failure mode — add the row first, then the class.
+export class BadRequestError extends AppError {
+  constructor(message = "リクエストが不正です。") {
+    super(message, 400, "BAD_REQUEST");
+  }
+}
+
 export class UnauthenticatedError extends AppError {
   constructor(message = "認証が必要です。") {
     super(message, 401, "UNAUTHENTICATED");
@@ -34,9 +42,25 @@ export class NotFoundError extends AppError {
   }
 }
 
+// The state machine's own 409 is InvalidStateTransitionError below. This one is for a conflict the
+// status column does not describe — a slot that filled up between the read and the write.
+export class ConflictError extends AppError {
+  constructor(message = "この操作は現在のリソースの状態と矛盾しています。") {
+    super(message, 409, "CONFLICT");
+  }
+}
+
 export class InvalidStateTransitionError extends AppError {
   constructor(entity: string, from: string, to: string) {
     super(`${entity} の状態を ${from} から ${to} へ遷移できません。`, 409, "INVALID_STATE_TRANSITION");
+  }
+}
+
+// An upstream (Stripe, Google Maps Platform) that stayed down through the retries in DEV-10 §1.
+// Distinct from a 500: the caller may succeed by trying again later.
+export class ServiceUnavailableError extends AppError {
+  constructor(message = "外部サービスに接続できません。時間をおいてやり直してください。") {
+    super(message, 503, "SERVICE_UNAVAILABLE");
   }
 }
 

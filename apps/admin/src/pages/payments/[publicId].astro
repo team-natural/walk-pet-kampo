@@ -28,7 +28,7 @@ const refundable = payment.status === "paid";
   <div data-public-id={publicId} class="contents">
     <PageHeader title={formatYen(payment.amount)} description="参加費の決済 1 件">
       <Fragment slot="meta">
-        <p class="pt-1"><StatusBadge client:load domain="payment" value={payment.status} /></p>
+        <p class="pt-1"><StatusBadge domain="payment" value={payment.status} /></p>
       </Fragment>
       <Fragment slot="actions">
         {refundable && <PaymentRefundSheet client:load payment={payment} action={`/api/v1/payments/${payment.id}/refund`} />}

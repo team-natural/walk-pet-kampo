@@ -39,7 +39,9 @@ Walker（お散歩参加者）向けマイページも `apps/public` 側にあ�
 > DEV-01 §1「アカウント系統」の決定（`Decided` — GOV-01 D-007）により、`apps/public` は Walker
 > マイページ・保護団体ページ向けの Service/D1 レイヤーを `apps/admin` と同様に持つ。`CLAUDE.md`・
 > `eslint.config.js`（`boundaries/elements`）・DEV-05（バックエンド実装ガイド）はこの決定を反映
-> 済み。実際のディレクトリ・コードは未実装で、機能実装時に作成する。
+> 済み。**ディレクトリと Walker 認証・お問い合わせは実装済み**で、残りの Service は機能実装時に
+> 追加する。全画面のスケルトン（SCR / ADM / SYS）は view model とモックに束縛した状態で作成済み
+> （GOV-01 D-029）。
 
 ## 0-H. ハイブリッド編集ガイド（要点）
 
@@ -70,45 +72,59 @@ apps/public/src/
 ├── content.config.ts                  # Content Collections の定義（§1-1。スキーマは @app/content）
 ├── lib/
 │   ├── components/                    # Svelte アイランド（`$lib` エイリアスの実体）
-│   │   ├── ...                        # 公開画面のアイランド（直下。client:* で .astro に埋め込む）
-│   │   ├── mypage/                    # マイページ専用アイランド（`Assumed`）
+│   │   ├── ...                        # 公開画面・マイページのアイランド（直下。client:* で .astro に埋め込む）
+│   │   │                              #   マイページ専用のサブディレクトリは作らない（共有する部品が多く、
+│   │   │                              #   分けるほどの数にならなかった — 2026-09-23 に確定）
 │   │   └── organization/              # 保護団体ページ専用の手組みコンポーネント（テーブル/フォーム/
 │   │                                   #   カード/モーダル/トースト）。新規コンポーネントライブラリは
-│   │                                   #   追加しない（PRD-04 §6-1、`Assumed`）
-│   └── server/                        # `Assumed`。マイページ・保護団体ページの認証済み操作用の
-│       │                              #   Service レイヤー（DEV-01 §1 の決定により新設。構成の正本は
-│       │                              #   DEV-05 §1。D1 クライアントと HTTP エンベロープはアプリ側に
-│       │                              #   置かず `@app/schema/client` / `@app/server-kit/http` を使う）
+│   │                                   #   追加しない（PRD-04 §6-1）
+│   ├── view-models/                   # 画面が描画する型。テーブル行から Pick で導出（GOV-01 D-029）
+│   ├── mocks/                         # スケルトンの仮データ（index.ts 1 本）。Service 実装で消える
+│   └── server/                        # マイページ・保護団体ページの認証済み操作用の Service レイヤー
+│       │                              #   （DEV-01 §1 の決定により新設。構成の正本は DEV-05 §1。D1
+│       │                              #   クライアントと HTTP エンベロープはアプリ側に置かず
+│       │                              #   `@app/schema/client` / `@app/server-kit/http` を使う）
 │       ├── services/
-│       ├── walker/                    # Walker（旧称 Member）の認証。OrganizationMember と同一アプリ内でも
-│       └── organization/              #   テーブル・セッション Cookie・実装を分ける（汎用 auth ヘルパーを
-│                                       #   書かない — DEV-05 §1 の原則を apps/public 内の 2 系統にも適用）
+│       ├── validation/
+│       └── auth/                      # session.ts〈Walker〉/ organization-session.ts〈OrganizationMember〉。
+│                                       #   同一アプリ内でもテーブル・セッション Cookie・実装を分ける
+│                                       #   （汎用 auth ヘルパーを書かない — DEV-05 §1）
 └── layouts/
     ├── Layout.astro                   # 3 領域共通の HTML 骨格・<head>・global.css（CLAUDE.md、名前の共有は意図的）
     └── OrganizationLayout.astro       # 保護団体ページのサイドナビ + ヘッダー + コンテンツの 3 ペインシェル。
-                                        #   Layout.astro をラップする（PRD-04 §4-1、`Assumed`）
+                                        #   Layout.astro をラップする（PRD-04 §4-1。実装済み）
 
 apps/admin/src/
 ├── pages/                             # 管理画面。アプリ丸ごとが管理画面のため `/admin` 接頭辞は付けない
-│   ├── index.astro                    # ダッシュボード（SYS-01）
-│   ├── login.astro
-│   └── （参加者/団体/保護犬/予約/決済/振込/お知らせ/お問い合わせ 等 — PRD-04 §3-3）
+│   ├── index.astro                    # ログイン（SYS-00）。アプリのルートが入口になる
+│   ├── dashboard/index.astro          # ダッシュボード（SYS-01）
+│   └── （参加者/団体/保護犬/予約/決済/振込/お問い合わせ 等 — PRD-04 §3-3）
 ├── lib/
 │   ├── components/
 │   │   ├── ui/                        # shadcn-svelte 生成コンポーネント（DEV-01 §1。編集してよい）
-│   │   └── admin/                     # 管理画面専用の合成コンポーネント（stat-card 等 — Assumed）
+│   │   └── *.svelte / *.astro         # 管理画面専用の合成コンポーネント（console-shell・data-table・
+│   │                                   #   status-badge 等）は直下に置く。`admin/` サブディレクトリは
+│   │                                   #   作らない — アプリ全体が管理画面で、区別の意味がない
+│   │                                   #   （2026-09-23 に確定）
+│   ├── view-models/                   # 画面が描画する型（GOV-01 D-029）
+│   ├── mocks/                         # スケルトンの仮データ（index.ts 1 本）
+│   ├── status.ts                      # 状態機械の表示ラベル（DEV-09 が正本、ここは写し）
 │   ├── server/                        # Service 層（内部構成は DEV-05 §1 が正本。D1/R2 アクセスを集約）
 │   └── utils.ts                       # `cn()` 等の共通ユーティリティ
 └── layouts/
-    └── Layout.astro                   # 管理画面の HTML 骨格・<head>・admin.css
+    ├── Layout.astro                   # 管理画面の HTML 骨格・<head>・admin.css
+    └── ConsoleLayout.astro            # サイドナビ + ヘッダーの 3 ペインシェル。Layout.astro をラップする
 ```
 
 公開画面・マイページ・保護団体ページ・プラットフォーム管理画面をディレクトリで分離する。
 `apps/public` 内の 3 領域は `pages/` 配下のトップレベルディレクトリ（`mypage/` /
 `organization/`、それ以外は公開画面）と `lib/components/` 配下の対応するサブディレクトリで区別し、
 `apps/public/src/lib/components/organization/` は公開画面用アイランドと明確に分ける（PRD-04 §4-3）。
-`Assumed` と付記した部分はこのテンプレートにまだ実例がない規約案であり、最初の画面を作る際に
-確定させ本書を更新する。
+上のツリーは全画面のスケルトン作成をもって確定済み（2026-09-23）。`apps/public` の
+`lib/components/mypage/` と `apps/admin` の `lib/components/admin/` は、実際に作ってみて区別の
+必要が生まれなかったため**作らない**方に確定した（理由は各コメント参照）。本節以外に残る
+`Assumed` は、まだ実例のない規約案（§4-1 の保護団体ダッシュボードのアイコン、§11-1 の構造化
+データ等）であり、該当箇所を実装する時点で確定させ本書を更新する。
 
 ---
 
@@ -265,7 +281,7 @@ Astro は各リクエストごとに SSR するだけで、サーバー側にコ
   `URLSearchParams`）に保持し、リロード・共有可能にする。
 - ループ描画には必ず一意キーを付与する（`{#each items as item (item.id)}`）。
 - Astro ページ / API ルートから D1 を直接叩かない。必ず Service 経由（DEV-01 §4・§5）。
-  `apps/public` のマイページ・保護団体ページも同じ原則に従う（§1 の `Assumed` 参照）。
+  `apps/public` のマイページ・保護団体ページも同じ原則に従う（§1 参照）。
 
 ---
 
@@ -346,7 +362,7 @@ PRD-04 §4-2 の標準構成に対応する。**保護団体ページ・プラ�
 | 画面領域 | UI ライブラリ | 理由 |
 | --- | :---: | --- |
 | プラットフォーム管理画面（`apps/admin`） | ✅ shadcn-svelte | 想定ユースケース（DEV-01 §1） |
-| 保護団体ページ（`apps/public/organization/*`） | ❌（新規ライブラリ追加なし） | プレーン Tailwind + 手組みコンポーネント（PRD-04 §6-1、`Assumed`。理由は同節参照：`apps/public` に第 2 のコンポーネントライブラリを持ち込まない、既存の Tailwind 資産を流用できる、画面数が shadcn-svelte 規模を正当化しない） |
+| 保護団体ページ（`apps/public/organization/*`） | ❌（新規ライブラリ追加なし） | プレーン Tailwind + 手組みコンポーネント（PRD-04 §6-1。実装済み: `components/organization/` の 5 種 — GOV-01 D-019。理由は同節参照：`apps/public` に第 2 のコンポーネントライブラリを持ち込まない、既存の Tailwind 資産を流用できる、画面数が shadcn-svelte 規模を正当化しない） |
 | Walker マイページ（`apps/public/mypage/*`） | ❌ | 公開画面と同じくプレーン Tailwind（`public-design` チェーン） |
 | 公開画面（LP・マーケティング等） | ❌ | プレーン Tailwind + Astro/Svelte で個別実装（`public-design` スキル） |
 

@@ -29,7 +29,7 @@ const transitionAction = `/api/v1/organizations/${organization.id}/transition`;
   <div data-public-id={publicId} class="contents">
     <PageHeader title={organization.name} description={organization.activityArea ?? undefined}>
       <Fragment slot="meta">
-        <p class="pt-1"><StatusBadge client:load domain="organization" value={organization.status} /></p>
+        <p class="pt-1"><StatusBadge domain="organization" value={organization.status} /></p>
       </Fragment>
       <Fragment slot="actions">
         <Button href={`/organizations/${organization.id}/members`} variant="outline" size="sm">スタッフを見る</Button>

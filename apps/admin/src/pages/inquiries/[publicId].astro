@@ -30,7 +30,7 @@ const transitions = allowedTransitions(inquiry.status);
 <ConsoleLayout title={`${inquiry.name} さんからのお問い合わせ`} user={session} breadcrumbs={[{ label: "お問い合わせ", href: "/inquiries" }, { label: inquiry.name }]}>
   <PageHeader title={`${inquiry.name} さんからのお問い合わせ`} description={inquiry.email}>
     <Fragment slot="meta">
-      <p class="pt-1"><StatusBadge client:load domain="inquiry" value={inquiry.status} /></p>
+      <p class="pt-1"><StatusBadge domain="inquiry" value={inquiry.status} /></p>
     </Fragment>
     <Fragment slot="actions">
       {transitions.map((to) => <ConfirmAction client:load action={`/api/v1/inquiries/${inquiry.id}/${ROUTES[to]}`} triggerLabel={`${statusMeta("inquiry", to).label}にする`} title={`このお問い合わせを${statusMeta("inquiry", to).label}にしますか？`} message="状態の変更は操作履歴に記録されます。返信そのものはメールで行ってください。" confirmLabel="変更する" />)}

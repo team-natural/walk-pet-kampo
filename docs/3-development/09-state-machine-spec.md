@@ -542,7 +542,7 @@ PRD-01 §7 / DEV-07 §4-3（`inquiries.status`）と一致させる。テンプ�
 | 例外配置 | ①admin が主体となる Organization の審査系遷移（`under_review → approved/rejected` 等）は `apps/admin/src/lib/server/services/organizations.ts` に置く（詳細は §2-1-5）。②Payout は集計・確定・Stripe Connect Transfer 実行のすべてを `apps/admin/src/lib/server/services/payouts.ts` に置く（GOV-01 D-010、詳細は §2-9）。いずれも D1 は両 Worker が共有する同一インスタンスのため、`apps/admin` から対象テーブルへ直接書き込むことは可能（`apps/public` の source を import するわけではない — DEV-01 §5 のレイヤー境界に抵触しない） |
 | 責務 | 遷移可否の判定、遷移実行（D1 更新）、副作用の呼び出し |
 | 状態の保管 | D1 の `status` 等 `TEXT` カラム。TypeScript 側は文字列リテラルのユニオン型（例 `ReservationStatus`）で表現し、Service 層で検証する |
-| 不正遷移 | 専用の Error サブクラス（`InvalidTransitionError`）を throw する |
+| 不正遷移 | `@app/server-kit/http` の `InvalidStateTransitionError`（実装済み。409 / `INVALID_STATE_TRANSITION` — DEV-04 §4）を throw する。エンティティごとに Error クラスを作らない |
 | actor の表現 | テンプレート標準は `actorId: number`（AdminUser 固定）だが、本プロジェクトは 3 系統のアカウントが遷移を起こすため `{ type: "walker" \| "organization_member" \| "platform" \| "system"; id: number \| null }` の判別可能ユニオン（`Actor` 型）を使う。`type: "system"` は Cron Triggers / Webhook 起点の遷移で `id: null` を許容する（DEV-05 §9-1 の「system ユーザーを発明しない」方針を型で表現）|
 | 副作用 | イベントバス／Listener に相当する仕組みはない。遷移関数内から直接関数呼び出し（メール送信・関連エンティティの連鎖遷移等）。レスポンスをブロックする重い副作用は `ctx.waitUntil()` で後処理化する（DEV-01 §4、DEV-05 §4）|
 
@@ -584,35 +584,35 @@ const TRANSITIONS: Record<ReservationStatus, ReservationStatus[]> = {
   cancelled_dog_condition: [],
 };
 
-export class InvalidTransitionError extends Error {
-  constructor(entity: string, from: string, to: string) {
-    super(`Invalid transition for ${entity}: ${from} -> ${to}`);
-  }
-}
+// 不正遷移の Error クラスは実装済み（`@app/server-kit/http` の `InvalidStateTransitionError`、
+// error_code `INVALID_STATE_TRANSITION` — DEV-04 §4）。エンティティごとに再定義しない。
 
-export async function transitionReservation(env: Env, reservationId: number, to: ReservationStatus, actor: Actor): Promise<void> {
-  const reservation = await getReservationById(env, reservationId); // 取得処理は省略
+export async function transitionReservation(db: DbClient, reservationId: number, to: ReservationStatus, actor: Actor): Promise<void> {
+  const reservation = await getReservationById(db, reservationId); // 取得処理は省略
 
   const allowed = TRANSITIONS[reservation.status] ?? [];
   if (!allowed.includes(to)) {
-    throw new InvalidTransitionError("Reservation", reservation.status, to);
+    throw new InvalidStateTransitionError("Reservation", reservation.status, to);
   }
 
   const from = reservation.status;
 
-  await env.DB.prepare("UPDATE reservations SET status = ?, updated_at = ? WHERE id = ?").bind(to, new Date().toISOString(), reservationId).run();
+  // 本体の UPDATE と付随する書き込みは 1 バッチ = 1 トランザクション（DEV-05 §3）。
+  // 逐次の .run() は「遷移だけ成功しログだけ失敗する」不整合を許す。
+  await db.batch([
+    db.update(reservations).set({ status: to, updatedAt: new Date().toISOString() }).where(eq(reservations.id, reservationId)),
+    ...walkSlotCountAdjustment(db, to, reservation.walkSlotId), // 予約数の加減算（confirmed / キャンセル系）
+    ...notificationInserts(db, reservation, to), // アプリ内通知の配信記録（DEV-05 §4-1）
+    activityLogInsert(db, { logName: "reservation", description: `Reservation ${from} -> ${to}`, subjectType: "Reservation", subjectId: reservationId, event: `reservation.${to}`, actor, organizationId: reservation.organizationId }),
+  ]);
 
-  if (to === "confirmed") {
-    await incrementWalkSlotReservedCount(env, reservation.walkSlotId);
-    await notifyReservationConfirmed(reservation, from);
-  } else if (isCancelledOrNoShow(to)) {
-    await decrementWalkSlotReservedCount(env, reservation.walkSlotId);
-    if (isCancelled(to)) {
-      await judgeRefund(env, reservation, to); // 返金条件は GOV-02 TBD-10〜12（未確定）
-    }
+  // 外部 I/O はバッチの外・レスポンスの後（DEV-05 §3・§4）。
+  if (isCancelled(to)) {
+    await judgeRefund(db, reservation, to); // 返金条件は GOV-02 TBD-10〜12（未確定）
   }
 
-  await recordTransition(env, "Reservation", reservationId, from, to, actor); // §3-4
+  // メール送信（Resend）はレスポンスをブロックしない（DEV-05 §4）。
+  ctx.waitUntil(sendReservationMail(reservation, to));
 }
 
 export function allowedTransitions(status: ReservationStatus): ReservationStatus[] {
@@ -620,7 +620,7 @@ export function allowedTransitions(status: ReservationStatus): ReservationStatus
 }
 ```
 
-> `WalkSlot.reserved_count` の加減算・`judgeRefund()` を含む複数テーブル更新は、`env.DB.prepare().run()` の逐次実行ではなく Drizzle の `db.batch([...])` で 1 トランザクションにまとめる（DEV-05 §3、遷移だけ成功しログだけ失敗する不整合を防ぐ）。上記コードは考え方を示す簡略例。
+> 上記は骨格を示す簡略例（取得・通知組み立ての中身は省略）だが、**シグネチャと書き込み方は実装規約そのもの**である: 第 1 引数は `db: DbClient`（`env` ではない — D1 アクセスは Drizzle 経由、DEV-05 §2）、状態遷移に伴う複数テーブルの書き込みは `db.batch([...])` で 1 トランザクション（DEV-05 §3）、監査ログは同じバッチに同居（DEV-05 §9-1）、外部 I/O はバッチの外（DEV-05 §3・§4）。参照実装は `apps/admin/src/lib/server/services/inquiries.ts` の `transitionInquiry()`。
 
 ### 3-3. API Route / Astro Page からの呼び出し
 
@@ -637,7 +637,7 @@ export async function POST({ params, cookies }: APIContext): Promise<Response> {
   const session = await requireWalkerSession(cookies, db); // Walker 専用のセッション検証（DEV-02 参照。AdminUser のセッションとは完全に別実装）
   const reservation = await getReservationByPublicId(db, params.id!); // URL キーは public_id（DEV-07 §1）
   requireOwnsReservation(session, reservation); // Walker 本人の予約のみキャンセル可能
-  await transitionReservation(env, reservation.id, "cancelled_by_walker", { type: "walker", id: session.walkerId });
+  await transitionReservation(db, reservation.id, "cancelled_by_walker", { type: "walker", id: session.walkerId });
   return new Response(null, { status: 204 });
 }
 ```
@@ -665,22 +665,21 @@ const TRANSITIONS: Record<OrganizationStatus, OrganizationStatus[]> = {
   withdrawn: [],
 };
 
-export async function transitionOrganization(env: Env, organizationId: number, to: OrganizationStatus, actor: Actor): Promise<void> {
-  const organization = await getOrganizationById(env, organizationId);
+export async function transitionOrganization(db: DbClient, organizationId: number, to: OrganizationStatus, actor: Actor): Promise<void> {
+  const organization = await getOrganizationById(db, organizationId);
 
   const allowed = TRANSITIONS[organization.status] ?? [];
   if (!allowed.includes(to)) {
-    throw new InvalidTransitionError("Organization", organization.status, to);
+    throw new InvalidStateTransitionError("Organization", organization.status, to);
   }
 
   const from = organization.status;
-  await env.DB.prepare("UPDATE organizations SET status = ?, updated_at = ? WHERE id = ?").bind(to, new Date().toISOString(), organizationId).run();
 
-  if (to === "suspended" || to === "deactivated") {
-    await cascadeUnpublishWalkSlots(env, organizationId); // §2-6-4
-  }
-
-  await recordTransition(env, "Organization", organizationId, from, to, actor);
+  await db.batch([
+    db.update(organizations).set({ status: to, updatedAt: new Date().toISOString() }).where(eq(organizations.id, organizationId)),
+    ...cascadeUnpublishWalkSlots(db, to, organizationId), // §2-6-4。suspended / deactivated のみ行を返す
+    activityLogInsert(db, { logName: "organization_review", description: `Organization ${from} -> ${to}`, subjectType: "Organization", subjectId: organizationId, event: `organization.${to}`, actor, organizationId }),
+  ]);
 }
 ```
 
@@ -692,29 +691,26 @@ export async function transitionOrganization(env: Env, organizationId: number, t
 
 状態遷移は監査ログの必須記録操作（DEV-05 §9-1）。専用パッケージは使わず、遷移関数内から `activity_log` テーブル（DEV-01 §2 / DEV-07 §4-4）へ直接 INSERT する。テンプレート標準の `causer_type` は `AdminUser` 固定だったが、本プロジェクトは 3 系統のアカウントが actor になりうるため、`Actor` 型（§3-1）の `type` をそのまま `causer_type` に記録する。
 
+記録用ヘルパーは実装済み（`apps/admin/src/lib/server/services/activity-log.ts` の `activityLogInsert()`。`apps/public` 側にも同型のものを置く — DEV-05 §9-1）。**実行済みのクエリではなく未実行のクエリを返す**ので、遷移本体と同じ `db.batch([...])` に載せられる。
+
 ```typescript
-// 状態遷移を行った関数内で記録する（DEV-05 §9-1）
-async function recordTransition(env: Env, subjectType: string, subjectId: number, from: string, to: string, actor: Actor): Promise<void> {
-  await env.DB.prepare(
-    `INSERT INTO activity_log (log_name, description, subject_type, subject_id, event, causer_type, causer_id, properties, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  )
-    .bind(
-      "state_transition",
-      `${subjectType} #${subjectId} status changed: ${from} -> ${to}`,
-      subjectType,
-      subjectId,
-      `${subjectType.toLowerCase()}.status_changed`,
-      actor.type,
-      actor.id,
-      JSON.stringify({ old: { status: from }, attributes: { status: to } }),
-      new Date().toISOString(),
-    )
-    .run();
-}
+// 状態遷移を行った関数内で、遷移本体と同じバッチに載せる（DEV-05 §3・§9-1）
+await db.batch([
+  db.update(organizations).set({ status: to, updatedAt: new Date().toISOString() }).where(eq(organizations.id, organizationId)),
+  activityLogInsert(db, {
+    logName: "state_transition",
+    description: `Organization #${organizationId} status changed: ${from} -> ${to}`,
+    subjectType: "Organization",
+    subjectId: organizationId,
+    event: "organization.status_changed",
+    actor, // causer_type = actor.type、causer_id = actor.id（DEV-07 §4-4）
+    organizationId,
+    properties: { old: { status: from }, attributes: { status: to } },
+  }),
+]);
 ```
 
-> `actor.type === "system"` の場合は `causer_id` を NULL のまま記録する（DEV-05 §9-1「system ユーザーを発明しない」方針）。Organization の審査（承認・否認）、Payout の振込確定、Reservation のキャンセル、Incident の解決は特に必ず記録する（旧仕様の必須記録操作を踏襲）。`activity_log` の正確なカラム定義は DEV-07 側の確定を待つ（本節は DEV-01 §2 が示す現行の暫定スキーマに従う）。
+> `actor.type === "system"` の場合は `causer_id` が NULL になる（`SYSTEM_ACTOR` が `id: null` を持つ — DEV-05 §9-1「system ユーザーを発明しない」方針）。Organization の審査（承認・否認）、Payout の振込確定、Reservation のキャンセル、Incident の解決は特に必ず記録する（旧仕様の必須記録操作を踏襲）。カラム定義の正本は DEV-07 §4-4。
 
 ---
 
@@ -819,30 +815,32 @@ async function recordTransition(env: Env, subjectType: string, subjectId: number
 
 ```typescript
 import { describe, it, expect } from "vitest";
-import { transitionReservation, InvalidTransitionError } from "../../lib/server/services/reservations";
+import { InvalidStateTransitionError } from "@app/server-kit/http";
+import { transitionReservation } from "../../lib/server/services/reservations";
 
 it("allows confirmed to cancelled_by_walker", async () => {
   const reservation = await createTestReservation({ status: "confirmed" });
 
-  await transitionReservation(env, reservation.id, "cancelled_by_walker", { type: "walker", id: reservation.walkerId });
+  await transitionReservation(db, reservation.id, "cancelled_by_walker", { type: "walker", id: reservation.walkerId });
 
-  const updated = await getReservationById(env, reservation.id);
+  const updated = await getReservationById(db, reservation.id);
   expect(updated.status).toBe("cancelled_by_walker");
 });
 
 it("rejects completed to confirmed", async () => {
   const reservation = await createTestReservation({ status: "completed" });
 
-  await expect(transitionReservation(env, reservation.id, "confirmed", { type: "walker", id: reservation.walkerId })).rejects.toThrow(InvalidTransitionError);
+  await expect(transitionReservation(db, reservation.id, "confirmed", { type: "walker", id: reservation.walkerId })).rejects.toThrow(InvalidStateTransitionError);
 });
 
 it("decrements WalkSlot.reserved_count on cancellation", async () => {
   const reservation = await createTestReservation({ status: "confirmed" });
-  const spy = vi.spyOn(walkSlots, "decrementWalkSlotReservedCount");
 
-  await transitionReservation(env, reservation.id, "cancelled_by_walker", { type: "walker", id: reservation.walkerId });
+  await transitionReservation(db, reservation.id, "cancelled_by_walker", { type: "walker", id: reservation.walkerId });
 
-  expect(spy).toHaveBeenCalledWith(env, reservation.walkSlotId);
+  // スパイではなく D1 の行を読む: 加減算は同じ batch の中で起きるので、呼び出しの有無より結果を見る
+  const slot = await getWalkSlotById(db, reservation.walkSlotId);
+  expect(slot.reservedCount).toBe(0);
 });
 ```
 
@@ -860,9 +858,9 @@ it.each([
   const actor = { type: "walker" as const, id: reservation.walkerId };
 
   if (allowed) {
-    await expect(transitionReservation(env, reservation.id, to as ReservationStatus, actor)).resolves.not.toThrow();
+    await expect(transitionReservation(db, reservation.id, to as ReservationStatus, actor)).resolves.not.toThrow();
   } else {
-    await expect(transitionReservation(env, reservation.id, to as ReservationStatus, actor)).rejects.toThrow(InvalidTransitionError);
+    await expect(transitionReservation(db, reservation.id, to as ReservationStatus, actor)).rejects.toThrow(InvalidStateTransitionError);
   }
 });
 ```
@@ -940,6 +938,6 @@ stateDiagram-v2
 - 監査ログとの連携が組み込まれているか（特に Organization 審査・Payout 振込確定・Reservation キャンセル・Incident 解決）
 - 状態遷移関数が Service 層に集約され、API Route / Astro Page から呼ばれる構造になっているか
 - `apps/public`/`apps/admin` それぞれの配置（§3-1）が GOV-01 D-007 と矛盾していないか。Organization のように審査系だけ `apps/admin` に置く例外がある場合、その理由（実行者が admin）が明記されているか
-- 不正遷移時の挙動（`InvalidTransitionError`）が明示されているか
+- 不正遷移時の挙動（`InvalidStateTransitionError`）が明示されているか
 - キャンセル・返金条件（GOV-02 TBD-10〜13）が未確定のまま実装に落とし込まれていないか（暫定方針にはコメントで TBD 番号を残す）
 - 記事型コンテンツ（Post / News）の状態遷移を復活させていないか（§2-13。いずれも D1 に行を持たない — GOV-01 D-014・D-016）

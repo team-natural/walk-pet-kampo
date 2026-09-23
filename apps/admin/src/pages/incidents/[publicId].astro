@@ -31,8 +31,8 @@ const open = incident.status !== "resolved" && incident.status !== "closed";
     <PageHeader title={incident.organizationName} description={`${label("incidentCategory", incident.category)} / ${formatDateTime(incident.occurredAt)}`}>
       <Fragment slot="meta">
         <p class="flex flex-wrap items-center gap-2 pt-1">
-          <SeverityBadge client:load severity={incident.severity} />
-          <StatusBadge client:load domain="incident" value={incident.status} />
+          <SeverityBadge severity={incident.severity} />
+          <StatusBadge domain="incident" value={incident.status} />
         </p>
       </Fragment>
       <Fragment slot="actions">

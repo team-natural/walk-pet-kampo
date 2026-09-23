@@ -38,7 +38,7 @@ const holdable = payout.status === "aggregating" || payout.status === "confirmed
   <div data-public-id={publicId} class="contents">
     <PageHeader title={payout.organizationName} description={period}>
       <Fragment slot="meta">
-        <p class="pt-1"><StatusBadge client:load domain="payout" value={payout.status} /></p>
+        <p class="pt-1"><StatusBadge domain="payout" value={payout.status} /></p>
       </Fragment>
       <Fragment slot="actions">
         {confirmable && <PayoutConfirmSheet client:load payout={payout} action={route("confirm")} />}

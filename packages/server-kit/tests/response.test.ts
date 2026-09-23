@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AppError, NotFoundError, ValidationError } from "../src/http/errors";
+import { AppError, BadRequestError, ConflictError, ForbiddenError, InvalidStateTransitionError, NotFoundError, RateLimitError, ServiceUnavailableError, UnauthenticatedError, ValidationError } from "../src/http/errors";
 import { jsonItem, toErrorResponse } from "../src/http/response";
 
 describe("jsonItem", () => {
@@ -34,5 +34,25 @@ describe("toErrorResponse", () => {
     const response = toErrorResponse(new AppError("upstream timeout", 503, "UPSTREAM_TIMEOUT"));
     expect(response.status).toBe(503);
     await expect(response.json()).resolves.toMatchObject({ message: "upstream timeout", error_code: "UPSTREAM_TIMEOUT" });
+  });
+});
+
+describe("the error catalogue", () => {
+  // DEV-04 §4 is the contract a client codes against: one class per row, and the status/code pair
+  // is the part that must not drift. A renamed class is a compile error; a changed code is not.
+  it.each([
+    [new BadRequestError(), 400, "BAD_REQUEST"],
+    [new UnauthenticatedError(), 401, "UNAUTHENTICATED"],
+    [new ForbiddenError(), 403, "FORBIDDEN"],
+    [new NotFoundError(), 404, "NOT_FOUND"],
+    [new ConflictError(), 409, "CONFLICT"],
+    [new InvalidStateTransitionError("Reservation", "completed", "confirmed"), 409, "INVALID_STATE_TRANSITION"],
+    [new ValidationError({}), 422, "VALIDATION_FAILED"],
+    [new RateLimitError(), 429, "RATE_LIMIT_EXCEEDED"],
+    [new ServiceUnavailableError(), 503, "SERVICE_UNAVAILABLE"],
+  ])("maps %s to its documented status and code", async (error, status, code) => {
+    const response = toErrorResponse(error);
+    expect(response.status).toBe(status);
+    await expect(response.json()).resolves.toMatchObject({ error_code: code });
   });
 });

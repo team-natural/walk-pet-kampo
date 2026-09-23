@@ -19,11 +19,13 @@ export async function POST({ request, cookies, clientAddress }: APIContext): Pro
     // Check lockout before verifying credentials.
     const ip = request.headers.get("cf-connecting-ip") ?? clientAddress;
     lockoutScope = { ip, email };
-    await assertNotLockedOut(env.KV, ip, email);
+    // "walker", not a shared counter: OrganizationMember logs in against the same KV namespace
+    // from this app, and one address can exist in both systems (GOV-01 D-021).
+    await assertNotLockedOut(env.KV, "walker", ip, email);
 
     const ttlDays = Number(env.SESSION_TTL_DAYS);
     const { session, walker } = await login(db, email, password, ttlDays);
-    await clearAuthFailures(env.KV, ip, email);
+    await clearAuthFailures(env.KV, "walker", ip, email);
 
     cookies.set(WALKER_SESSION_COOKIE, session.token, {
       httpOnly: true,
@@ -36,7 +38,7 @@ export async function POST({ request, cookies, clientAddress }: APIContext): Pro
     return jsonItem(toPublicWalker(walker));
   } catch (error) {
     if (error instanceof UnauthenticatedError && lockoutScope) {
-      await recordAuthFailure(env.KV, lockoutScope.ip, lockoutScope.email, {
+      await recordAuthFailure(env.KV, "walker", lockoutScope.ip, lockoutScope.email, {
         maxAttempts: Number(env.AUTH_LOCKOUT_MAX_ATTEMPTS),
         lockoutMinutes: Number(env.AUTH_LOCKOUT_MINUTES),
       });

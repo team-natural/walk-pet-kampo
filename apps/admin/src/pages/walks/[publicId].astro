@@ -32,7 +32,7 @@ const cancellable = slot.status !== "cancelled" && slot.status !== "completed";
   <div data-public-id={publicId} class="contents">
     <PageHeader title={slot.title} description={slot.organizationName}>
       <Fragment slot="meta">
-        <p class="pt-1"><StatusBadge client:load domain="walkSlot" value={slot.status} /></p>
+        <p class="pt-1"><StatusBadge domain="walkSlot" value={slot.status} /></p>
       </Fragment>
       <Fragment slot="actions">
         <WalkSlotEditSheet client:load walkSlot={slot} action={updateAction} />
