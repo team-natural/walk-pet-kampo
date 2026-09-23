@@ -2,32 +2,83 @@
 // ADM-26 — PRD-04 §3-2
 // The receiving end of ADM-04. The invitee has no account yet, so the invitations token is what
 // establishes who this is — there is no session guard here on purpose.
-// TODO(ADM-26): resolve the token with getInvitationByToken() and post acceptInvitation()
-// — F-03-06, F-04-03.
+import { env } from "cloudflare:workers";
 import Layout from "../../../layouts/Layout.astro";
 import PageHeader from "$lib/components/page-header.astro";
+import { getPendingInvitation } from "$lib/server/services/organization-auth";
+import { createDb } from "@app/schema/client";
 
 const { token } = Astro.params;
+// Resolved before the form renders so a link sent to the wrong person is visibly for someone
+// else, and a dead link says so instead of failing after a password has been typed.
+const invitation = await getPendingInvitation(createDb(env.DB), token!);
+
+const ERRORS: Record<string, string> = {
+  input: "お名前とパスワード（8 文字以上）を入力してください。",
+  token: "この招待リンクは使用済みか、有効期限が切れています。",
+};
+const error = ERRORS[Astro.url.searchParams.get("error") ?? ""];
+
+const ROLE_LABELS = { org_admin: "団体管理者", org_staff: "スタッフ" } as const;
 ---
 
 <Layout title="アカウントの有効化 | 保護犬おさんぽマッチング" chrome={true}>
   <main id="main-content" class="mx-auto grid max-w-md gap-6 px-4 py-16">
     <PageHeader title="アカウントの有効化" lead="パスワードを設定すると、団体ページにログインできるようになります。" />
 
-    <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action="/api/v1/organization/invitations/accept">
-      <input type="hidden" name="token" value={token} />
+    {
+      error && (
+        <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+          {error}
+        </p>
+      )
+    }
 
-      <label class="grid gap-1.5">
-        <span class="font-bold">お名前</span>
-        <input type="text" name="name" required autocomplete="name" class="field w-full" />
-      </label>
+    {
+      invitation ? (
+        <>
+          <dl class="card grid gap-2 p-6 text-sm sm:p-8">
+            <div class="flex gap-3">
+              <dt class="w-24 shrink-0 font-bold">団体</dt>
+              <dd>{invitation.organizationName}</dd>
+            </div>
+            <div class="flex gap-3">
+              <dt class="w-24 shrink-0 font-bold">メール</dt>
+              <dd class="break-all">{invitation.email}</dd>
+            </div>
+            <div class="flex gap-3">
+              <dt class="w-24 shrink-0 font-bold">権限</dt>
+              <dd>{ROLE_LABELS[invitation.role]}</dd>
+            </div>
+          </dl>
 
-      <label class="grid gap-1.5">
-        <span class="font-bold">パスワード</span>
-        <input type="password" name="password" required autocomplete="new-password" class="field w-full" />
-      </label>
+          <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action="/api/v1/organization/invitations/accept">
+            <input type="hidden" name="token" value={token} />
 
-      <button type="submit" class="btn btn-sun px-6 py-3">設定して開始する</button>
-    </form>
+            <label class="grid gap-1.5">
+              <span class="font-bold">お名前</span>
+              <input type="text" name="name" required autocomplete="name" class="field w-full" />
+            </label>
+
+            <label class="grid gap-1.5">
+              <span class="font-bold">パスワード</span>
+              <input type="password" name="password" required minlength="8" autocomplete="new-password" class="field w-full" />
+            </label>
+
+            <button type="submit" class="btn btn-sun px-6 py-3">
+              設定して開始する
+            </button>
+          </form>
+        </>
+      ) : (
+        <div class="card grid gap-3 p-6 text-sm sm:p-8">
+          <p class="font-bold">この招待リンクは使用済みか、有効期限が切れています。</p>
+          <p class="text-brand-ink-soft">招待は発行から 7 日で期限切れになります。お手数ですが、団体管理者に再送を依頼してください。</p>
+          <a href="/organization/login" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">
+            団体ログインへ
+          </a>
+        </div>
+      )
+    }
   </main>
 </Layout>

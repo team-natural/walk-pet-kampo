@@ -1,17 +1,41 @@
 ---
 // ADM-00 — PRD-04 §3-2
 // A separate screen from the Walker login (SCR-11): different table, different cookie, different
-// code path (DEV-02 §1-4). Issuing the session is blocked on GOV-01 D-021.
+// code path (DEV-02 §1-4).
 // Chrome is forced on: everything else under /organization/ is the console shell, but someone who
 // cannot sign in yet needs the public site's way back out.
-// TODO(ADM-00): post to the organization login endpoint once scoped lockout keys land (F-01-03).
 import Layout from "../../layouts/Layout.astro";
 import PageHeader from "$lib/components/page-header.astro";
+
+// One message for every credential failure — which of "no such address", "wrong password" and
+// "suspended" it was is not something this screen may reveal (DEV-02 §1-3).
+const ERRORS: Record<string, string> = {
+  credentials: "メールアドレスまたはパスワードが正しくありません。",
+  locked: "試行回数が上限を超えました。しばらく待ってからやり直してください。",
+};
+
+const error = ERRORS[Astro.url.searchParams.get("error") ?? ""];
+const status = Astro.url.searchParams.get("status");
 ---
 
 <Layout title="団体ログイン | 保護犬おさんぽマッチング" chrome={true}>
   <main id="main-content" class="mx-auto grid max-w-md gap-6 px-4 py-16">
     <PageHeader title="団体ログイン" lead="保護団体のスタッフの方はこちらからログインしてください。" />
+
+    {
+      error && (
+        <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+          {error}
+        </p>
+      )
+    }
+    {
+      status === "password_reset" && (
+        <p role="status" class="rounded-2xl border-2 border-brand-blossom/60 bg-brand-blossom/20 px-4 py-3 text-sm font-bold">
+          パスワードを変更しました。新しいパスワードでログインしてください。
+        </p>
+      )
+    }
 
     <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action="/api/v1/organization/auth/login">
       <label class="grid gap-1.5">

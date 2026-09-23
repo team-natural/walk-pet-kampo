@@ -9,6 +9,15 @@ export const E2E_WALKER = {
   name: "E2E Walker",
 };
 
+// The same password as the Walker above, on purpose: the lockout counter keys per account system
+// (GOV-01 D-021), and a shared credential is what would expose a counter that does not.
+export const E2E_ORGANIZATION_MEMBER = {
+  email: "e2e-org-staff@example.test",
+  password: "e2e-only-password",
+  name: "E2E 団体スタッフ",
+  organization: "E2E 保護団体",
+};
+
 // Resolved from this file, not the cwd: `playwright test --config apps/public/...` run from the
 // repo root would otherwise point wrangler at paths that do not exist.
 const appDir = path.join(import.meta.dirname, "../..");
@@ -31,10 +40,15 @@ export default function globalSetup() {
 
   runInAdmin("npx", ["wrangler", "d1", "migrations", "apply", "DB", "--local", ...persist]);
 
-  // Drop only this account, so a developer's own data survives a test run. Sessions go first:
-  // walker_sessions.walker_id has no ON DELETE CASCADE.
+  // Drop only these accounts, so a developer's own data survives a test run. Child rows go first:
+  // none of these foreign keys cascade.
   const email = E2E_WALKER.email.replaceAll("'", "''");
   runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", `DELETE FROM walker_sessions WHERE walker_id IN (SELECT id FROM walkers WHERE email = '${email}'); DELETE FROM walkers WHERE email = '${email}';`]);
 
+  const memberEmail = E2E_ORGANIZATION_MEMBER.email.replaceAll("'", "''");
+  const organizationName = E2E_ORGANIZATION_MEMBER.organization.replaceAll("'", "''");
+  runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`DELETE FROM organization_sessions WHERE organization_member_id IN (SELECT id FROM organization_members WHERE email = '${memberEmail}');`, `DELETE FROM organization_member_password_reset_tokens WHERE organization_member_id IN (SELECT id FROM organization_members WHERE email = '${memberEmail}');`, `DELETE FROM activity_log WHERE organization_id IN (SELECT id FROM organizations WHERE name = '${organizationName}');`, `DELETE FROM organization_members WHERE email = '${memberEmail}';`, `DELETE FROM organizations WHERE name = '${organizationName}';`].join(" ")]);
+
   runInAdmin("pnpm", ["seed", "--", "--table=walkers", `--email=${E2E_WALKER.email}`, `--password=${E2E_WALKER.password}`, `--name=${E2E_WALKER.name}`]);
+  runInAdmin("pnpm", ["seed", "--", "--table=organization_members", `--email=${E2E_ORGANIZATION_MEMBER.email}`, `--password=${E2E_ORGANIZATION_MEMBER.password}`, `--name=${E2E_ORGANIZATION_MEMBER.name}`, `--organization=${E2E_ORGANIZATION_MEMBER.organization}`, "--role=org_admin"]);
 }

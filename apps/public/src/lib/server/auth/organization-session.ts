@@ -1,11 +1,7 @@
 // OrganizationMember sessions. A third account system alongside Walker and AdminUser, with its
 // own table and cookie — none of the three share storage or a code path (DEV-02 §1-4).
-//
-// Read only. Issuing a session (login) is blocked on GOV-01 D-021: the lockout counter still
-// keys on the email alone, so a Walker and an OrganizationMember with the same address would
-// lock each other out.
 import type { AstroCookies } from "astro";
-import { isActiveSession } from "@app/server-kit/auth";
+import { isActiveSession, newSessionToken, sessionExpiresAt } from "@app/server-kit/auth";
 import { UnauthenticatedError } from "@app/server-kit/http";
 import { organizationMembers, organizationSessions, organizations } from "@app/schema";
 import type { DbClient } from "@app/schema/client";
@@ -24,21 +20,9 @@ export interface OrganizationSession {
   name: string;
 }
 
-// Lets the ADM screens render while login does not exist yet, so design work is not blocked on
-// it. `import.meta.env.DEV` is false in every deployed build, so this cannot reach production —
-// there, no cookie means no session and the page redirects.
-const DEV_SESSION: OrganizationSession = {
-  organizationMemberId: 1,
-  organizationId: 1,
-  organizationPublicId: "01HZZORGANIZATION0000000001",
-  organizationName: "きた保護犬ネットワーク",
-  role: "org_admin",
-  name: "北川 一郎",
-};
-
 export async function getOrganizationSession(cookies: AstroCookies, db: DbClient): Promise<OrganizationSession | null> {
   const token = cookies.get(ORGANIZATION_SESSION_COOKIE)?.value;
-  if (!token) return import.meta.env.DEV ? DEV_SESSION : null;
+  if (!token) return null;
 
   const [row] = await db
     .select({
@@ -71,4 +55,21 @@ export async function requireOrganizationSession(cookies: AstroCookies, db: DbCl
 // a 403: a page redirects where an API route would answer with a status (DEV-01 §5).
 export function isOrganizationAdmin(session: OrganizationSession): boolean {
   return session.role === "org_admin";
+}
+
+export async function createOrganizationSession(db: DbClient, organizationMemberId: number, ttlDays: number): Promise<{ token: string; expiresAt: string }> {
+  const expiresAt = sessionExpiresAt(ttlDays);
+  const token = newSessionToken();
+  await db.insert(organizationSessions).values({ organizationMemberId, sessionToken: token, expiresAt });
+  return { token, expiresAt };
+}
+
+export async function destroyOrganizationSession(db: DbClient, token: string): Promise<void> {
+  await db.delete(organizationSessions).where(eq(organizationSessions.sessionToken, token));
+}
+
+// Used after a password reset: the point of resetting is that someone else may hold the old
+// credential, so every session opened with it has to go, not just the current browser's.
+export async function destroyAllOrganizationSessions(db: DbClient, organizationMemberId: number): Promise<void> {
+  await db.delete(organizationSessions).where(eq(organizationSessions.organizationMemberId, organizationMemberId));
 }

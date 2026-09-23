@@ -68,7 +68,14 @@ function isCurrent(href: string) {
           {session.name}
           <span class="badge badge-quiet ml-2">{session.role === "org_admin" ? "管理者" : "スタッフ"}</span>
         </p>
-        <a href="/" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">公開サイトへ</a>
+        <div class="flex items-center gap-4">
+          <a href="/" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">公開サイトへ</a>
+          <!-- A form, not a link: logging out deletes the session row, and a GET that changes
+               state gets fired by every link prefetcher that walks this page. -->
+          <form method="post" action="/api/v1/organization/auth/logout">
+            <button type="submit" class="rounded font-bold text-brand-ink-soft underline decoration-2 underline-offset-4 hover:text-brand-ink">ログアウト</button>
+          </form>
+        </div>
       </header>
 
       <main id="main-content" class="grid content-start gap-6 p-4 sm:p-6">

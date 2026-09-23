@@ -64,6 +64,7 @@ into the template.
 | `pnpm db:generate` | Drizzle → `packages/schema/migrations/` |
 | `pnpm db:migrate` | Applies to the shared local D1 |
 | `pnpm --filter admin seed -- --table=admin_users --email=… --password=… --name=…` | `--table=walkers` for the public side. Values need `=`, not a space |
+| `pnpm --filter admin seed -- --table=organization_members --email=… --password=… --name=… --organization=…` | Creates the shelter if that name is new, and attaches the member to it. `--role=org_staff` for a non-admin. Without one of these there is no way into `/organization/*` locally |
 
 ## Container
 
