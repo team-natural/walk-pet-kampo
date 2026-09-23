@@ -17,6 +17,11 @@
     "SESSION_TTL_DAYS": "30",
     "AUTH_LOCKOUT_MAX_ATTEMPTS": "5",
     "AUTH_LOCKOUT_MINUTES": "15",
+    // Non-secret half of the mail config (DEV-10 §3-1); RESEND_API_KEY is a Workers Secret.
+    "MAIL_FROM_ADDRESS": "noreply@replace-with-domain.example",
+    "MAIL_FROM_NAME": "保護犬おさんぽマッチング",
+    "APP_NAME": "保護犬おさんぽマッチング",
+    "APP_URL": "https://replace-with-domain.example",
   },
 
   // Shared with apps/admin: create once, then copy the ids into both. They must match —
@@ -48,6 +53,10 @@
         "SESSION_TTL_DAYS": "30",
         "AUTH_LOCKOUT_MAX_ATTEMPTS": "5",
         "AUTH_LOCKOUT_MINUTES": "15",
+        "MAIL_FROM_ADDRESS": "noreply@replace-with-domain.example",
+        "MAIL_FROM_NAME": "保護犬おさんぽマッチング",
+        "APP_NAME": "保護犬おさんぽマッチング",
+        "APP_URL": "https://staging.replace-with-domain.example",
       },
       "d1_databases": [
         {
@@ -64,6 +73,10 @@
         "SESSION_TTL_DAYS": "30",
         "AUTH_LOCKOUT_MAX_ATTEMPTS": "5",
         "AUTH_LOCKOUT_MINUTES": "15",
+        "MAIL_FROM_ADDRESS": "noreply@replace-with-domain.example",
+        "MAIL_FROM_NAME": "保護犬おさんぽマッチング",
+        "APP_NAME": "保護犬おさんぽマッチング",
+        "APP_URL": "https://replace-with-domain.example",
       },
       "d1_databases": [
         {

@@ -332,9 +332,9 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 | POST | `/api/v1/me/favorites` | お気に入り登録（`favoritable_type`/`favoritable_id`） |
 | DELETE | `/api/v1/me/favorites/{id}` | お気に入り解除 |
 | GET | `/api/v1/me/notification-settings` | 通知設定確認（F-02-05） |
-| PATCH | `/api/v1/me/notification-settings` | 通知種別ごとの ON/OFF（F-13-03） |
+| POST | `/api/v1/me/notification-settings` | 通知種別ごとの ON/OFF（F-13-03）。**PATCH ではない** — §5-16 参照 |
 | GET | `/api/v1/me/notifications` | アプリ内通知一覧（F-13-01） |
-| PATCH | `/api/v1/me/notifications/{id}/read` | 既読化 |
+| POST | `/api/v1/me/notifications/{id}/read` | 既読化。**PATCH ではない** — §5-16 参照 |
 | GET | `/api/v1/me/walk-records` | お散歩記録一覧（F-10-02） |
 | GET | `/api/v1/me/walk-records/{id}` | お散歩記録詳細 |
 | GET | `/api/v1/me/support-summary` | 累計参加回数・累計団体還元額（F-10-03） |
@@ -385,7 +385,7 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 | POST | `/api/v1/organization/adoption-inquiries/{id}/transition` | 対応状況の更新（body: `{ to }`。DEV-09 §2-11） | — |
 | GET | `/api/v1/organization/notifications` | 通知一覧（F-13-01） | — |
 | GET | `/api/v1/organization/notification-settings` | 通知設定確認 | — |
-| PATCH | `/api/v1/organization/notification-settings` | 通知種別ごとの ON/OFF | — |
+| POST | `/api/v1/organization/notification-settings` | 通知種別ごとの ON/OFF。**PATCH ではない** — §5-16 参照 | — |
 
 ### 5-14. `apps/public` — お問い合わせ（公開、FG-14）
 
@@ -410,6 +410,19 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 | `updateWalkSlotByPlatform` | `{ publicId, patch, actorPublicId }` | お散歩募集の横断編集・中止（SYS-12） |
 
 `actorPublicId` は `apps/admin` が `requireSession` で確定させた AdminUser の `public_id`。`apps/public` 側は値の真正性を検証せず、バインディング経由でしか呼ばれないことを信頼の根拠にする（§2-4）。
+
+---
+
+### 5-16. フォームから叩くエンドポイントは POST（PATCH / PUT / DELETE を使わない）
+
+`apps/public` の画面はプレーン Tailwind のサーバーレンダリングで、アイランドを持たないものが多い（DEV-06 §5）。**HTML フォームは GET と POST しか送れない**ため、フォームが直接送信先にするエンドポイントは POST で定義する。PATCH に揃えると、その画面だけのために JavaScript を足すことになり、DEV-06 §7（クライアント JS は UI 状態に限る）と噛み合わない。
+
+| 対象 | メソッド |
+| --- | --- |
+| フォームが直接 `action` に指定するエンドポイント | **POST**（例: `/api/v1/me/notification-settings`、`/api/v1/me/notifications/{id}/read`、`/api/v1/organization/auth/login`） |
+| アイランドや外部クライアントが fetch で呼ぶエンドポイント | §4 の標準どおり（GET / POST / PATCH / DELETE） |
+
+成功時は 303 でリダイレクトし、結果は遷移先のクエリ（`?status=` / `?error=`）で伝える。POST のレスポンスを直接描画すると、リロードで再送信になる。
 
 ---
 

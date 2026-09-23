@@ -41,13 +41,14 @@ export default function globalSetup() {
   runInAdmin("npx", ["wrangler", "d1", "migrations", "apply", "DB", "--local", ...persist]);
 
   // Drop only these accounts, so a developer's own data survives a test run. Child rows go first:
-  // none of these foreign keys cascade.
+  // none of these foreign keys cascade — and notifications / notification_settings have none at
+  // all, so a stale row would outlive the account and land in the next run's inbox.
   const email = E2E_WALKER.email.replaceAll("'", "''");
   runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", `DELETE FROM walker_sessions WHERE walker_id IN (SELECT id FROM walkers WHERE email = '${email}'); DELETE FROM walkers WHERE email = '${email}';`]);
 
   const memberEmail = E2E_ORGANIZATION_MEMBER.email.replaceAll("'", "''");
   const organizationName = E2E_ORGANIZATION_MEMBER.organization.replaceAll("'", "''");
-  runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`DELETE FROM organization_sessions WHERE organization_member_id IN (SELECT id FROM organization_members WHERE email = '${memberEmail}');`, `DELETE FROM organization_member_password_reset_tokens WHERE organization_member_id IN (SELECT id FROM organization_members WHERE email = '${memberEmail}');`, `DELETE FROM activity_log WHERE organization_id IN (SELECT id FROM organizations WHERE name = '${organizationName}');`, `DELETE FROM organization_members WHERE email = '${memberEmail}';`, `DELETE FROM organizations WHERE name = '${organizationName}';`].join(" ")]);
+  runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`DELETE FROM organization_sessions WHERE organization_member_id IN (SELECT id FROM organization_members WHERE email = '${memberEmail}');`, `DELETE FROM organization_member_password_reset_tokens WHERE organization_member_id IN (SELECT id FROM organization_members WHERE email = '${memberEmail}');`, `DELETE FROM activity_log WHERE organization_id IN (SELECT id FROM organizations WHERE name = '${organizationName}');`, `DELETE FROM notifications WHERE recipient_type = 'organization_member' AND recipient_id IN (SELECT id FROM organization_members WHERE email = '${memberEmail}');`, `DELETE FROM notification_settings WHERE subject_type = 'organization_member' AND subject_id IN (SELECT id FROM organization_members WHERE email = '${memberEmail}');`, `DELETE FROM organization_members WHERE email = '${memberEmail}';`, `DELETE FROM organizations WHERE name = '${organizationName}';`].join(" ")]);
 
   runInAdmin("pnpm", ["seed", "--", "--table=walkers", `--email=${E2E_WALKER.email}`, `--password=${E2E_WALKER.password}`, `--name=${E2E_WALKER.name}`]);
   runInAdmin("pnpm", ["seed", "--", "--table=organization_members", `--email=${E2E_ORGANIZATION_MEMBER.email}`, `--password=${E2E_ORGANIZATION_MEMBER.password}`, `--name=${E2E_ORGANIZATION_MEMBER.name}`, `--organization=${E2E_ORGANIZATION_MEMBER.organization}`, "--role=org_admin"]);

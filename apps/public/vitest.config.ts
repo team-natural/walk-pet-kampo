@@ -20,6 +20,12 @@ export default defineConfig(async () => ({
           SESSION_TTL_DAYS: "30",
           AUTH_LOCKOUT_MAX_ATTEMPTS: "5",
           AUTH_LOCKOUT_MINUTES: "15",
+          MAIL_FROM_ADDRESS: "noreply@example.test",
+          MAIL_FROM_NAME: "テスト送信元",
+          APP_NAME: "テストサービス",
+          APP_URL: "https://example.test",
+          // No RESEND_API_KEY on purpose: sendMail() then logs instead of calling Resend, which
+          // is what DEV-10 §10 asks of tests — never hit the real API.
         },
       },
     }),

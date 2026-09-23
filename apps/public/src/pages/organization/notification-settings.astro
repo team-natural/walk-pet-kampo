@@ -2,14 +2,13 @@
 // ADM-27 — PRD-04 §3-2 (guarded)
 // notification_settings is shared with Walker (DEV-07 §5-18), so the Service scopes the rows by
 // account system — this screen never filters them itself.
-// TODO(ADM-27): replace mockNotificationSettings with getNotificationSettings() and post
-// updateNotificationSettings() — F-13-03.
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../layouts/OrganizationLayout.astro";
 import FlashMessage from "$lib/components/organization/flash-message.astro";
 import FormSection from "$lib/components/organization/form-section.astro";
+import { NOTIFICATION_TYPES, isNotificationType } from "$lib/notification-types";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
-import { mockNotificationSettings } from "$lib/mocks";
+import { getNotificationSettings } from "$lib/server/services/notifications";
 import type { NotificationSettingView } from "$lib/view-models/notification";
 import { createDb } from "@app/schema/client";
 
@@ -17,7 +16,7 @@ const db = createDb(env.DB);
 const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
-const settings: NotificationSettingView[] = mockNotificationSettings;
+const settings: NotificationSettingView[] = await getNotificationSettings(db, { type: "organization_member", id: session.organizationMemberId });
 ---
 
 <OrganizationLayout title="通知設定 | 団体ページ" session={session}>
@@ -31,7 +30,8 @@ const settings: NotificationSettingView[] = mockNotificationSettings;
   <form class="grid max-w-2xl gap-4" method="post" action="/api/v1/organization/notification-settings">
     {
       settings.map((setting) => (
-        <FormSection legend={setting.type}>
+        <FormSection legend={isNotificationType(setting.type) ? NOTIFICATION_TYPES[setting.type].label : setting.type}>
+          {isNotificationType(setting.type) && <p class="text-brand-ink-soft">{NOTIFICATION_TYPES[setting.type].description}</p>}
           <label class="flex items-center gap-3">
             <input type="checkbox" name={`${setting.type}.email`} checked={setting.emailEnabled} class="size-5 accent-brand-blossom-deep" />
             <span>メールで受け取る</span>

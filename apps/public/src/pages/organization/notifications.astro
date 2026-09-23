@@ -1,11 +1,11 @@
 ---
 // ADM-22 — PRD-04 §3-2 (guarded)
-// TODO(ADM-22): replace mockNotifications with listOrganizationNotifications() — F-13-01.
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../layouts/OrganizationLayout.astro";
 import EmptyState from "$lib/components/empty-state.astro";
+import { notificationLabel } from "$lib/notification-types";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
-import { mockNotifications } from "$lib/mocks";
+import { listNotifications } from "$lib/server/services/notifications";
 import type { NotificationView } from "$lib/view-models/notification";
 import { createDb } from "@app/schema/client";
 
@@ -13,7 +13,9 @@ const db = createDb(env.DB);
 const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
-const notifications: NotificationView[] = mockNotifications;
+// Scoped to the member, not the shelter: two staff accounts on one organization each have their
+// own inbox (DEV-07 §5-19 keys on recipient_id).
+const { items: notifications }: { items: NotificationView[] } = await listNotifications(db, { type: "organization_member", id: session.organizationMemberId });
 
 const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
@@ -29,7 +31,8 @@ const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "nu
       <ul class="grid max-w-3xl gap-3">
         {notifications.map((notification) => (
           <li class={`card p-5 text-sm ${notification.readAt ? "" : "border-2 border-brand-blossom/50"}`}>
-            <p class={`text-pretty ${notification.readAt ? "text-brand-ink-soft" : "font-bold"}`}>{notification.body}</p>
+            <p class="font-bold text-brand-ink-soft">{notificationLabel(notification.type)}</p>
+            <p class={`mt-1 text-pretty ${notification.readAt ? "text-brand-ink-soft" : "font-bold"}`}>{notification.body}</p>
             <p class="mt-2 text-brand-ink-soft tabular-nums">{dateFormat.format(new Date(notification.createdAt))}</p>
           </li>
         ))}

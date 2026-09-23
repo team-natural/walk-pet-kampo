@@ -8,7 +8,6 @@ import type { AdoptionInquiryDetail, AdoptionInquirySummary } from "$lib/view-mo
 import type { OrganizationDashboardView } from "$lib/view-models/dashboard";
 import type { DogDetail, DogSummary, OwnDogDetail } from "$lib/view-models/dog";
 import type { IncidentDetail, IncidentSummary } from "$lib/view-models/incident";
-import type { NotificationSettingView, NotificationView } from "$lib/view-models/notification";
 import type { OrganizationMemberView } from "$lib/view-models/organization-member";
 import { formatYen } from "$lib/pricing";
 import type { OrganizationApplicationStatus, OrganizationDetail, OrganizationSummary } from "$lib/view-models/organization";
@@ -308,21 +307,6 @@ export const mockPayoutDetail: PayoutDetail = {
 };
 
 export const mockPayouts: PayoutSummary[] = [mockPayoutSummary];
-
-export const mockNotifications: NotificationView[] = [
-  {
-    id: "01HZZNOTIFICATION00000001",
-    body: "お散歩の 3 日前になりました。持ち物をご確認ください。",
-    type: "walk_reminder",
-    readAt: null,
-    createdAt: NOW,
-  },
-];
-
-export const mockNotificationSettings: NotificationSettingView[] = [
-  { type: "walk_reminder", emailEnabled: true, inAppEnabled: true },
-  { type: "adoption_inquiry_update", emailEnabled: true, inAppEnabled: true },
-];
 
 export const mockOrganizationMembers: OrganizationMemberView[] = [
   {

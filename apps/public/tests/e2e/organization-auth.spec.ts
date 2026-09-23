@@ -84,6 +84,25 @@ test.describe("password reset (ADM-24)", () => {
   });
 });
 
+test.describe("notification settings (ADM-27)", () => {
+  test("a saved preference survives the round trip", async ({ page }) => {
+    await page.goto("/organization/login");
+    await login(page, E2E_ORGANIZATION_MEMBER.email, E2E_ORGANIZATION_MEMBER.password);
+    await page.waitForURL("**/organization");
+
+    await page.goto("/organization/notification-settings");
+    const email = page.getByRole("checkbox", { name: "メールで受け取る" }).first();
+    await expect(email).toBeChecked(); // Nothing saved yet, so the column default shows through.
+
+    await email.uncheck();
+    await page.getByRole("button", { name: "保存する" }).click();
+    await page.waitForURL(/status=saved/);
+
+    await page.goto("/organization/notification-settings");
+    await expect(page.getByRole("checkbox", { name: "メールで受け取る" }).first()).not.toBeChecked();
+  });
+});
+
 test.describe("invitation acceptance (ADM-26)", () => {
   test("a dead link says so instead of asking for a password", async ({ page }) => {
     await page.goto("/organization/invitations/not-a-real-token");

@@ -110,7 +110,7 @@ flowchart TD
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
 | P1 | `feature/org-session` | ADM-00/24/25/26。OrganizationMember のセッション発行・ログアウト・パスワード再設定・招待受諾。**D-030 の dev 限定仮セッションを撤去**し、`organization-session.ts` を読み取り専用から発行可能にする | — | 再設定リンクの**送信**は P2（Resend）待ち。トークン発行と消費は本フェーズで完結 | 進行中 |
-| P2 | `feature/notifications` | FG-13（F-13-01/02）。Resend 連携（DEV-10 §3）+ `notifications` / `notification_settings`。SCR-32/48、ADM-22/27 | — | なし | 未着手 |
+| P2 | `feature/notifications` | FG-13（F-13-01/02/03）。Resend 連携（DEV-10 §3）+ `notifications` / `notification_settings`。SCR-32/48、ADM-22/27。通知種別のカタログは `apps/public/src/lib/notification-types.ts`（DEV-07 §5-18 が型を列挙していないため） | — | 本番送信は TBD-38（ドメイン認証）待ち。キー未設定時は送信をスキップしてログに残す | 進行中 |
 | P3 | `feature/uploads` | `apps/public` 側の R2 サービス（DEV-10 §4）。MIME / 拡張子 / サイズ / 実バイトの 4 重検証、ULID リネーム。`vitest.config.ts` に `r2Buckets` 追加 | — | なし | 未着手 |
 
 > P2 は以降のほぼ全フェーズが呼ぶ。通知種別が OFF のとき `notifications` への INSERT とメール

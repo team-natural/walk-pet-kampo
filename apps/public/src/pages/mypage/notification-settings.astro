@@ -1,12 +1,11 @@
 ---
 // SCR-48 — PRD-04 §3-1 (guarded)
-// TODO(SCR-48): replace mockNotificationSettings with getNotificationSettings() and post
-// updateNotificationSettings() — F-02-05, F-13-03.
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
 import PageHeader from "$lib/components/page-header.astro";
+import { NOTIFICATION_TYPES, isNotificationType } from "$lib/notification-types";
 import { getSession } from "$lib/server/auth/session";
-import { mockNotificationSettings } from "$lib/mocks";
+import { getNotificationSettings } from "$lib/server/services/notifications";
 import type { NotificationSettingView } from "$lib/view-models/notification";
 import { createDb } from "@app/schema/client";
 
@@ -14,18 +13,30 @@ const db = createDb(env.DB);
 const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/auth/login", 302);
 
-const settings: NotificationSettingView[] = mockNotificationSettings;
+// Every optional type for this audience, configured or not — a preference never saved still
+// renders, with the default the column carries.
+const settings: NotificationSettingView[] = await getNotificationSettings(db, { type: "walker", id: session.walkerId });
+const saved = Astro.url.searchParams.get("status") === "saved";
 ---
 
 <Layout title="通知設定 | 保護犬おさんぽマッチング">
   <main id="main-content" class="mx-auto grid max-w-2xl gap-6 px-4 py-12">
     <PageHeader title="通知設定" lead="受け取りたい通知の種類を選べます。予約の確定など、取引に関わる連絡は常にお送りします。" backHref="/mypage" backLabel="マイページ" />
 
+    {
+      saved && (
+        <p role="status" class="rounded-2xl border-2 border-brand-blossom/60 bg-brand-blossom/20 px-4 py-3 text-sm font-bold">
+          通知設定を保存しました。
+        </p>
+      )
+    }
+
     <form class="grid gap-4" method="post" action="/api/v1/me/notification-settings">
       {
         settings.map((setting) => (
           <fieldset class="card grid gap-3 p-6">
-            <legend class="px-1 font-bold">{setting.type}</legend>
+            <legend class="px-1 font-bold">{isNotificationType(setting.type) ? NOTIFICATION_TYPES[setting.type].label : setting.type}</legend>
+            {isNotificationType(setting.type) && <p class="text-sm text-brand-ink-soft">{NOTIFICATION_TYPES[setting.type].description}</p>}
             <label class="flex items-center gap-3 text-sm">
               <input type="checkbox" name={`${setting.type}.email`} checked={setting.emailEnabled} class="size-5 accent-brand-blossom-deep" />
               <span>メールで受け取る</span>

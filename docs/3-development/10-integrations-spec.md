@@ -640,9 +640,14 @@ STRIPE_CONNECT_CLIENT_ID=
 STRIPE_CONNECT_WEBHOOK_SECRET=
 
 # Resend（Mail — apps/public・apps/admin それぞれ個別設定）
+# RESEND_API_KEY のみ Secret。残りは非機密のため wrangler.jsonc の vars に置く（DEV-05 §10）。
+# 未設定時はメール送信をスキップしてログに残す（例外にしない — ctx.waitUntil() の中では握り潰される）
 RESEND_API_KEY=
 MAIL_FROM_ADDRESS=
 MAIL_FROM_NAME=
+# メール本文で使う（§3-3 の Subject 接頭辞と、本文内リンクの絶対 URL 化）。vars 側に置く
+APP_NAME=
+APP_URL=
 # 運営（admin）向けアラートの宛先（Incident P0/P1、Payout Transfer 失敗等 — apps/admin）
 MAIL_ADMIN_ALERTS=
 
