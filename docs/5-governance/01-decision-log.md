@@ -468,6 +468,20 @@ related-docs:
 
 ---
 
+### D-035：アップロード検証と非公開ファイルの署名を `@app/server-kit/files` に置く
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-23 |
+| カテゴリ | 設計 |
+| 決定内容 | アップロードの 4 重検証（MIME / 拡張子 / サイズ / 実バイト — DEV-02 §4）と、非公開 R2 オブジェクト向けの期限付き HMAC 署名（DEV-10 §4-3、D-024）を `packages/server-kit/src/files/`（`@app/server-kit/files`）に置き、`apps/public` と `apps/admin` の両方がここから import する。アプリ側に同等の実装を持たない |
+| 背景 | D-015 が定めた server-kit の範囲（パスワード・ロックアウト・セッション・HTTP エンベロープ）の拡張にあたるため記録する。判断基準は D-015 と同じ「D1 にもセッションにも触れない純粋な規則か」であり、両者とも該当する。**コピーで済ませない理由**は、2 つのアプリが「何を受け付けるか」で食い違うこと自体が事故だから — `apps/admin` が通したファイルを `apps/public` が配信できない、あるいは一方だけがマジックバイト検査を緩めた状態に気付けない。署名についても、`apps/public` が発行したリンクを `apps/admin`（SYS-05 の審査画面）が検証するため、鍵の使い方が 1 箇所である必要がある。実装に伴い `apps/admin` の `media.ts` にあった検証テーブルは削除し、共有実装の呼び出しに置き換えた |
+| 影響範囲 | `packages/server-kit/src/files/`、同 `package.json` の exports、`apps/admin/src/lib/server/services/media.ts`、`apps/public/src/lib/server/services/uploads.ts`、DEV-01 §1、DEV-05 §1、DEV-10 §11（`FILE_SIGNING_KEY` の追加） |
+| 決定者 | Tech Lead |
+| 関連 TBD | — |
+
+---
+
 ## 3. 記録すべき意思決定の種別
 
 - 顧客セグメントの変更

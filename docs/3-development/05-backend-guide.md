@@ -97,8 +97,11 @@ packages/schema/                     # 共有パッケージ @app/schema（apps/
 packages/server-kit/                 # 共有パッケージ @app/server-kit（両アプリのサーバー基盤）
 ├── src/auth/                        # PBKDF2 ハッシュ・ロックアウトカウンタ・セッショントークン/TTL/期限判定
 │                                    #   （`@app/server-kit/auth`。DEV-02 §1-4・§7）
-└── src/http/                        # AppError 系・レスポンス整形（jsonItem / jsonCursorCollection /
-                                     #   toErrorResponse）・カーソルページネーション（`@app/server-kit/http`）
+├── src/http/                        # AppError 系・レスポンス整形（jsonItem / jsonCursorCollection /
+│                                    #   toErrorResponse）・カーソルページネーション（`@app/server-kit/http`）
+└── src/files/                       # アップロードの 4 重検証（MIME/拡張子/サイズ/実バイト）と非公開
+                                     #   オブジェクトの期限付き署名（`@app/server-kit/files`。DEV-02 §4、
+                                     #   DEV-10 §4-3、GOV-01 D-024・D-035）
 
 packages/content/                    # 開発者が git で更新する Markdown（@app/content。DEV-06 §1-1）
 

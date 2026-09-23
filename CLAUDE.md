@@ -108,6 +108,11 @@ automatic fallback and both apps would otherwise fight over 9229.
 `apps/admin` delays dev startup by 2.5s. Both apps recovering the shared WAL at once kills one of
 them; letting `apps/public` go first avoids it.
 
+**A dev server that dies leaves its `workerd` behind.** The orphan keeps its memory, and enough of
+them starve the next cold build until Playwright reports `webServer was not able to start. Exit
+code: 137` — a SIGKILL from the OOM killer, not a test failure. `pgrep -af "workerd serve"` after
+any crashed run, and `pkill -9 -f "workerd serve"` when no server is meant to be up.
+
 Builds need `NODE_OPTIONS=--dns-result-order=ipv4first` — Node resolves `localhost` to `::1` while
 the prerender fetch listens on `127.0.0.1`. It is set both in `devcontainer.json` and in each
 app's `build` script, so CI works too.

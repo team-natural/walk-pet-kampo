@@ -111,7 +111,7 @@ flowchart TD
 | --- | --- | --- | --- | --- | --- |
 | P1 | `feature/org-session` | ADM-00/24/25/26。OrganizationMember のセッション発行・ログアウト・パスワード再設定・招待受諾。**D-030 の dev 限定仮セッションを撤去**し、`organization-session.ts` を読み取り専用から発行可能にする | — | 再設定リンクの**送信**は P2（Resend）待ち。トークン発行と消費は本フェーズで完結 | 進行中 |
 | P2 | `feature/notifications` | FG-13（F-13-01/02/03）。Resend 連携（DEV-10 §3）+ `notifications` / `notification_settings`。SCR-32/48、ADM-22/27。通知種別のカタログは `apps/public/src/lib/notification-types.ts`（DEV-07 §5-18 が型を列挙していないため） | — | 本番送信は TBD-38（ドメイン認証）待ち。キー未設定時は送信をスキップしてログに残す | 進行中 |
-| P3 | `feature/uploads` | `apps/public` 側の R2 サービス（DEV-10 §4）。MIME / 拡張子 / サイズ / 実バイトの 4 重検証、ULID リネーム。`vitest.config.ts` に `r2Buckets` 追加 | — | なし | 未着手 |
+| P3 | `feature/uploads` | `apps/public` 側の R2 サービス（DEV-10 §4）。4 重検証と署名は `@app/server-kit/files` に集約（GOV-01 D-035）、ULID リネーム、バケット構造（§4-2）、非公開ファイルの配信ルート（§4-3、D-024）。`vitest.config.ts` に `r2Buckets` 追加 | — | 申請書類のアップロードは P6（申請トークン経由のため） | 進行中 |
 
 > P2 は以降のほぼ全フェーズが呼ぶ。通知種別が OFF のとき `notifications` への INSERT とメール
 > 送信の**両方**をスキップすることをテストで固定する（DEV-05 §4-1）。
@@ -120,7 +120,7 @@ flowchart TD
 
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
-| P4 | `feature/walker-registration` | FG-01。SCR-08/09/10/13/14。WalkerProfile `provisional → pending_verification → active`（DEV-09 §2-4）、規約同意の版番号記録 | P2 | **TBD-61（SMS 送信手段が未定義）**。TBD-42（規約改定時の再同意） | 未着手 |
+| P4 | `feature/walker-registration` | FG-01。SCR-08/09/10/13/14。WalkerProfile `provisional → pending_verification → active`（DEV-09 §2-4）、規約同意の版番号記録。メール確認・再設定トークンは P1 の団体側（`organization-auth.ts`）と同じ形で Walker 用に実装する（コードは系統ごとに分ける — DEV-02 §1-4） | P2 | **TBD-61（SMS 送信手段が未定義）**、**TBD-62（単発トークンの方式）**。TBD-42（規約改定時の再同意） | 未着手 |
 | P5 | `feature/walker-profile` | FG-02。SCR-21/22/23/29/33。緊急連絡先、お気に入り、退会（`withdrawn`） | P4 | なし | 未着手 |
 
 > **TBD-61 は P4 の着手前に解決が必要。** `pending_verification → active` の条件が「メール確認 +
@@ -131,7 +131,7 @@ flowchart TD
 
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
-| P6 | `feature/org-application` | FG-03。SCR-15/16/51 + SYS-04/05。Organization の審査遷移 8 状態（DEV-09 §2-1）、申請書類のアップロード、審査結果通知。審査系の書き込みは `apps/admin` から D1 直接（DEV-05 §1 の例外パターン） | P1,P2,P3 | TBD-24/25/28（審査基準） | 未着手 |
+| P6 | `feature/org-application` | FG-03。SCR-15/16/51 + SYS-04/05。Organization の審査遷移 8 状態（DEV-09 §2-1）、申請書類のアップロード、審査結果通知。審査系の書き込みは `apps/admin` から D1 直接（DEV-05 §1 の例外パターン）。**P3 からの持ち越し 3 点**: ①申請書類のアップロード経路（申請者はセッションを持たないため `organization_application_tokens` で認可する。`UPLOAD_KINDS.applicationDocument` は定義済みで、現行の `/api/v1/uploads` は明示的に拒否している）②`apps/admin` 側の非公開ファイル配信ルート（SYS-05 の審査画面が書類を開くため。`apps/public` の `/api/v1/files/[...key]` と同じ D-024 の順序で実装する）③署名リンクの発行側（`signObjectPath` の呼び出し。現状は検証側だけが存在する） | P1,P2,P3 | TBD-24/25/28（審査基準）、TBD-62（単発トークンの方式 — 申請トークンが該当） | 未着手 |
 | P7 | `feature/org-profile-staff` | FG-04。ADM-02/03/04/23 + SYS-06/07/08。Invitation（3 状態）、OrganizationMember（3 状態）、団体退会申請、**住所のジオコーディング**（DEV-10 §9） | P6 | TBD-40（Google Maps API キー） | 未着手 |
 
 > **P6 が「団体が存在できる」分岐点**で、Stage 3 以降の全フェーズの前提になる。P7 で初めて
@@ -162,7 +162,7 @@ flowchart TD
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
 | P15 | `feature/walk-records` | FG-10。ADM-13/14 + SCR-26/27/28 | P12 | なし | 未着手 |
-| P16 | `feature/incidents` | FG-12。ADM-17/18/19 + SYS-19/20。Incident 5 状態（DEV-09 §2-11）、P1 重大度の運営への即時メール（F-12-02） | P15 | TBD-17/18/20（保険・責任分担。**画面文言のみ**の依存でフロー自体は進められる） | 未着手 |
+| P16 | `feature/incidents` | FG-12。ADM-17/18/19 + SYS-19/20。Incident 5 状態（DEV-09 §2-11）、P1 重大度の運営への即時メール（F-12-02）。添付は非公開（`UPLOAD_KINDS.incidentAttachment`）で、P3 の `/api/v1/files/[...key]` 経由で開く | P15 | TBD-17/18/20（保険・責任分担。**画面文言のみ**の依存でフロー自体は進められる） | 未着手 |
 | P17 | `feature/adoption-inquiries` | FG-11。SCR-49/50/30/31 + ADM-20/21 + SYS-21/22。AdoptionInquiry 7 状態（DEV-09 §2-12） | P8 | TBD-30〜34 | 未着手 |
 | P18 | `feature/payouts` | FG-09。Cron Triggers の月次集計 + admin の確定操作 + Stripe Connect Transfer + ADM-15/16 + SYS-17/18。集計・確定は `apps/admin`、参照専用クエリのみ `apps/public`（DEV-05 §7） | P13 | **TBD-29**（振込サイクル） | 未着手 |
 | P19 | `feature/admin-platform` | FG-15 残り。SYS-02/03（WalkerProfile の `restricted` / `suspended`）、SYS-25 管理操作履歴、SYS-01 ダッシュボードの実データ化 | P14 | TBD-13（利用制限の基準） | 未着手 |

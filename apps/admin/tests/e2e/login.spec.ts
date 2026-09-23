@@ -5,7 +5,8 @@ import { E2E_ADMIN } from "./global-setup";
 // signal — and the only check that catches a page missing its client:* directive.
 async function login(page: Page, email: string, password: string) {
   const submit = page.getByRole("button", { name: "ログイン" });
-  await expect(submit).toBeEnabled();
+  // See edit-forms.spec.ts: the first island of a run pays the dev server's cold build.
+  await expect(submit).toBeEnabled({ timeout: 60_000 });
   await page.getByLabel("メールアドレス").fill(email);
   await page.getByLabel("パスワード").fill(password);
   await submit.click();

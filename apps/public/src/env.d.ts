@@ -5,5 +5,7 @@
 declare namespace Cloudflare {
   interface Env {
     RESEND_API_KEY?: string;
+    /** HMAC key for time-limited links to private R2 objects (GOV-01 D-024). */
+    FILE_SIGNING_KEY?: string;
   }
 }

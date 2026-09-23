@@ -8,7 +8,10 @@ const DOG_URL = "/dogs/01HZZDOG00000000000000001";
 async function signIn(page: Page) {
   await page.goto("/");
   const submit = page.getByRole("button", { name: "ログイン" });
-  await expect(submit).toBeEnabled();
+  // Longer than the default: this is the first island the dev server compiles in a run, and on a
+  // loaded machine that cold build takes more than the 5s an assertion waits by default. The
+  // check itself is still the hydration signal — it must not be dropped, only given room.
+  await expect(submit).toBeEnabled({ timeout: 60_000 });
   await page.getByLabel("メールアドレス").fill(E2E_ADMIN.email);
   await page.getByLabel("パスワード").fill(E2E_ADMIN.password);
   await submit.click();
@@ -17,9 +20,10 @@ async function signIn(page: Page) {
 
 async function openEditSheet(page: Page, url: string) {
   await page.goto(url);
-  // edit-sheet.svelte keeps the trigger disabled until onMount, so this is the hydration signal.
+  // edit-sheet.svelte keeps the trigger disabled until onMount, so this is the hydration signal
+  // (same cold-build allowance as signIn above).
   const trigger = page.getByRole("button", { name: "編集" });
-  await expect(trigger).toBeEnabled();
+  await expect(trigger).toBeEnabled({ timeout: 60_000 });
   await trigger.click();
   await expect(page.getByRole("dialog")).toBeVisible();
 }

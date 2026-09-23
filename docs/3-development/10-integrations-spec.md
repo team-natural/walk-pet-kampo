@@ -387,6 +387,8 @@ await env.BUCKET.delete(key);
 | パブリック（保護犬・団体ロゴ・お散歩記録写真・サイトロゴ）| 公開 URL |
 | プライベート（団体登録の提出書類・本人確認書類、Incident 添付）| 署名付き URL（15 分有効）、運営スタッフ（admin）または該当団体の org_staff 以上に限定 |
 
+> **実装状況**（DEV-11 P3 時点）: 検証側は実装済み（`apps/public/src/pages/api/v1/files/[...key].ts` が セッション認可 → 署名検証 → `env.BUCKET.get()` の順で処理し、鍵は `FILE_SIGNING_KEY`）。**発行側（`signObjectPath()` の呼び出し）と `apps/admin` 側の配信ルートは未実装**で、最初の利用者である P6（SYS-05 の審査画面が申請書類を開く）で追加する。
+
 > **署名付き URL は Astro API Route 方式で発行する**（`Decided` — GOV-01 D-024）。API Route が ① セッションによる認可チェック（admin または当該団体の org_staff 以上）→ ② 有効期限付き HMAC トークンの検証 → ③ `env.BUCKET.get()` の順で処理する。R2 の S3 互換 API による presigned URL は採用しない — 別途 R2 アクセスキーを Secret として持つ必要があり、かつ発行後の URL は capability そのものなのでテナント依存の認可を表現できず、転送されれば誰でも引ける。データ出力ファイルの 72 時間 URL（DEV-05 §11）も同方式。
 
 ### 4-4. アップロードフロー
@@ -653,6 +655,9 @@ MAIL_ADMIN_ALERTS=
 
 # ファイルストレージ（Cloudflare R2、DEV-01 §1）
 # 通常の読み書きは env.BUCKET バインディング経由のため環境変数は不要（wrangler.jsonc の r2_buckets で設定）
+# 非公開オブジェクトの期限付きリンクに使う HMAC 鍵（§4-3、GOV-01 D-024）。apps/public・apps/admin の
+# 両方に同一値を置く — 一方が署名したリンクを他方が検証するため。ローテーションで既存リンクは全て無効になる
+FILE_SIGNING_KEY=
 # Presigned URL 発行が必要な場合のみ、R2 API トークン（S3 互換）を追加
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=

@@ -15,6 +15,8 @@ export default defineConfig(async () => ({
         compatibilityFlags: ["nodejs_compat"],
         d1Databases: ["DB"],
         kvNamespaces: ["KV"],
+        // Uploads land in R2, so the tests need the emulated bucket (DEV-06 §12).
+        r2Buckets: ["BUCKET"],
         bindings: {
           TEST_MIGRATIONS: existsSync(migrationsPath) ? await readD1Migrations(migrationsPath) : [],
           SESSION_TTL_DAYS: "30",
@@ -24,6 +26,7 @@ export default defineConfig(async () => ({
           MAIL_FROM_NAME: "テスト送信元",
           APP_NAME: "テストサービス",
           APP_URL: "https://example.test",
+          FILE_SIGNING_KEY: "test-only-file-signing-key",
           // No RESEND_API_KEY on purpose: sendMail() then logs instead of calling Resend, which
           // is what DEV-10 §10 asks of tests — never hit the real API.
         },

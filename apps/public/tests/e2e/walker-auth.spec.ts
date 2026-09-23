@@ -5,7 +5,9 @@ import { E2E_WALKER } from "./global-setup";
 // signal — and the only check that catches a page missing its client:* directive.
 async function login(page: Page, email: string, password: string) {
   const submit = page.getByRole("button", { name: "ログイン", exact: true });
-  await expect(submit).toBeEnabled();
+  // Generous on purpose: the first island of a run pays the dev server's cold build, which on a
+  // loaded machine outlasts the 5s an assertion waits by default.
+  await expect(submit).toBeEnabled({ timeout: 60_000 });
   await page.getByLabel("メールアドレス").fill(email);
   await page.getByLabel("パスワード").fill(password);
   await submit.click();

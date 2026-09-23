@@ -5,3 +5,7 @@
 # Resend (DEV-10 §3). Without it, mail is skipped and the would-be send is logged instead, so
 # the app still runs locally — but nothing is delivered.
 RESEND_API_KEY=
+
+# HMAC key for links to private R2 objects (DEV-10 §4-3, GOV-01 D-024). Any long random string
+# locally; rotating it in production invalidates every link already handed out.
+FILE_SIGNING_KEY=
