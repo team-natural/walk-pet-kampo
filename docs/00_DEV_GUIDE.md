@@ -118,7 +118,8 @@ git commit / git push                     → 人間がやる（AI は実行し�
 |  | レビュー・確定 | 人間（ステータスラベル運用） | — |
 | **基盤** | DEV-07 の物理テーブル設計 → Drizzle スキーマ生成 → `drizzle-kit generate` → `wrangler d1 migrations apply` | `schema-build` スキル（実装済み。DEV-07 → `packages/schema/src/schema.ts` → `pnpm db:generate`）+ 適用は人間（`apps/admin` からのみ実行） | — |
 |  | Service / Zod バリデーション / API ルートの実装（DEV-07/DEV-09 が既に確定しているリソース） | `scaffold` スキル（実装済み。`inquiries` の参照実装を別テーブルに当てはめる。`apps/admin` 配下、Astro ページは対象外） | — |
-| **実装** | 管理画面の実装（shadcn-svelte 標準パターン） | `admin-design` | スキル |
+| **実装** | **着手順の決定（どの機能から・どこで区切るか）** | **DEV-11 実装フェーズ計画**（1 フェーズ = 1 ブランチ = 1 PR。依存とブロッカーは同書 §2・§3） | — |
+| | 管理画面の実装（shadcn-svelte 標準パターン） | `admin-design` | スキル |
 | （ページ単位で反復） | 公開側の実装（オリジナルデザイン 6 段チェーン） | `public-design` | スキル |
 |  | バックエンド（`scaffold` のスコープ外の実装） | 人間 + AI に日本語で依頼（専用サブエージェントは未導入 — Open） | — |
 |  | 機能ごとのテスト作成 | Vitest + Playwright（DEV-01 §1、導入済み — `pnpm test` / `pnpm test:e2e`） | — |

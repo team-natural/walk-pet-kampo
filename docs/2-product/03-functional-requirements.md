@@ -59,12 +59,14 @@ related-docs:
 | 機能 ID | 機能名 | 優先度 | MVP | 関連エンティティ |
 | --- | --- | :---: | :---: | --- |
 | F-01-01 | メールアドレス確認 | High | ○ | Walker |
-| F-01-02 | 電話番号確認（SMS）| High | ○ | WalkerProfile |
+| F-01-02 | 電話番号確認（SMS）| High | ○ `[Open]` | WalkerProfile |
 | F-01-03 | ログイン / ログアウト | High | ○ | Walker |
 | F-01-04 | パスワードリセット | High | ○ | Walker |
 | F-01-05 | 年齢確認（生年月日入力・保護者同伴要件の判定）| High | ○ | WalkerProfile |
 | F-01-06 | 利用規約・誓約事項への同意 | High | ○ | Walker, WalkerProfile |
 | F-01-07 | ソーシャルログイン（Google 等）| Medium | △ | Walker |
+
+> **F-01-02 の実現手段は未確定（`Open` — GOV-02 TBD-61）。** SMS 送信手段が DEV-01 §2 にも DEV-10 にも定義されていない。本機能は DEV-09 §2-4-3 の `pending_verification → active` の条件に含まれ、`active` は予約の前提であるため、MVP に残すか（プロバイダ選定が必要）外すか（本表の MVP 判定と DEV-09 の遷移条件を変更）を DEV-11 P4 の着手前に決める。
 
 認証実装は 3 系統に完全分離する（`Decided` — GOV-01 D-011・D-007、詳細は DEV-01 §1「アカウント系統」）：Walker（お散歩参加者）は `apps/public` の Member（`/mypage/*`）、保護団体スタッフは `apps/public` の OrganizationMember（`/organization/*`、`org_admin` / `org_staff`）、プラットフォーム運営者は `apps/admin` の AdminUser（単一ロール `admin`）。いずれも別テーブル・別セッションクッキーで、ライブラリは使わず自前実装する（DEV-01 §2「API 提供（認証）」）。本節の F-01-01〜07 は `apps/public` 側（Walker・OrganizationMember）の認証機能を指す。AdminUser（`apps/admin`）側の管理画面ログインはテンプレート標準機能として別途実装し、本書では独立した機能 ID を付与しない。
 
