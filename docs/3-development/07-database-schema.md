@@ -238,6 +238,7 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | `walker_password_reset_tokens` | `walkers` 向けパスワードリセット（SCR-13・14）。列定義は §5-23 |
 | `organization_member_password_reset_tokens` | `organization_members` 向けパスワードリセット（ADM-24・25）。列定義は §5-24 |
 | `organization_application_tokens` | 保護団体登録申請の差し戻し対応（SCR-51）。列定義は §5-25 |
+| `organization_activation_tokens` | 審査承認後の団体アカウント有効化（ADM-26、F-03-06）。列定義は §5-28 |
 | `walker_email_verification_tokens` | `walkers` 向けメールアドレス確認（SCR-10）。列定義は §5-26 |
 | `walker_phone_verification_tokens` | `walker_profiles` 向け電話番号確認（SCR-23、初回予約時 — GOV-01 D-036）。列定義は §5-27 |
 
@@ -961,6 +962,26 @@ NOT NULL を維持してダミー値を入れる案は採らない — 空文字
 **Index**: `walker_id`, `expires_at`
 
 > **他の単発トークンと違い `token` は UNIQUE ではない**（上表の理由）。低エントロピーな値を本人性の担保に使えるのは、①宛先が `walker_profiles.phone` に固定されている ②有効期限が短い ③試行回数に上限がある、の 3 つが揃っているときだけで、どれか 1 つでも外すと 6 桁は総当たりで破れる。`used_at` による 1 回限りの使用は他のトークンと同じ（§3-1 の注記・GOV-01 D-020）。
+
+### 5-28. organization_activation_tokens
+
+審査承認後、団体に**最初の `org_admin` を発行する**ための URL トークン（F-03-06、ADM-26）。承認メールのリンクに埋め込む。
+
+| カラム | 型 | NULL | 備考 |
+| --- | --- | --- | --- |
+| id | INTEGER | NO | PK |
+| organization_id | INTEGER | NO | FK → organizations.id |
+| email | TEXT | NO | 発行時点の `organizations.email`（申請者の連絡先）。作られる `organization_members.email` になる |
+| token | TEXT | NO | UNIQUE |
+| expires_at | TEXT | NO | ISO 8601。発行から 7 日（招待 §5-7 と同じ） |
+| used_at | TEXT | YES | 有効化が完了した時刻。NULL の間のみ有効 |
+| created_at | TEXT | NO |  |
+
+**Index**: UNIQUE(`token`), `organization_id`, `expires_at`
+
+> **`organization_application_tokens`（§5-25）を転用しない**（`Decided` — GOV-01 D-038）。差し戻し対応用と有効化用が同じ表に同居すると、どこか 1 つのクエリで用途の絞り込みを書き忘れた瞬間に「差し戻しリンクから団体管理者アカウントが作れる」状態になる — §3-1 の注記・D-020 が避けているのと同じ取り違えである。
+>
+> **`invitations`（§5-7）にも相乗りさせない**。`inviter_id` が NOT NULL で、1 人目には招待者が存在しないため — NULL 許容に緩めると「招待者のいない招待」が恒久的に表現可能になり、運営発行と団体発行の区別が消える。
 
 ---
 

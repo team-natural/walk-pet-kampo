@@ -1,7 +1,7 @@
 // Organization review (F-15-03). The table belongs to apps/public, but the review transitions are
 // an operator's, so they live here and reach the shared D1 directly — not through the RPC, which
 // exists for entities whose transition function lives on the other side (DEV-09 §2-1-5).
-import { adminUsers, organizationApplicationTokens, organizationMembers, organizations } from "@app/schema";
+import { adminUsers, organizationActivationTokens, organizationApplicationTokens, organizationMembers, organizations } from "@app/schema";
 import type { DbClient } from "@app/schema/client";
 import type { OrganizationDetail, OrganizationSummary } from "../../view-models/organization";
 import type { OrganizationMemberView } from "../../view-models/organization-member";
@@ -185,6 +185,24 @@ export async function transitionOrganization(db: DbClient, publicId: string, to:
 // support request. apps/public issues the same row from its own Service — the two Workers share
 // the table, not the code (DEV-01 §5).
 const APPLICATION_TOKEN_TTL_DAYS = 14;
+
+// F-03-06. Issued on approval, because that is the moment a shelter exists with nobody inside it
+// — the link in the approval mail is the only way its first org_admin can be created
+// (GOV-01 D-038, DEV-07 §5-28).
+const ACTIVATION_TOKEN_TTL_DAYS = 7;
+
+// Whether anyone is inside the shelter yet. A re-approval (suspended → approved) must not mint a
+// new activation link: the staff already have accounts, and that link creates another org_admin.
+export async function hasAnyMember(db: DbClient, organizationId: number): Promise<boolean> {
+  const [row] = await db.select({ id: organizationMembers.id }).from(organizationMembers).where(eq(organizationMembers.organizationId, organizationId)).limit(1);
+  return row !== undefined;
+}
+
+export async function issueActivationToken(db: DbClient, organizationId: number, email: string): Promise<string> {
+  const token = newSessionToken();
+  await db.insert(organizationActivationTokens).values({ organizationId, email, token, expiresAt: new Date(Date.now() + ACTIVATION_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString() });
+  return token;
+}
 
 export async function issueApplicationToken(db: DbClient, organizationId: number): Promise<string> {
   const token = newSessionToken();

@@ -1,7 +1,17 @@
 import { expect, test, type Page } from "@playwright/test";
+import { spawnSync } from "node:child_process";
+import path from "node:path";
 import { E2E_ADMIN, E2E_APPLICANT } from "./global-setup";
 
 const REVIEW_URL = `/organization-applications/${E2E_APPLICANT.publicId}`;
+
+// Nothing is delivered locally (no mail key), so the link the approval mail would carry is read
+// back from the row it was written to — which is also what proves approval issued one.
+function activationTokenCount(): number {
+  const sql = `SELECT COUNT(*) AS n FROM organization_activation_tokens WHERE organization_id IN (SELECT id FROM organizations WHERE public_id = '${E2E_APPLICANT.publicId}');`;
+  const result = spawnSync("npx", ["wrangler", "d1", "execute", "DB", "--local", "--persist-to", "../../.wrangler-state", "--json", "--command", sql], { cwd: path.join(import.meta.dirname, "../.."), encoding: "utf8" });
+  return JSON.parse(result.stdout.slice(result.stdout.indexOf("[")))[0].results[0].n;
+}
 
 async function signIn(page: Page) {
   await page.goto("/");
@@ -59,7 +69,11 @@ test.describe("organization review (SYS-04/05)", () => {
     // Approved, and the same row is now a shelter rather than an application: SYS-06 lists it,
     // SYS-07 offers the operational moves and nothing from the review set.
     await act(page, "審査を開始する", "開始する");
+    expect(activationTokenCount()).toBe(0);
     await act(page, "承認する", "承認する");
+
+    // Approval is what creates the shelter's way in (F-03-06): exactly one link, issued once.
+    expect(activationTokenCount()).toBe(1);
 
     await page.goto("/organizations");
     await page.getByRole("link", { name: E2E_APPLICANT.name }).click();

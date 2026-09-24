@@ -508,6 +508,18 @@ related-docs:
 | 決定者 | Tech Lead |
 | 関連 TBD | TBD-62（本決定で解決） |
 
+### D-038：承認後の団体アカウント有効化は専用トークン表で行う
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-24 |
+| カテゴリ | 設計 |
+| 決定内容 | F-03-06（承認後の団体アカウント有効化）を **`organization_activation_tokens`**（DEV-07 §5-28）で実装する。審査が `approved` に遷移した時点で `apps/admin` がトークンを発行し、承認メールのリンク（`/organization/invitations/{token}`）から ADM-26 で最初の `org_admin` を作る。**発行は 1 団体につき 1 回だけ**（すでにメンバーが 1 人でもいれば発行しない — `suspended → approved` の復帰で 2 人目の管理者を作らせないため）。画面は ADM-26 を招待受諾と共用し、招待トークンと有効化トークンは別テーブル・別 Service 関数で引き分ける |
+| 背景 | GOV-02 TBD-63 の解決。DEV-04 §5-9 には `POST /api/v1/organization/activate` があったが、それを検証するトークンの表が DEV-07 に無く、**承認された団体に管理者アカウントを作る経路が存在しなかった**（`invitations.inviter_id` は NOT NULL で、1 人目には招待者がいない）。`organization_application_tokens`（差し戻し対応用）の転用は、用途の絞り込みを 1 箇所で書き忘れた瞬間に「差し戻しリンクから団体管理者が作れる」状態になるため採らない（D-020 と同じ取り違え）。`invitations.inviter_id` を NULL 許容に緩める案も、「招待者のいない招待」が恒久的に表現可能になり運営発行と団体発行の区別が消えるため採らない |
+| 影響範囲 | DEV-07 §3-1・§5-28（新規テーブル → migration `0004`）、DEV-04 §5-9、`apps/admin`（承認時の発行・承認メール文面）、`apps/public`（`activateOrganization()`・ADM-26・`/api/v1/organization/activate`）、GOV-02 TBD-63（解決） |
+| 決定者 | Tech Lead |
+| 関連 TBD | TBD-63（本決定で解決） |
+
 ---
 
 ## 3. 記録すべき意思決定の種別

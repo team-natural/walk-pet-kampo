@@ -138,18 +138,23 @@ flowchart TD
 > **P6 が「団体が存在できる」分岐点**で、Stage 3 以降の全フェーズの前提になる。P7 で初めて
 > `org_admin` 限定操作が登場するため、ロール認可のテストはここから必須（DEV-06 §12）。
 
-> **P7 の申し送り 3 点**
+> **P7 の申し送り 4 点**
 >
-> 1. **F-03-06（承認後の団体アカウント有効化）がどのフェーズにも割り当たっていない**
->    （GOV-02 **TBD-63**）。DEV-04 §5-9 には `POST /api/v1/organization/activate` があるが、
->    それを検証するトークンの表が DEV-07 に無い。現状、承認された団体には 1 人目の管理者を作る
->    経路が存在せず（`invitations.inviter_id` は NOT NULL なので招待でも作れない）、ローカルでは
->    seed コマンドでしか `/organization/*` に入れない。**P8 の着手前に TBD-63 を解決する。**
+> 1. ~~**F-03-06（承認後の団体アカウント有効化）がどのフェーズにも割り当たっていない**~~
+>    **解決済み**（2026-09-24、GOV-01 **D-038** / GOV-02 TBD-63）。`feature/org-activation` で
+>    `organization_activation_tokens`（DEV-07 §5-28、migration `0004`）を追加し、審査の
+>    `approved` 遷移が 1 回だけトークンを発行、承認メールのリンクから ADM-26 で最初の `org_admin`
+>    を作る形で実装した。P12 以降のフェーズ番号は変えていない。
 > 2. **Organization の運用系遷移（`suspended` / `deactivated` / 再開）は SYS-07 から押せる状態に
 >    なった**が、判断基準（TBD-28）と団体への通知は P19 のまま。審査結果メールは
 >    `approved` / `rejected` / `needs_more_info` の 3 つだけを送る（DEV-09 §2-1-4）。
 > 3. **退会理由は `activity_log.properties` にだけ残る。** DEV-07 §5-2 に理由の列は無く、
 >    運営は SYS-27 から読む前提。列が要るなら DEV-07 の変更が先。
+> 4. **有効化リンクの再発行手段が運営側に無い**（D-038 の実装時点）。7 日で期限切れになると、
+>    ADM-26 は問い合わせ窓口を案内するだけで、SYS-07 に再送ボタンが無い。**P19（`feature/admin-platform`）
+>    で SYS-07 に「有効化リンクを再送する」を足す** — 発行条件は承認時と同じ「メンバーが 1 人も
+>    いないこと」で、`issueActivationToken()` をそのまま呼べばよい。それまでは運営が
+>    `organization_activation_tokens` に手で行を入れるか、seed コマンドで回避する。
 
 ### 3-4. Stage 3 — カタログ
 

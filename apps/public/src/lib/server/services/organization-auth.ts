@@ -6,7 +6,7 @@
 // cookie, different code path (DEV-02 §1-4).
 import { burnPasswordVerification, hashPassword, newSessionToken, verifyPassword } from "@app/server-kit/auth";
 import { UnauthenticatedError } from "@app/server-kit/http";
-import { invitations, organizationMemberPasswordResetTokens, organizationMembers, organizations } from "@app/schema";
+import { invitations, organizationActivationTokens, organizationMemberPasswordResetTokens, organizationMembers, organizations } from "@app/schema";
 import type { DbClient } from "@app/schema/client";
 import { and, eq, isNull } from "drizzle-orm";
 import { createOrganizationSession, destroyAllOrganizationSessions, destroyOrganizationSession } from "../auth/organization-session";
@@ -166,6 +166,78 @@ export async function acceptInvitation(db: DbClient, token: string, name: string
       actor: { type: "organization_member", id: organizationMemberId },
       organizationId: invitation.organizationId,
       properties: { invitationPublicId: invitation.publicId, role: invitation.role },
+    }),
+  ]);
+
+  const session = await createOrganizationSession(db, organizationMemberId, ttlDays);
+  return { session, organizationMemberId };
+}
+
+// F-03-06. The other way into ADM-26: an approved shelter with nobody inside it yet. Kept apart
+// from the invitation path above — separate table, separate lookup, separate function — so no
+// single forgotten filter can make one token do the other's job (GOV-01 D-038, D-020).
+export async function getPendingActivation(db: DbClient, token: string) {
+  const [row] = await db
+    .select({ email: organizationActivationTokens.email, expiresAt: organizationActivationTokens.expiresAt, organizationName: organizations.name })
+    .from(organizationActivationTokens)
+    .innerJoin(organizations, eq(organizationActivationTokens.organizationId, organizations.id))
+    .where(and(eq(organizationActivationTokens.token, token), isNull(organizationActivationTokens.usedAt)))
+    .limit(1);
+
+  if (!row || row.expiresAt <= new Date().toISOString()) return null;
+  return { email: row.email, organizationName: row.organizationName };
+}
+
+export async function activateOrganization(db: DbClient, token: string, name: string, password: string, ttlDays: number) {
+  const [activation] = await db
+    .select()
+    .from(organizationActivationTokens)
+    .where(and(eq(organizationActivationTokens.token, token), isNull(organizationActivationTokens.usedAt)))
+    .limit(1);
+
+  if (!activation || activation.expiresAt <= new Date().toISOString()) throw new InvalidTokenError();
+
+  // The shelter has to be approved *now*, not merely when the link was sent: a suspension between
+  // the two must not be walked around by opening an old mail.
+  const [organization] = await db.select().from(organizations).where(eq(organizations.id, activation.organizationId)).limit(1);
+  if (organization?.status !== "approved") throw new InvalidTokenError();
+
+  // Someone got there first — a second org_admin created from the same approval is not what this
+  // link is for. The token is spent either way.
+  const existing = await getOrganizationMemberByEmail(db, activation.email);
+  if (existing) throw new InvalidTokenError();
+
+  const now = new Date().toISOString();
+  const [inserted] = await db.batch([
+    db
+      .insert(organizationMembers)
+      .values({
+        organizationId: activation.organizationId,
+        // Always org_admin: this is the account that will invite everyone else (F-04-03).
+        role: "org_admin",
+        name,
+        email: activation.email,
+        passwordHash: await hashPassword(password),
+        status: "active",
+        joinedAt: now,
+        updatedAt: now,
+      })
+      .returning({ id: organizationMembers.id }),
+    db.update(organizationActivationTokens).set({ usedAt: now }).where(eq(organizationActivationTokens.id, activation.id)),
+  ]);
+
+  const organizationMemberId = inserted[0]!.id;
+
+  await db.batch([
+    activityLogInsert(db, {
+      logName: "organization_member",
+      description: "Organization activated (org_admin created)",
+      subjectType: "OrganizationMember",
+      subjectId: organizationMemberId,
+      event: "organization_member.active",
+      actor: { type: "organization_member", id: organizationMemberId },
+      organizationId: activation.organizationId,
+      properties: { source: "activation_token", email: activation.email },
     }),
   ]);
 
