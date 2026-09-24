@@ -1,9 +1,9 @@
 ---
 // ADM-04 — PRD-04 §3-2 (guarded, org_admin only)
 // Sends an invitation; the invitee sets their own password on ADM-26. No password is entered here.
-// TODO(ADM-04): post to createInvitation() — F-04-03.
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
 import FormSection from "$lib/components/organization/form-section.astro";
 import { getOrganizationSession, isOrganizationAdmin } from "$lib/server/auth/organization-session";
 import { createDb } from "@app/schema/client";
@@ -12,9 +12,23 @@ const db = createDb(env.DB);
 const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 if (!isOrganizationAdmin(session)) return Astro.redirect("/organization", 302);
+
+// organization_members.email is unique across every shelter, so this covers "already here" and
+// "already somewhere else" alike — which of the two it was is not this screen's to reveal.
+const taken = Astro.url.searchParams.get("error") === "taken";
 ---
 
 <OrganizationLayout title="スタッフの招待 | 団体ページ" session={session}>
+  <FlashMessage />
+
+  {
+    taken && (
+      <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+        このメールアドレスはすでに登録されています。
+      </p>
+    )
+  }
+
   <header class="grid gap-2">
     <a href="/organization/members" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← スタッフ</a>
     <h1 class="text-xl font-bold">スタッフの招待</h1>

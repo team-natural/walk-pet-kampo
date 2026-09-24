@@ -1,12 +1,12 @@
 ---
 // ADM-03 — PRD-04 §3-2 (guarded, org_admin only)
-// TODO(ADM-03): replace mockOrganizationMembers with listOrganizationMembers() — F-04-03.
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
 import DataTable from "$lib/components/organization/data-table.astro";
 import FlashMessage from "$lib/components/organization/flash-message.astro";
 import { getOrganizationSession, isOrganizationAdmin } from "$lib/server/auth/organization-session";
-import { mockOrganizationMembers } from "$lib/mocks";
+import { listPendingInvitations } from "$lib/server/services/invitations";
+import { listMembers } from "$lib/server/services/organization-members";
 import type { OrganizationMemberView } from "$lib/view-models/organization-member";
 import { createDb } from "@app/schema/client";
 
@@ -15,29 +15,91 @@ const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 if (!isOrganizationAdmin(session)) return Astro.redirect("/organization", 302);
 
-const members: OrganizationMemberView[] = mockOrganizationMembers;
+const members: OrganizationMemberView[] = await listMembers(db, session.organizationId);
+const invitations = await listPendingInvitations(db, session.organizationId);
+
+const ROLE_LABELS = { org_admin: "管理者", org_staff: "スタッフ" } as const;
+const STATUS_LABELS = { invited: "招待中", active: "所属中", suspended: "利用停止中" } as const;
+
+const lastAdminError = Astro.url.searchParams.get("error") === "last_admin";
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "numeric", day: "numeric", timeZone: "Asia/Tokyo" });
 ---
 
 <OrganizationLayout title="スタッフ | 団体ページ" session={session}>
   <FlashMessage />
+
+  {
+    lastAdminError && (
+      <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+        団体管理者が不在になるため、この操作はできません。先に別の方を管理者にしてください。
+      </p>
+    )
+  }
 
   <header class="flex flex-wrap items-center justify-between gap-4">
     <h1 class="text-xl font-bold">スタッフ</h1>
     <a href="/organization/members/add" class="btn btn-sun px-5 text-sm">スタッフを招待する</a>
   </header>
 
-  <DataTable columns={["氏名", "メールアドレス", "権限", "状態"]} rowCount={members.length} caption="この団体のスタッフ一覧" emptyMessage="まだスタッフがいません。" emptyActionHref="/organization/members/add" emptyActionLabel="スタッフを招待する">
+  <DataTable columns={["氏名", "メールアドレス", "権限", "状態", "操作"]} rowCount={members.length} caption="この団体のスタッフ一覧" emptyMessage="まだスタッフがいません。" emptyActionHref="/organization/members/add" emptyActionLabel="スタッフを招待する">
     {
       members.map((member) => (
         <tr>
           <td class="font-bold">{member.name}</td>
           <td>{member.email}</td>
-          <td>{member.role === "org_admin" ? "管理者" : "スタッフ"}</td>
           <td>
-            <span class="badge badge-quiet">{member.status}</span>
+            {/* One form per action, not one per row: the endpoint tells them apart by which field arrived. */}
+            <form method="post" action="/api/v1/organization/members/update" class="flex items-center gap-2">
+              <input type="hidden" name="email" value={member.email} />
+              <label class="sr-only" for={`role-${member.email}`}>
+                {member.name} の権限
+              </label>
+              <select id={`role-${member.email}`} name="role" class="field">
+                {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                  <option value={value} selected={member.role === value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <button type="submit" class="btn btn-quiet px-4 text-sm">
+                変更
+              </button>
+            </form>
+          </td>
+          <td>
+            <span class="badge badge-quiet">{STATUS_LABELS[member.status]}</span>
+          </td>
+          <td>
+            {/* `invited` has nothing to suspend yet (DEV-09 §2-2-2), so the row offers no action. */}
+            {member.status !== "invited" && (
+              <form method="post" action="/api/v1/organization/members/update">
+                <input type="hidden" name="email" value={member.email} />
+                <input type="hidden" name="status" value={member.status === "active" ? "suspended" : "active"} />
+                <button type="submit" class="btn btn-quiet px-4 text-sm">
+                  {member.status === "active" ? "利用を停止する" : "利用を再開する"}
+                </button>
+              </form>
+            )}
           </td>
         </tr>
       ))
     }
   </DataTable>
+
+  {
+    invitations.length > 0 && (
+      <section class="grid gap-4">
+        <h2 class="text-lg font-bold">招待中</h2>
+        <DataTable columns={["メールアドレス", "権限", "有効期限"]} rowCount={invitations.length} caption="承諾待ちの招待" emptyMessage="" emptyActionHref="" emptyActionLabel="">
+          {invitations.map((invitation) => (
+            <tr>
+              <td class="font-bold">{invitation.email}</td>
+              <td>{ROLE_LABELS[invitation.role]}</td>
+              <td>{dateFormat.format(new Date(invitation.expiresAt))}</td>
+            </tr>
+          ))}
+        </DataTable>
+      </section>
+    )
+  }
 </OrganizationLayout>

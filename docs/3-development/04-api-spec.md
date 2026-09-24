@@ -352,10 +352,10 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 | メソッド | パス | 用途 | ロール |
 | --- | --- | --- | --- |
 | GET | `/api/v1/organization/profile` | 団体情報確認 | — |
-| PATCH | `/api/v1/organization/profile` | 団体情報編集（紹介文・所在地公開範囲等。F-04-01・F-04-02） | org_admin |
+| POST | `/api/v1/organization/profile` | 団体情報編集（紹介文・所在地公開範囲等。F-04-01・F-04-02）。**PATCH ではない** — §5-16 参照 | org_admin |
 | GET | `/api/v1/organization/members` | 所属スタッフ一覧 | — |
 | POST | `/api/v1/organization/members/invite` | スタッフ招待（`invitations` 作成。F-04-03） | org_admin |
-| PATCH | `/api/v1/organization/members/{id}` | ロール変更・停止/復帰（F-04-04） | org_admin |
+| POST | `/api/v1/organization/members/update` | ロール変更・停止/復帰（body: `email` + `role` または `status`。F-04-04）。**PATCH ではない** — §5-16 参照。`organization_members` は `public_id` を持たないため（DEV-07 §5-5）、対象はパスではなくメールアドレスで指定する | org_admin |
 | GET | `/api/v1/organization/dogs` | 保護犬一覧（団体内。F-05-01） | — |
 | POST | `/api/v1/organization/dogs` | 保護犬登録（公開プロフィール + 非公開の健康・安全情報。F-05-02） | — |
 | GET | `/api/v1/organization/dogs/{id}` | 保護犬詳細（`internal_notes` 含む） | — |

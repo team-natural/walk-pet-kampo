@@ -1,13 +1,11 @@
 ---
 // ADM-02 — PRD-04 §3-2 (guarded, org_admin only)
-// TODO(ADM-02): replace mockOrganizationDetail with getOwnOrganization() and post
-// updateOrganization() — F-04-01, F-04-02.
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../layouts/OrganizationLayout.astro";
 import FlashMessage from "$lib/components/organization/flash-message.astro";
 import FormSection from "$lib/components/organization/form-section.astro";
 import { getOrganizationSession, isOrganizationAdmin } from "$lib/server/auth/organization-session";
-import { mockOrganizationDetail } from "$lib/mocks";
+import { getOwnOrganization } from "$lib/server/services/organization-profile";
 import type { OrganizationDetail } from "$lib/view-models/organization";
 import { createDb } from "@app/schema/client";
 
@@ -16,7 +14,7 @@ const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 if (!isOrganizationAdmin(session)) return Astro.redirect("/organization", 302);
 
-const organization: OrganizationDetail = mockOrganizationDetail;
+const organization: OrganizationDetail = await getOwnOrganization(db, session.organizationId);
 ---
 
 <OrganizationLayout title="団体情報 | 団体ページ" session={session}>
@@ -48,6 +46,11 @@ const organization: OrganizationDetail = mockOrganizationDetail;
     </FormSection>
 
     <FormSection legend="公開範囲" description="所在地をどこまで公開するかを選べます。">
+      <label class="grid gap-1.5">
+        <span class="font-bold">所在地</span>
+        <input type="text" name="address" value={organization.address} autocomplete="street-address" class="field w-full" />
+      </label>
+
       <label class="grid gap-1.5">
         <span class="font-bold">住所の公開範囲</span>
         <select name="addressVisibility" class="field w-full">

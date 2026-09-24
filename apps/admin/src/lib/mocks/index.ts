@@ -9,8 +9,6 @@ import type { AuditLogEntry } from "$lib/view-models/audit-log";
 import type { DashboardView } from "$lib/view-models/dashboard";
 import type { DogDetail, DogSummary } from "$lib/view-models/dog";
 import type { IncidentDetail, IncidentSummary } from "$lib/view-models/incident";
-import type { OrganizationMemberView } from "$lib/view-models/organization-member";
-import type { OrganizationDetail, OrganizationSummary } from "$lib/view-models/organization";
 import type { PayoutDetail, PayoutSummary } from "$lib/view-models/payout";
 import type { PaymentSummary, ReservationDetail, ReservationSummary } from "$lib/view-models/reservation";
 import type { WalkSlotDetail, WalkSlotSummary } from "$lib/view-models/walk-slot";
@@ -18,41 +16,6 @@ import type { WalkerDetail, WalkerSummary } from "$lib/view-models/walker";
 
 const NOW = "2026-09-17T09:00:00.000Z";
 const ORGANIZATION_NAME = "きた保護犬ネットワーク";
-
-export const mockOrganizationSummary: OrganizationSummary = {
-  id: "01HZZORGANIZATION0000000001",
-  name: ORGANIZATION_NAME,
-  slug: "kita-rescue-network",
-  status: "under_review",
-  activityArea: "東京都北区・板橋区",
-  createdAt: NOW,
-};
-
-export const mockOrganizationDetail: OrganizationDetail = {
-  ...mockOrganizationSummary,
-  reviewedByName: null,
-  nameKana: "キタホゴケンネットワーク",
-  orgType: "npo",
-  hasCorporateStatus: 1,
-  representativeName: "北川 一郎",
-  contactName: "北川 一郎",
-  postalCode: "1150045",
-  address: "東京都北区赤羽1-1-1",
-  addressVisibility: "city_only",
-  phone: "03-0000-0000",
-  email: "contact@kita-rescue.example.test",
-  website: "https://example.test/kita-rescue",
-  activityStartedOn: "2015-04-01",
-  introduction: "北区を中心に保護犬の一時預かりと譲渡活動を行っています。",
-  protectedDogCount: 24,
-  adoptionTrackRecord: "年間 約 60 頭",
-  stripeConnectAccountId: null,
-  reviewedAt: null,
-  rejectionReason: null,
-  updatedAt: NOW,
-};
-
-export const mockOrganizations: OrganizationSummary[] = [mockOrganizationSummary];
 
 export const mockWalkerSummary: WalkerSummary = {
   id: "01HZZWALKER0000000000001",
@@ -260,17 +223,6 @@ export const mockAdoptionInquiryDetail: AdoptionInquiryDetail = {
 
 export const mockAdoptionInquiries: AdoptionInquirySummary[] = [mockAdoptionInquirySummary];
 
-export const mockOrganizationMembers: OrganizationMemberView[] = [
-  {
-    role: "org_admin",
-    name: "北川 一郎",
-    email: "admin@kita-rescue.example.test",
-    status: "active",
-    joinedAt: NOW,
-    leftAt: null,
-  },
-];
-
 export const mockAuditLog: AuditLogEntry[] = [
   {
     id: 1,
@@ -294,6 +246,6 @@ export const mockDashboard: DashboardView = {
     { label: "未対応の事故報告", value: 1, href: "/incidents" },
     { label: "未対応のお問い合わせ", value: 5, href: "/inquiries" },
   ],
-  pendingApplications: [{ id: mockOrganizationSummary.id, name: ORGANIZATION_NAME, submittedAt: NOW }],
+  pendingApplications: [{ id: "01HZZORGANIZATION0000000001", name: ORGANIZATION_NAME, submittedAt: NOW }],
   recentIncidents: [{ id: mockIncidentSummary.id, organizationName: ORGANIZATION_NAME, severity: "P2", occurredAt: NOW }],
 };

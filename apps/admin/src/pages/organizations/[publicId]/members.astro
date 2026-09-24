@@ -2,7 +2,6 @@
 // SYS-08 — PRD-04 §3-3
 // organization_members has no public_id, so the rows are addressed under their organization's
 // key rather than their own (DEV-07 §5-5).
-// TODO(SYS-08): replace mockOrganizationMembers with listOrganizationMembers() — F-15-04.
 import { env } from "cloudflare:workers";
 import ConsoleLayout from "../../../layouts/ConsoleLayout.astro";
 import DataTable from "$lib/components/data-table.astro";
@@ -10,10 +9,9 @@ import PageHeader from "$lib/components/page-header.astro";
 import StatusBadge from "$lib/components/status-badge.svelte";
 import * as Table from "$lib/components/ui/table/index.js";
 import { formatDate } from "$lib/format";
-import { mockOrganizationMembers, mockOrganizationSummary } from "$lib/mocks";
 import { getSession } from "$lib/server/auth/session";
+import { listOrganizationMembers } from "$lib/server/services/organizations";
 import { label } from "$lib/status";
-import type { OrganizationMemberView } from "$lib/view-models/organization-member";
 import { createDb } from "@app/schema/client";
 
 const db = createDb(env.DB);
@@ -21,8 +19,7 @@ const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
-const organization = mockOrganizationSummary;
-const members: OrganizationMemberView[] = mockOrganizationMembers;
+const { organization, members } = await listOrganizationMembers(db, publicId!);
 ---
 
 <ConsoleLayout title={`${organization.name} のスタッフ`} user={session} breadcrumbs={[{ label: "保護団体", href: "/organizations" }, { label: organization.name, href: `/organizations/${publicId}` }, { label: "スタッフ" }]}>

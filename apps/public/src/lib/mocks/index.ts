@@ -8,7 +8,6 @@ import type { AdoptionInquiryDetail, AdoptionInquirySummary } from "$lib/view-mo
 import type { OrganizationDashboardView } from "$lib/view-models/dashboard";
 import type { DogDetail, DogSummary, OwnDogDetail } from "$lib/view-models/dog";
 import type { IncidentDetail, IncidentSummary } from "$lib/view-models/incident";
-import type { OrganizationMemberView } from "$lib/view-models/organization-member";
 import { formatYen } from "$lib/pricing";
 import type { OrganizationDetail, OrganizationSummary } from "$lib/view-models/organization";
 import type { PayoutDetail, PayoutSummary } from "$lib/view-models/payout";
@@ -272,17 +271,6 @@ export const mockPayoutDetail: PayoutDetail = {
 };
 
 export const mockPayouts: PayoutSummary[] = [mockPayoutSummary];
-
-export const mockOrganizationMembers: OrganizationMemberView[] = [
-  {
-    role: "org_admin",
-    name: "北川 一郎",
-    email: "admin@kita-rescue.example.test",
-    status: "active",
-    joinedAt: NOW,
-    leftAt: null,
-  },
-];
 
 export const mockOrganizationDashboard: OrganizationDashboardView = {
   tiles: [

@@ -1,14 +1,14 @@
 // Organization review (F-15-03). The subject is the state machine in DEV-09 §2-1-2: which moves
 // are legal from where, and what the operator must supply to make one.
 import { env } from "cloudflare:workers";
-import { activityLog, adminUsers, organizationApplicationTokens, organizations } from "@app/schema";
+import { activityLog, adminUsers, organizationApplicationTokens, organizationMembers, organizations } from "@app/schema";
 import { createDb } from "@app/schema/client";
 import { ulid } from "@app/schema/ulid";
-import { InvalidStateTransitionError, ValidationError } from "@app/server-kit/http";
+import { InvalidStateTransitionError, NotFoundError, ValidationError } from "@app/server-kit/http";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Session } from "../../src/lib/server/auth/session";
-import { allowedTransitions, countApplicationsAwaitingReview, getOrganizationByPublicId, issueApplicationToken, listApplications, transitionOrganization, type OrganizationStatus } from "../../src/lib/server/services/organizations";
+import { allowedTransitions, countApplicationsAwaitingReview, getOrganizationByPublicId, issueApplicationToken, listApplications, listOrganizationMembers, listOrganizations, transitionOrganization, type OrganizationStatus } from "../../src/lib/server/services/organizations";
 
 const db = createDb(env.DB);
 let session: Session;
@@ -22,9 +22,15 @@ async function insertOrganization(status: OrganizationStatus, name = "テスト�
   return row!;
 }
 
+async function insertMember(organizationId: number, name: string) {
+  const now = new Date().toISOString();
+  await db.insert(organizationMembers).values({ organizationId, role: "org_admin", name, email: `member-${ulid().toLowerCase()}@example.test`, passwordHash: "x", status: "active", joinedAt: now, updatedAt: now });
+}
+
 beforeEach(async () => {
   await db.delete(activityLog);
   await db.delete(organizationApplicationTokens);
+  await db.delete(organizationMembers);
   await db.delete(organizations);
   await db.delete(adminUsers);
 
@@ -51,6 +57,32 @@ describe("the review queue (SYS-04)", () => {
     await insertOrganization("approved", "C");
 
     await expect(countApplicationsAwaitingReview(db)).resolves.toBe(2);
+  });
+});
+
+describe("the shelter list (SYS-06/08)", () => {
+  it("lists what finished review, newest first, and leaves the queue alone", async () => {
+    await insertOrganization("pending_review", "申請中の団体");
+    await insertOrganization("rejected", "否認された団体");
+    await insertOrganization("approved", "承認済みの団体");
+    await insertOrganization("suspended", "掲載停止中の団体");
+
+    const { items } = await listOrganizations(db);
+
+    expect(items.map((item) => item.name)).toEqual(["掲載停止中の団体", "承認済みの団体"]);
+  });
+
+  it("reads one shelter's staff, and refuses an unknown public id", async () => {
+    const organization = await insertOrganization("approved");
+    const elsewhere = await insertOrganization("approved", "他団体");
+    await insertMember(organization.id, "自団体のスタッフ");
+    await insertMember(elsewhere.id, "他団体のスタッフ");
+
+    const { organization: summary, members } = await listOrganizationMembers(db, organization.publicId);
+
+    expect(summary.id).toBe(organization.publicId);
+    expect(members.map((member) => member.name)).toEqual(["自団体のスタッフ"]);
+    await expect(listOrganizationMembers(db, ulid())).rejects.toBeInstanceOf(NotFoundError);
   });
 });
 

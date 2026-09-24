@@ -1,12 +1,13 @@
 // Organization review (F-15-03). The table belongs to apps/public, but the review transitions are
 // an operator's, so they live here and reach the shared D1 directly — not through the RPC, which
 // exists for entities whose transition function lives on the other side (DEV-09 §2-1-5).
-import { adminUsers, organizationApplicationTokens, organizations } from "@app/schema";
+import { adminUsers, organizationApplicationTokens, organizationMembers, organizations } from "@app/schema";
 import type { DbClient } from "@app/schema/client";
 import type { OrganizationDetail, OrganizationSummary } from "../../view-models/organization";
+import type { OrganizationMemberView } from "../../view-models/organization-member";
 import { newSessionToken } from "@app/server-kit/auth";
 import { InvalidStateTransitionError, NotFoundError, ValidationError } from "@app/server-kit/http";
-import { asc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
 import type { Session } from "../auth/session";
 import { activityLogInsert, platformActor } from "./activity-log";
 
@@ -89,6 +90,25 @@ export async function listApplications(db: DbClient, options: { beforeId?: numbe
   return { items: page.map(toSummary), perPage, nextId: hasMore ? page[page.length - 1]!.id : null };
 }
 
+// SYS-06 is the other half of the same table: everything that has finished review, newest first.
+// A rejected application never becomes a shelter, so it stays in the queue's history and out of
+// this list.
+const OPERATIONAL: OrganizationStatus[] = ["approved", "suspended", "deactivated", "withdrawn"];
+
+export async function listOrganizations(db: DbClient, options: { beforeId?: number | null; perPage?: number } = {}) {
+  const perPage = Math.min(Math.max(options.perPage ?? DEFAULT_PER_PAGE, 1), MAX_PER_PAGE);
+  const rows = await db
+    .select()
+    .from(organizations)
+    .where(options.beforeId ? and(inArray(organizations.status, OPERATIONAL), lt(organizations.id, options.beforeId)) : inArray(organizations.status, OPERATIONAL))
+    .orderBy(desc(organizations.id))
+    .limit(perPage + 1);
+
+  const hasMore = rows.length > perPage;
+  const page = rows.slice(0, perPage);
+  return { items: page.map(toSummary), perPage, nextId: hasMore ? page[page.length - 1]!.id : null };
+}
+
 async function findOrganizationRow(db: DbClient, publicId: string): Promise<OrganizationRow> {
   const [row] = await db.select().from(organizations).where(eq(organizations.publicId, publicId)).limit(1);
   if (!row) throw new NotFoundError("保護団体が見つかりません。");
@@ -101,6 +121,18 @@ export async function getOrganizationByPublicId(db: DbClient, publicId: string):
 
   const [reviewer] = await db.select({ name: adminUsers.name }).from(adminUsers).where(eq(adminUsers.id, row.reviewedBy)).limit(1);
   return toDetail(row, reviewer?.name ?? null);
+}
+
+// SYS-08. Read-only from this side: staff are invited, suspended and removed by their own
+// org_admin (ADM-03), and the operator acts on the shelter as a whole instead.
+export async function listOrganizationMembers(db: DbClient, publicId: string): Promise<{ organization: OrganizationSummary; members: OrganizationMemberView[] }> {
+  const row = await findOrganizationRow(db, publicId);
+  const members = await db.select().from(organizationMembers).where(eq(organizationMembers.organizationId, row.id)).orderBy(asc(organizationMembers.id));
+
+  return {
+    organization: toSummary(row),
+    members: members.map((member) => ({ name: member.name, email: member.email, role: member.role, status: member.status, joinedAt: member.joinedAt, leftAt: member.leftAt })),
+  };
 }
 
 export interface TransitionResult {

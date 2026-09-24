@@ -6,15 +6,18 @@
   // backdrop with it. Rebuilding those by hand is how a custom modal ends up unreachable by
   // keyboard.
   interface Props {
-    /** Where the confirmed action posts. */
-    action: string;
+    /** Where the confirmed action posts. Omit when `form` names one on the page. */
+    action?: string;
+    /** Id of a form elsewhere on the page. The confirm button submits it, fields included —
+     * a dialog with its own empty form would drop whatever the page asked the user to type. */
+    form?: string;
     triggerLabel: string;
     title: string;
     message: string;
     confirmLabel: string;
   }
 
-  let { action, triggerLabel, title, message, confirmLabel }: Props = $props();
+  let { action, form, triggerLabel, title, message, confirmLabel }: Props = $props();
 
   const titleId = $props.id();
   let dialog = $state<HTMLDialogElement | undefined>();
@@ -31,9 +34,13 @@
 
     <div class="flex flex-wrap justify-end gap-3">
       <button type="button" class="btn btn-quiet px-5 text-sm" onclick={() => dialog?.close()}>やめる</button>
-      <form method="post" {action}>
-        <button type="submit" class="btn btn-blossom px-5 text-sm">{confirmLabel}</button>
-      </form>
+      {#if form}
+        <button type="submit" {form} class="btn btn-blossom px-5 text-sm">{confirmLabel}</button>
+      {:else}
+        <form method="post" {action}>
+          <button type="submit" class="btn btn-blossom px-5 text-sm">{confirmLabel}</button>
+        </form>
+      {/if}
     </div>
   </div>
 </dialog>

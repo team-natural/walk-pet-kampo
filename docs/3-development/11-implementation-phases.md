@@ -133,10 +133,23 @@ flowchart TD
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
 | P6 | `feature/org-application` | FG-03。SCR-15/16/51 + SYS-04/05。Organization の審査遷移 8 状態（DEV-09 §2-1）、審査結果通知。審査系の書き込みは `apps/admin` から D1 直接（DEV-05 §1 の例外パターン）。**申請書類（F-03-02）は TBD-25 待ちで未実装** — 必須提出書類が決まらないとフォーム項目も R2 のキー構造も確定しないため、当面は運営が `needs_more_info` の差し戻しで依頼する。**P3 からの持ち越し 3 点も TBD-25 と同時に着手**: ①申請トークンで認可するアップロード経路（`UPLOAD_KINDS.applicationDocument` は定義済み、`/api/v1/uploads` は明示的に拒否中）②`apps/admin` 側の非公開ファイル配信ルート ③署名リンクの発行側 | P1,P2,P3 | TBD-24/25/28（審査基準・必須提出書類） | 進行中 |
-| P7 | `feature/org-profile-staff` | FG-04。ADM-02/03/04/23 + SYS-06/07/08。Invitation（3 状態）、OrganizationMember（3 状態）、団体退会申請、**住所のジオコーディング**（DEV-10 §9）。**P6 からの持ち越し 2 点**: ①`approved → withdrawn`（ADM-23 の退会申請）の実装とテスト — P6 は審査系 5 遷移のみ実装・網羅済みで、運用系（`suspended` / `deactivated` / `withdrawn`）は未実装 ②SYS-06/07 の一覧・詳細（`listOrganizations()` は P6 では書かず、この画面を繋ぐときに追加する） | P6 | TBD-40（Google Maps API キー） | 未着手 |
+| P7 | `feature/org-profile-staff` | FG-04。ADM-02/03/04/23 + SYS-06/07/08。Invitation（3 状態）、OrganizationMember（3 状態）、団体退会申請。P6 からの持ち越し 2 点（`approved → withdrawn` の実装、SYS-06/07 の一覧・詳細 = `listOrganizations()`）はいずれも解決済み。**住所のジオコーディングは未実装**（TBD-40 待ち。住所変更時は緯度経度を `null` に戻すところまでで、`updateOrganizationProfile()` に `TODO(P10)` を 1 箇所だけ残した） | P6 | TBD-40（Google Maps API キー） | 進行中 |
 
 > **P6 が「団体が存在できる」分岐点**で、Stage 3 以降の全フェーズの前提になる。P7 で初めて
 > `org_admin` 限定操作が登場するため、ロール認可のテストはここから必須（DEV-06 §12）。
+
+> **P7 の申し送り 3 点**
+>
+> 1. **F-03-06（承認後の団体アカウント有効化）がどのフェーズにも割り当たっていない**
+>    （GOV-02 **TBD-63**）。DEV-04 §5-9 には `POST /api/v1/organization/activate` があるが、
+>    それを検証するトークンの表が DEV-07 に無い。現状、承認された団体には 1 人目の管理者を作る
+>    経路が存在せず（`invitations.inviter_id` は NOT NULL なので招待でも作れない）、ローカルでは
+>    seed コマンドでしか `/organization/*` に入れない。**P8 の着手前に TBD-63 を解決する。**
+> 2. **Organization の運用系遷移（`suspended` / `deactivated` / 再開）は SYS-07 から押せる状態に
+>    なった**が、判断基準（TBD-28）と団体への通知は P19 のまま。審査結果メールは
+>    `approved` / `rejected` / `needs_more_info` の 3 つだけを送る（DEV-09 §2-1-4）。
+> 3. **退会理由は `activity_log.properties` にだけ残る。** DEV-07 §5-2 に理由の列は無く、
+>    運営は SYS-27 から読む前提。列が要るなら DEV-07 の変更が先。
 
 ### 3-4. Stage 3 — カタログ
 

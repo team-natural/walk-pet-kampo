@@ -1,7 +1,5 @@
 ---
 // SYS-07 — PRD-04 §3-3
-// TODO(SYS-07): replace mockOrganizationDetail with getOrganization() and post
-// transitionOrganization() — F-15-04.
 import { env } from "cloudflare:workers";
 import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
 import ConfirmAction from "$lib/components/confirm-action.svelte";
@@ -10,8 +8,8 @@ import PageHeader from "$lib/components/page-header.astro";
 import StatusBadge from "$lib/components/status-badge.svelte";
 import { Button } from "$lib/components/ui/button/index.js";
 import { formatDate, formatDateTime, formatPostalCode } from "$lib/format";
-import { mockOrganizationDetail } from "$lib/mocks";
 import { getSession } from "$lib/server/auth/session";
+import { allowedTransitions, getOrganizationByPublicId } from "$lib/server/services/organizations";
 import { label, yesNo } from "$lib/status";
 import type { OrganizationDetail } from "$lib/view-models/organization";
 import { createDb } from "@app/schema/client";
@@ -21,8 +19,16 @@ const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
-const organization: OrganizationDetail = mockOrganizationDetail;
+const organization: OrganizationDetail = await getOrganizationByPublicId(db, publicId!);
 const transitionAction = `/api/v1/organizations/${organization.id}/transition`;
+
+const canMoveTo = (to: string) => allowedTransitions(organization.status).includes(to as OrganizationDetail["status"]);
+
+const ERRORS: Record<string, string> = {
+  reason: "理由を入力してください。",
+  state: "この団体の状態が変わっています。画面を再読み込みしてください。",
+};
+const error = ERRORS[Astro.url.searchParams.get("error") ?? ""];
 ---
 
 <ConsoleLayout title={organization.name} user={session} breadcrumbs={[{ label: "保護団体", href: "/organizations" }, { label: organization.name }]}>
@@ -33,11 +39,20 @@ const transitionAction = `/api/v1/organizations/${organization.id}/transition`;
       </Fragment>
       <Fragment slot="actions">
         <Button href={`/organizations/${organization.id}/members`} variant="outline" size="sm">スタッフを見る</Button>
-        <ConfirmAction client:load action={transitionAction} name="to" value="suspended" destructive triggerLabel="掲載停止" title="この団体を掲載停止にしますか？" message="公開中のおさんぽ募集と保護犬がすべて非公開になります。予約済みの参加者には中止の連絡が送られます。" confirmLabel="掲載停止にする" reasonLabel="理由（必須）" reasonRequired />
-        <ConfirmAction client:load action={transitionAction} name="to" value="deactivated" triggerLabel="活動停止" title="この団体を活動停止にしますか？" message="長期休止の扱いになります。掲載は止まりますが、未振込の還元額はそのままお支払いします。" confirmLabel="活動停止にする" reasonLabel="理由" />
-        <ConfirmAction client:load action={transitionAction} name="to" value="approved" triggerLabel="掲載再開" title="掲載を再開しますか？" message="団体ページとおさんぽ募集の公開が再び可能になります。" confirmLabel="再開する" />
+        {/* DEV-09 §2-1-2 decides which of these three a given status may reach; `withdrawn` is the shelter's own move (ADM-23) and is never offered here. */}
+        {canMoveTo("suspended") && <ConfirmAction client:load action={transitionAction} name="to" value="suspended" destructive triggerLabel="掲載停止" title="この団体を掲載停止にしますか？" message="公開中のおさんぽ募集と保護犬がすべて非公開になります。予約済みの参加者には中止の連絡が送られます。" confirmLabel="掲載停止にする" reasonLabel="理由（必須）" reasonRequired />}
+        {canMoveTo("deactivated") && <ConfirmAction client:load action={transitionAction} name="to" value="deactivated" triggerLabel="活動停止" title="この団体を活動停止にしますか？" message="長期休止の扱いになります。掲載は止まりますが、未振込の還元額はそのままお支払いします。" confirmLabel="活動停止にする" reasonLabel="理由" />}
+        {canMoveTo("approved") && <ConfirmAction client:load action={transitionAction} name="to" value="approved" triggerLabel="掲載再開" title="掲載を再開しますか？" message="団体ページとおさんぽ募集の公開が再び可能になります。" confirmLabel="再開する" />}
       </Fragment>
     </PageHeader>
+
+    {
+      error && (
+        <p role="alert" class="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm font-medium">
+          {error}
+        </p>
+      )
+    }
 
     <div class="grid items-start gap-6 xl:grid-cols-2">
       <DetailCard title="団体情報">

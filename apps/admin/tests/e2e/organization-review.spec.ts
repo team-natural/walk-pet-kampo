@@ -50,5 +50,22 @@ test.describe("organization review (SYS-04/05)", () => {
     await expect(page.getByText("活動実績の詳細をお知らせください。")).toBeVisible();
     await expect(page.getByRole("button", { name: "承認する" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "審査を開始する" })).toBeVisible();
+
+    // Approved, and the same row is now a shelter rather than an application: SYS-06 lists it,
+    // SYS-07 offers the operational moves and nothing from the review set.
+    await act(page, "審査を開始する", "開始する");
+    await act(page, "承認する", "承認する");
+
+    await page.goto("/organizations");
+    await page.getByRole("link", { name: E2E_APPLICANT.name }).click();
+    await page.waitForURL(`**/organizations/${E2E_APPLICANT.publicId}`);
+
+    await expect(page.getByRole("button", { name: "掲載停止" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "掲載再開" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "承認する" })).toHaveCount(0);
+
+    await page.getByRole("link", { name: "スタッフを見る" }).click();
+    await page.waitForURL(`**/organizations/${E2E_APPLICANT.publicId}/members`);
+    await expect(page.getByText("スタッフが登録されていません")).toBeVisible();
   });
 });
