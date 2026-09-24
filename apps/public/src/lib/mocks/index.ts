@@ -4,7 +4,6 @@
 //
 // These are temporary. `tests/unit/screens.test.ts` counts the pages still importing this file —
 // that count is the remaining work, and reaching zero is what "the screens are implemented" means.
-import type { AdoptionInquiryDetail, AdoptionInquirySummary } from "$lib/view-models/adoption-inquiry";
 import type { OrganizationDashboardView } from "$lib/view-models/dashboard";
 import type { DogDetail, DogSummary, OwnDogDetail } from "$lib/view-models/dog";
 import { formatYen } from "$lib/pricing";
@@ -211,24 +210,6 @@ export const mockWalkRecordDetail: WalkRecordDetail = {
 };
 
 export const mockWalkRecords: WalkRecordSummary[] = [mockWalkRecordSummary];
-
-export const mockAdoptionInquirySummary: AdoptionInquirySummary = {
-  id: "01HZZADOPTIONINQUIRY000001",
-  dog: mockDogSummary,
-  status: "received",
-  createdAt: NOW,
-};
-
-export const mockAdoptionInquiryDetail: AdoptionInquiryDetail = {
-  ...mockAdoptionInquirySummary,
-  organization: mockOrganizationSummary,
-  motivation: "散歩で会って以来、家族に迎えたいと考えています。",
-  livingEnvironment: "戸建て・庭あり・在宅勤務",
-  organizationContactedAt: null,
-  closedAt: null,
-};
-
-export const mockAdoptionInquiries: AdoptionInquirySummary[] = [mockAdoptionInquirySummary];
 
 export const mockPayoutSummary: PayoutSummary = {
   id: "01HZZPAYOUT00000000000001",

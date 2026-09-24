@@ -1,36 +1,72 @@
 ---
 // ADM-21 — PRD-04 §3-2 (guarded)
 // Only the enquiry text and contact details are disclosed; the walker's address is not
-// (GOV-02 TBD-34). The Service decides that, not this template.
-// TODO(ADM-21): replace mockAdoptionInquiryDetail with getOwnAdoptionInquiry() and post
-// transitionAdoptionInquiry() — F-11-02, F-11-03.
+// (GOV-02 TBD-34). The Service decides that — the address is not in the shape this page receives.
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
 import FlashMessage from "$lib/components/organization/flash-message.astro";
+import { adoptionInquiryStatusLabel } from "$lib/adoption-inquiry-status";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
-import { mockAdoptionInquiryDetail } from "$lib/mocks";
-import type { AdoptionInquiryDetail } from "$lib/view-models/adoption-inquiry";
+import { allowedInquiryTransitions, getOrganizationInquiry, type OrganizationInquiryDetail } from "$lib/server/services/adoption-inquiries";
 import { createDb } from "@app/schema/client";
+import { NotFoundError } from "@app/server-kit/http";
 
 const db = createDb(env.DB);
 const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
 const { publicId } = Astro.params;
-const inquiry: AdoptionInquiryDetail = mockAdoptionInquiryDetail;
+
+let inquiry: OrganizationInquiryDetail;
+try {
+  inquiry = await getOrganizationInquiry(db, session.organizationId, publicId!);
+} catch (error) {
+  if (error instanceof NotFoundError) return Astro.rewrite("/404");
+  throw error;
+}
+
+// The shelter drives the flow forward; `withdrawn` is the walker's own move and is not offered
+// here (DEV-09 §2-11-2).
+const nextStatuses = allowedInquiryTransitions(inquiry.status).filter((status) => status !== "withdrawn");
+const staleState = Astro.url.searchParams.get("error") === "state";
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Tokyo" });
 ---
 
 <OrganizationLayout title="里親相談の詳細 | 団体ページ" session={session}>
   <FlashMessage />
 
+  {
+    staleState && (
+      <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+        この相談の状況が変わっています。画面を読み込み直してください。
+      </p>
+    )
+  }
+
   <header class="grid gap-2" data-public-id={publicId}>
     <a href="/organization/adoption-inquiries" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← 里親相談</a>
     <h1 class="text-xl font-bold">{inquiry.dog.name} への相談</h1>
-    <p><span class="badge badge-quiet">{inquiry.status}</span></p>
+    <p><span class="badge badge-quiet">{adoptionInquiryStatusLabel(inquiry.status)}</span></p>
   </header>
 
   <div class="card max-w-2xl p-6 sm:p-8">
     <dl class="detail-list">
+      <div>
+        <dt>相談者</dt>
+        <dd>{inquiry.walker.name}</dd>
+      </div>
+      <div>
+        <dt>連絡先</dt>
+        <dd class="break-all">
+          {inquiry.walker.email}
+          {inquiry.walker.phone && <span class="ms-2 tabular-nums">{inquiry.walker.phone}</span>}
+        </dd>
+      </div>
+      <div>
+        <dt>受付日</dt>
+        <dd class="tabular-nums">{dateFormat.format(new Date(inquiry.createdAt))}</dd>
+      </div>
       <div>
         <dt>希望理由</dt>
         <dd class="text-pretty">{inquiry.motivation}</dd>
@@ -41,16 +77,28 @@ const inquiry: AdoptionInquiryDetail = mockAdoptionInquiryDetail;
       </div>
       <div>
         <dt>連絡済み</dt>
-        <dd>{inquiry.organizationContactedAt ?? "未連絡"}</dd>
+        <dd class="tabular-nums">{inquiry.organizationContactedAt ? dateFormat.format(new Date(inquiry.organizationContactedAt)) : "未連絡"}</dd>
       </div>
     </dl>
   </div>
 
-  <form class="flex max-w-2xl flex-wrap gap-3" method="post" action={`/api/v1/organization/adoption-inquiries/${inquiry.id}/transition`}>
-    <button type="submit" name="to" value="contacted" class="btn btn-sun px-5 text-sm">連絡済みにする</button>
-    <button type="submit" name="to" value="interview_scheduled" class="btn btn-quiet px-5 text-sm">面談予定にする</button>
-    <button type="submit" name="to" value="closed" class="btn btn-quiet px-5 text-sm">終了にする</button>
-  </form>
+  {
+    nextStatuses.length > 0 && (
+      <section class="grid max-w-2xl gap-3">
+        <h2 class="font-bold">対応状況を更新する</h2>
+        <div class="flex flex-wrap gap-3">
+          {nextStatuses.map((status) => (
+            <form method="post" action={`/api/v1/organization/adoption-inquiries/${inquiry.id}/transition`}>
+              <input type="hidden" name="to" value={status} />
+              <button type="submit" class="btn btn-quiet px-5 text-sm">
+                {adoptionInquiryStatusLabel(status)}にする
+              </button>
+            </form>
+          ))}
+        </div>
+      </section>
+    )
+  }
 
-  <p class="max-w-2xl text-sm text-pretty text-brand-ink-soft">相談者への連絡はサービス外で直接行ってください。運営は仲介しません。</p>
+  <p class="max-w-2xl text-sm text-pretty text-brand-ink-soft">相談者への連絡はサービス外で直接行ってください。運営は仲介しません。住所などの詳細は開示されません。</p>
 </OrganizationLayout>

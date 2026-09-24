@@ -2,26 +2,47 @@
 // SCR-49 — PRD-04 §3-1 (guarded)
 // An independent page rather than a modal on SCR-05, so a signed-out visitor can be redirected
 // here after logging in (PRD-04 §3-1, note).
-// TODO(SCR-49): replace mockDogDetail with getDogBySlug() and post createAdoptionInquiry() — F-11-01.
 import { env } from "cloudflare:workers";
 import Layout from "../../../../layouts/Layout.astro";
 import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
-import { mockDogDetail } from "$lib/mocks";
-import type { DogDetail } from "$lib/view-models/dog";
+import { getPublishedDogBySlug, type PublicDogDetail } from "$lib/server/services/dogs";
 import { createDb } from "@app/schema/client";
-
-const db = createDb(env.DB);
-const session = await getSession(Astro.cookies, db);
-if (!session) return Astro.redirect("/auth/login", 302);
+import { NotFoundError } from "@app/server-kit/http";
 
 const { slug } = Astro.params;
-const dog: DogDetail = mockDogDetail;
+const db = createDb(env.DB);
+const session = await getSession(Astro.cookies, db);
+if (!session) return Astro.redirect(`/auth/login?next=${encodeURIComponent(`/dogs/${slug}/adoption-inquiry`)}`, 302);
+
+let dog: PublicDogDetail;
+try {
+  dog = await getPublishedDogBySlug(db, slug!);
+} catch (error) {
+  if (error instanceof NotFoundError) return Astro.rewrite("/404");
+  throw error;
+}
+
+const ERRORS: Record<string, string> = {
+  input: "希望理由と飼育環境をご入力ください。",
+  unavailable: "この子への相談は受け付けられません。すでに相談済みか、里親募集が終了しています。",
+  too_many: "本日の相談回数の上限に達しました。時間をおいてお試しください。",
+  failed: "送信できませんでした。時間をおいてお試しください。",
+};
+const error = ERRORS[Astro.url.searchParams.get("error") ?? ""];
 ---
 
 <Layout title={`${dog.name} の里親相談 | 保護犬おさんぽマッチング`}>
   <main id="main-content" class="mx-auto grid max-w-2xl gap-6 px-4 py-12">
     <PageHeader title={`${dog.name} の里親について相談する`} lead="保護団体に直接届きます。相談したからといって、里親になる義務はありません。" backHref={`/dogs/${slug}`} backLabel={dog.name} />
+
+    {
+      error && (
+        <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+          {error}
+        </p>
+      )
+    }
 
     <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action={`/api/v1/dogs/${slug}/adoption-inquiries`}>
       <label class="grid gap-1.5">

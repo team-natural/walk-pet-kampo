@@ -1,12 +1,12 @@
 ---
 // ADM-20 — PRD-04 §3-2 (guarded)
-// TODO(ADM-20): replace mockAdoptionInquiries with listOwnAdoptionInquiries() — F-11-02.
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
 import DataTable from "$lib/components/organization/data-table.astro";
 import FlashMessage from "$lib/components/organization/flash-message.astro";
+import { adoptionInquiryStatusLabel } from "$lib/adoption-inquiry-status";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
-import { mockAdoptionInquiries } from "$lib/mocks";
+import { listOrganizationInquiries } from "$lib/server/services/adoption-inquiries";
 import type { AdoptionInquirySummary } from "$lib/view-models/adoption-inquiry";
 import { createDb } from "@app/schema/client";
 
@@ -14,7 +14,7 @@ const db = createDb(env.DB);
 const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
-const inquiries: AdoptionInquirySummary[] = mockAdoptionInquiries;
+const inquiries: AdoptionInquirySummary[] = await listOrganizationInquiries(db, session.organizationId);
 
 const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "numeric", day: "numeric", timeZone: "Asia/Tokyo" });
 ---
@@ -35,7 +35,7 @@ const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "n
           </td>
           <td class="tabular-nums">{dateFormat.format(new Date(inquiry.createdAt))}</td>
           <td>
-            <span class="badge badge-quiet">{inquiry.status}</span>
+            <span class="badge badge-quiet">{adoptionInquiryStatusLabel(inquiry.status)}</span>
           </td>
         </tr>
       ))

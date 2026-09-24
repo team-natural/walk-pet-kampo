@@ -1,27 +1,58 @@
 ---
 // SCR-31 — PRD-04 §3-1 (guarded)
-// TODO(SCR-31): replace mockAdoptionInquiryDetail with getWalkerAdoptionInquiry() — F-11-03.
 import { env } from "cloudflare:workers";
 import Layout from "../../../layouts/Layout.astro";
 import PageHeader from "$lib/components/page-header.astro";
+import { adoptionInquiryStatusLabel } from "$lib/adoption-inquiry-status";
 import { getSession } from "$lib/server/auth/session";
-import { mockAdoptionInquiryDetail } from "$lib/mocks";
+import { allowedInquiryTransitions, getOwnInquiry } from "$lib/server/services/adoption-inquiries";
 import type { AdoptionInquiryDetail } from "$lib/view-models/adoption-inquiry";
 import { createDb } from "@app/schema/client";
+import { NotFoundError } from "@app/server-kit/http";
 
 const db = createDb(env.DB);
 const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/auth/login", 302);
 
 const { publicId } = Astro.params;
-const inquiry: AdoptionInquiryDetail = mockAdoptionInquiryDetail;
+
+let inquiry: AdoptionInquiryDetail;
+try {
+  inquiry = await getOwnInquiry(db, session.walkerId, publicId!);
+} catch (error) {
+  if (error instanceof NotFoundError) return Astro.rewrite("/404");
+  throw error;
+}
+
+// Withdrawing is the walker's only move, and only while the enquiry is still live
+// (DEV-09 §2-11-2).
+const withdrawable = allowedInquiryTransitions(inquiry.status).includes("withdrawn");
+const status = Astro.url.searchParams.get("status");
+const staleState = Astro.url.searchParams.get("error") === "state";
+
+const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Tokyo" });
 ---
 
 <Layout title="里親相談の詳細 | 保護犬おさんぽマッチング">
   <main id="main-content" class="mx-auto grid max-w-3xl gap-6 px-4 py-12" data-public-id={publicId}>
     <PageHeader title={`${inquiry.dog.name} の里親相談`} backHref="/mypage/adoption-inquiries" backLabel="里親相談">
-      <p><span class="badge badge-blossom">{inquiry.status}</span></p>
+      <p><span class="badge badge-blossom">{adoptionInquiryStatusLabel(inquiry.status)}</span></p>
     </PageHeader>
+
+    {
+      status === "withdrawn" && (
+        <p role="status" class="rounded-2xl border-2 border-brand-blossom/60 bg-brand-blossom/20 px-4 py-3 text-sm font-bold">
+          相談を取り下げました。
+        </p>
+      )
+    }
+    {
+      staleState && (
+        <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+          この相談の状況が変わっています。画面を読み込み直してください。
+        </p>
+      )
+    }
 
     <div class="card p-6 sm:p-8">
       <dl class="detail-list">
@@ -32,6 +63,10 @@ const inquiry: AdoptionInquiryDetail = mockAdoptionInquiryDetail;
           </dd>
         </div>
         <div>
+          <dt>送信日</dt>
+          <dd class="tabular-nums">{dateFormat.format(new Date(inquiry.createdAt))}</dd>
+        </div>
+        <div>
           <dt>希望理由</dt>
           <dd class="text-pretty">{inquiry.motivation}</dd>
         </div>
@@ -39,9 +74,28 @@ const inquiry: AdoptionInquiryDetail = mockAdoptionInquiryDetail;
           <dt>飼育環境</dt>
           <dd class="text-pretty">{inquiry.livingEnvironment}</dd>
         </div>
+        {
+          inquiry.organizationContactedAt && (
+            <div>
+              <dt>団体からの連絡</dt>
+              <dd class="tabular-nums">{dateFormat.format(new Date(inquiry.organizationContactedAt))}</dd>
+            </div>
+          )
+        }
       </dl>
     </div>
 
     <p class="text-sm text-pretty text-brand-ink-soft">保護団体からの連絡はサービス外で直接行われます。しばらく連絡がない場合は、団体のページに記載の連絡先をご確認ください。</p>
+
+    {
+      withdrawable && (
+        <form method="post" action={`/api/v1/me/adoption-inquiries/${inquiry.id}/withdraw`} class="grid gap-2">
+          <button type="submit" class="btn btn-quiet w-fit px-5 text-sm">
+            この相談を取り下げる
+          </button>
+          <p class="text-sm text-brand-ink-soft">取り下げると、団体への相談は終了します。取り消せません。</p>
+        </form>
+      )
+    }
   </main>
 </Layout>

@@ -2,15 +2,14 @@
 // SYS-22 — PRD-04 §3-3
 // Read-only: the transfer itself follows each organization's own process (PRD-01 §1-0), so the
 // platform records the conversation but never advances it.
-// TODO(SYS-22): replace mockAdoptionInquiryDetail with getAdoptionInquiry() — F-15-11.
 import { env } from "cloudflare:workers";
 import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
 import DetailCard from "$lib/components/detail-card.astro";
 import PageHeader from "$lib/components/page-header.astro";
 import StatusBadge from "$lib/components/status-badge.svelte";
 import { formatDateTime } from "$lib/format";
-import { mockAdoptionInquiryDetail } from "$lib/mocks";
 import { getSession } from "$lib/server/auth/session";
+import { getAdoptionInquiryByPublicId } from "$lib/server/services/adoption-inquiries";
 import type { AdoptionInquiryDetail } from "$lib/view-models/adoption-inquiry";
 import { createDb } from "@app/schema/client";
 
@@ -19,7 +18,7 @@ const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
-const inquiry: AdoptionInquiryDetail = mockAdoptionInquiryDetail;
+const inquiry: AdoptionInquiryDetail = await getAdoptionInquiryByPublicId(db, publicId!);
 ---
 
 <ConsoleLayout title={`${inquiry.dogName} の里親相談`} user={session} breadcrumbs={[{ label: "里親相談", href: "/adoption-inquiries" }, { label: inquiry.dogName }]}>
