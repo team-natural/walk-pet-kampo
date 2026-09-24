@@ -15,7 +15,10 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   use: { baseURL, trace: "on-first-retry" },
   webServer: {
-    command: "pnpm dev",
+    // Migrate before the server starts: Playwright readies the web server *before* globalSetup,
+    // and SCR-01 queries D1 on first paint — against an empty database every readiness probe
+    // answers 500 and the run dies at "Timed out waiting 60000ms from config.webServer".
+    command: "pnpm --filter admin db:migrate && pnpm dev",
     // Astro 7 detaches `astro dev` for AI coding agents; Playwright then reports
     // "webServer exited early".
     env: { ASTRO_DEV_BACKGROUND: "0" },

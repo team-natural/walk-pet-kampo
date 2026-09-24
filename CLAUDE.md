@@ -239,6 +239,13 @@ in parallel corrupts it. Each `playwright.config.ts` pins `workers: 1` for the s
 Playwright parallelises across spec files by default, so adding a second spec file to an app is
 what turns this on. The symptom is an unrelated route answering 500 under load.
 
+**Playwright readies `webServer` before it runs `globalSetup`**, so migrating the database there
+is too late for anything the readiness probe touches: SCR-01 queries D1 on first paint, and on a
+checkout with no `.wrangler-state/` — every CI run — the probe only ever sees 500 and the run dies
+at `Timed out waiting 60000ms from config.webServer`. `apps/public` therefore applies the
+migrations in its `webServer.command`; `apps/admin` probes SYS-00, which is a login form and
+reads nothing.
+
 Cover what E2E cannot reach — fail-closed config, expiry, timing parity — in Vitest. Cover
 hydration in E2E: a missing `client:*` directive still renders server-side, so only an interaction
 catches it.
