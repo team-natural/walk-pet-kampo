@@ -9,6 +9,16 @@ export const E2E_WALKER = {
   name: "E2E Walker",
 };
 
+// A second walker, ready to book: email confirmed, profile filled in, terms agreed — everything
+// SCR-17 needs except the phone check, which is the step the reservation spec walks through
+// (GOV-01 D-036). E2E_WALKER stays deliberately incomplete; walker-profile.spec asserts that.
+export const E2E_BOOKING_WALKER = {
+  email: "e2e-booking-walker@example.test",
+  password: "e2e-only-password",
+  name: "E2E 予約参加者",
+  phone: "09012345678",
+};
+
 // The same password as the Walker above, on purpose: the lockout counter keys per account system
 // (GOV-01 D-021), and a shared credential is what would expose a counter that does not.
 export const E2E_ORGANIZATION_MEMBER = {
@@ -46,8 +56,12 @@ export default function globalSetup() {
   // `LIKE 'e2e-signup-%'` sweeps the accounts the registration spec creates: it needs a fresh
   // address every run, so it cannot clean up by name the way the seeded accounts do.
   const email = E2E_WALKER.email.replaceAll("'", "''");
-  const walkerScope = `(SELECT id FROM walkers WHERE email = '${email}' OR email LIKE 'e2e-signup-%')`;
-  runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`DELETE FROM walker_sessions WHERE walker_id IN ${walkerScope};`, `DELETE FROM walker_password_reset_tokens WHERE walker_id IN ${walkerScope};`, `DELETE FROM walker_email_verification_tokens WHERE walker_id IN ${walkerScope};`, `DELETE FROM walker_profiles WHERE walker_id IN ${walkerScope};`, `DELETE FROM walkers WHERE email = '${email}' OR email LIKE 'e2e-signup-%';`].join(" ")]);
+  const bookingEmail = E2E_BOOKING_WALKER.email.replaceAll("'", "''");
+  const walkerEmails = `'${email}', '${bookingEmail}'`;
+  const walkerScope = `(SELECT id FROM walkers WHERE email IN (${walkerEmails}) OR email LIKE 'e2e-signup-%')`;
+  // Reservations first of all: they point at the walker, the walk slot and the shelter, so a
+  // leftover row blocks all three of the deletes below.
+  runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`DELETE FROM reservations WHERE walker_id IN ${walkerScope};`, `DELETE FROM walker_sessions WHERE walker_id IN ${walkerScope};`, `DELETE FROM walker_password_reset_tokens WHERE walker_id IN ${walkerScope};`, `DELETE FROM walker_email_verification_tokens WHERE walker_id IN ${walkerScope};`, `DELETE FROM walker_phone_verification_tokens WHERE walker_id IN ${walkerScope};`, `DELETE FROM walker_profiles WHERE walker_id IN ${walkerScope};`, `DELETE FROM walkers WHERE email IN (${walkerEmails}) OR email LIKE 'e2e-signup-%';`].join(" ")]);
 
   const memberEmail = E2E_ORGANIZATION_MEMBER.email.replaceAll("'", "''");
   const organizationName = E2E_ORGANIZATION_MEMBER.organization.replaceAll("'", "''");
@@ -59,5 +73,12 @@ export default function globalSetup() {
   runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`DELETE FROM organization_application_tokens WHERE organization_id IN ${applicantScope};`, `DELETE FROM activity_log WHERE organization_id IN ${applicantScope};`, `DELETE FROM organizations WHERE name LIKE 'E2E 申請団体%';`].join(" ")]);
 
   runInAdmin("pnpm", ["seed", "--", "--table=walkers", `--email=${E2E_WALKER.email}`, `--password=${E2E_WALKER.password}`, `--name=${E2E_WALKER.name}`]);
+  runInAdmin("pnpm", ["seed", "--", "--table=walkers", `--email=${E2E_BOOKING_WALKER.email}`, `--password=${E2E_BOOKING_WALKER.password}`, `--name=${E2E_BOOKING_WALKER.name}`]);
+
+  // The seeder creates a provisional profile, which is where a real signup starts. Booking needs
+  // `active` (DEV-09 §2-4), and reaching it through the UI is walker-registration.spec's subject,
+  // not this one's — so the finished state is written directly.
+  const bookingScope = `(SELECT id FROM walkers WHERE email = '${bookingEmail}')`;
+  runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`UPDATE walkers SET email_verified_at = datetime('now') WHERE email = '${bookingEmail}';`, `UPDATE walker_profiles SET status = 'active', name_kana = 'ヨヤク サンカシャ', birthdate = '1990-01-01', postal_code = '1150045', address = '東京都北区赤羽1-1-1', phone = '${E2E_BOOKING_WALKER.phone}', phone_verified_at = NULL, emergency_contact_name = '山田 花子', emergency_contact_phone = '09000000000', terms_agreed_at = datetime('now'), terms_agreed_version = '1.0' WHERE walker_id IN ${bookingScope};`].join(" ")]);
   runInAdmin("pnpm", ["seed", "--", "--table=organization_members", `--email=${E2E_ORGANIZATION_MEMBER.email}`, `--password=${E2E_ORGANIZATION_MEMBER.password}`, `--name=${E2E_ORGANIZATION_MEMBER.name}`, `--organization=${E2E_ORGANIZATION_MEMBER.organization}`, "--role=org_admin"]);
 }

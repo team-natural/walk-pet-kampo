@@ -205,6 +205,28 @@ export const walkerEmailVerificationTokens = sqliteTable(
   (table) => [uniqueIndex("uq_walker_email_verification_tokens_token").on(table.token), index("idx_walker_email_verification_tokens_walker_id").on(table.walkerId), index("idx_walker_email_verification_tokens_expires_at").on(table.expiresAt)],
 );
 
+// The phone code (DEV-07 §5-27). Six digits is a guessable value, so unlike every other token
+// here it is not unique and is never looked up on its own: the lookup is walker + code, the row
+// dies after five wrong attempts, and it is only valid for ten minutes.
+export const walkerPhoneVerificationTokens = sqliteTable(
+  "walker_phone_verification_tokens",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    walkerId: integer("walker_id")
+      .notNull()
+      .references(() => walkers.id),
+    // The number the code went to. Changing the profile's number must not let an old code
+    // verify the new one.
+    phone: text("phone").notNull(),
+    code: text("code").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    usedAt: text("used_at"),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (table) => [index("idx_walker_phone_verification_tokens_walker_id").on(table.walkerId), index("idx_walker_phone_verification_tokens_expires_at").on(table.expiresAt)],
+);
+
 // ---------------------------------------------------------------------------
 // Organization — tenant and its staff accounts (DEV-07 §5-4〜§5-7, §5-24, §5-25)
 // ---------------------------------------------------------------------------

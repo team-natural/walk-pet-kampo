@@ -1,13 +1,14 @@
 ---
 // SCR-23 — PRD-04 §3-1 (guarded)
-// Read-only status board. The phone number is verified at the first reservation, not here
-// (GOV-01 D-036), so this screen reports state and points at what to fill in — the verification
-// step itself arrives with P11.
+// Status board plus the phone step itself (F-01-02). The number is verified at the first
+// reservation rather than at signup (GOV-01 D-036), so a walker usually arrives here from
+// SCR-17 with `?next=` pointing back at the walk they were booking.
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
 import PageHeader from "$lib/components/page-header.astro";
 import { walkerStatusLabel } from "$lib/walker-status";
 import { getSession } from "$lib/server/auth/session";
+import { safeNext } from "$lib/server/next-path";
 import { getWalkerByPublicId } from "$lib/server/services/walkers";
 import { getWalkerProfile } from "$lib/server/services/walker-profile";
 import type { WalkerProfileView } from "$lib/view-models/walker";
@@ -20,11 +21,44 @@ if (!session) return Astro.redirect("/auth/login", 302);
 const profile: WalkerProfileView = await getWalkerProfile(db, session.walkerId);
 const walker = await getWalkerByPublicId(db, session.walkerPublicId);
 const emailVerified = walker?.emailVerifiedAt !== null && walker?.emailVerifiedAt !== undefined;
+
+const next = safeNext(Astro.url.searchParams.get("next"));
+
+const status = Astro.url.searchParams.get("status");
+const ERRORS: Record<string, string> = {
+  code: "確認コードが正しくないか、有効期限が切れています。もう一度送信してください。",
+  no_phone: "先にプロフィールで電話番号を登録してください。",
+  too_many: "確認コードの送信回数が上限に達しました。しばらく待ってからお試しください。",
+  failed: "確認コードを送信できませんでした。時間をおいてお試しください。",
+};
+const error = ERRORS[Astro.url.searchParams.get("error") ?? ""];
 ---
 
 <Layout title="本人・連絡先の確認状況 | 保護犬おさんぽマッチング">
   <main id="main-content" class="mx-auto grid max-w-2xl gap-6 px-4 py-12">
     <PageHeader title="本人・連絡先の確認状況" lead="おさんぽの予約には、電話番号の確認と規約への同意が必要です。" backHref="/mypage" backLabel="マイページ" />
+
+    {
+      error && (
+        <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+          {error}
+        </p>
+      )
+    }
+    {
+      status === "code_sent" && (
+        <p role="status" class="rounded-2xl border-2 border-brand-blossom/60 bg-brand-blossom/20 px-4 py-3 text-sm font-bold">
+          確認コードを SMS でお送りしました。10 分以内にご入力ください。
+        </p>
+      )
+    }
+    {
+      status === "verified" && (
+        <p role="status" class="rounded-2xl border-2 border-brand-blossom/60 bg-brand-blossom/20 px-4 py-3 text-sm font-bold">
+          電話番号を確認しました。
+        </p>
+      )
+    }
 
     <div class="card p-6 sm:p-8">
       <dl class="detail-list">
@@ -46,6 +80,45 @@ const emailVerified = walker?.emailVerifiedAt !== null && walker?.emailVerifiedA
         </div>
       </dl>
     </div>
+
+    {
+      profile.phoneVerifiedAt === null && (
+        <section class="card grid gap-4 p-6 sm:p-8">
+          <h2 class="font-bold">電話番号の確認</h2>
+          {profile.phone ? (
+            <p class="text-sm text-pretty text-brand-ink-soft">
+              <span class="tabular-nums">{profile.phone}</span> に確認コード（6 桁）を SMS でお送りします。
+            </p>
+          ) : (
+            <p class="text-sm text-pretty text-brand-ink-soft">
+              先に
+              <a href="/mypage/profile" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">
+                プロフィール
+              </a>
+              で電話番号を登録してください。
+            </p>
+          )}
+
+          <form method="post" action="/api/v1/auth/verify-phone">
+            {next && <input type="hidden" name="next" value={next} />}
+            <button type="submit" class="btn btn-sun w-fit px-6 py-3" disabled={!profile.phone}>
+              確認コードを送る
+            </button>
+          </form>
+
+          <form method="post" action="/api/v1/auth/verify-phone/confirm" class="grid gap-3 border-t border-brand-ink/10 pt-4">
+            {next && <input type="hidden" name="next" value={next} />}
+            <label class="grid gap-1.5 text-sm">
+              <span class="font-bold">確認コード</span>
+              <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required class="field w-40 tabular-nums" />
+            </label>
+            <button type="submit" class="btn btn-blossom w-fit px-6 py-3">
+              確認する
+            </button>
+          </form>
+        </section>
+      )
+    }
 
     {
       profile.status !== "active" && (

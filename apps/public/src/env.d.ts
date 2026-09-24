@@ -7,5 +7,8 @@ declare namespace Cloudflare {
     RESEND_API_KEY?: string;
     /** HMAC key for time-limited links to private R2 objects (GOV-01 D-024). */
     FILE_SIGNING_KEY?: string;
+    /** SMS provider credential for phone verification (F-01-02). The provider itself is still
+     *  undecided (GOV-02 TBD-61), so this is the one value lib/server/sms/client.ts needs. */
+    SMS_API_KEY?: string;
   }
 }

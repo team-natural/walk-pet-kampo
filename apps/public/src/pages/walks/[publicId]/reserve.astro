@@ -1,22 +1,40 @@
 ---
 // SCR-17 — PRD-04 §3-1 (guarded)
-// TODO(SCR-17): replace mockWalkSlotDetail with getWalkSlotByPublicId() and post to
-// createReservation() — F-07-06.
+// The same predicate the endpoint uses decides what this screen shows (DEV-09 §2-7-3): a walker
+// who cannot book yet is told which step is missing rather than meeting an error after typing.
 import { env } from "cloudflare:workers";
 import Layout from "../../../layouts/Layout.astro";
 import PageHeader from "$lib/components/page-header.astro";
-import { getSession } from "$lib/server/auth/session";
-import { mockWalkSlotDetail } from "$lib/mocks";
 import { formatYen } from "$lib/pricing";
+import { getSession } from "$lib/server/auth/session";
+import { checkReservationEligibility } from "$lib/server/services/reservations";
+import { getPublicWalkSlot } from "$lib/server/services/walk-slots";
 import type { WalkSlotDetail } from "$lib/view-models/walk-slot";
 import { createDb } from "@app/schema/client";
+import { NotFoundError } from "@app/server-kit/http";
 
 const db = createDb(env.DB);
 const session = await getSession(Astro.cookies, db);
-if (!session) return Astro.redirect("/auth/login", 302);
-
 const { publicId } = Astro.params;
-const slot: WalkSlotDetail = mockWalkSlotDetail;
+if (!session) return Astro.redirect(`/auth/login?next=${encodeURIComponent(`/walks/${publicId}/reserve`)}`, 302);
+
+let slot: WalkSlotDetail;
+try {
+  slot = await getPublicWalkSlot(db, publicId!);
+} catch (error) {
+  if (error instanceof NotFoundError) return Astro.rewrite("/404");
+  throw error;
+}
+
+const { block } = await checkReservationEligibility(db, session.walkerId);
+
+const ERRORS: Record<string, string> = {
+  input: "入力内容を確認してください。",
+  unavailable: "このおさんぽは満席になったか、受付が終了しました。",
+  too_many: "短時間に何度も予約を試みています。しばらく待ってからお試しください。",
+  failed: "予約を受け付けられませんでした。時間をおいてお試しください。",
+};
+const error = ERRORS[Astro.url.searchParams.get("error") ?? ""];
 
 const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
@@ -27,10 +45,42 @@ const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "l
       <p class="text-sm font-bold text-brand-ink-soft">{slot.title} / {dateFormat.format(new Date(slot.startAt))}</p>
     </PageHeader>
 
-    <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action={`/api/v1/walk-slots/${publicId}/reservations`}>
+    {
+      error && (
+        <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+          {error}
+        </p>
+      )
+    }
+
+    {
+      block === "phone_unverified" && (
+        <div class="card grid gap-3 p-6">
+          <h2 class="font-bold">予約の前に、電話番号の確認をお願いします</h2>
+          <p class="text-sm text-pretty text-brand-ink-soft">当日の連絡に使う番号です。確認は初回の予約のときだけで、次回からは不要です。</p>
+          <a href={`/mypage/verification?next=${encodeURIComponent(`/walks/${slot.id}/reserve`)}`} class="btn btn-blossom w-fit px-6 py-3">
+            電話番号を確認する
+          </a>
+        </div>
+      )
+    }
+
+    {
+      block === "profile_incomplete" && (
+        <div class="card grid gap-3 p-6">
+          <h2 class="font-bold">予約の前に、プロフィールの入力をお願いします</h2>
+          <p class="text-sm text-pretty text-brand-ink-soft">生年月日・電話番号・緊急連絡先と、規約への同意が必要です。</p>
+          <a href="/mypage/profile" class="btn btn-blossom w-fit px-6 py-3">
+            プロフィールを編集する
+          </a>
+        </div>
+      )
+    }
+
+    <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action={`/api/v1/walk-slots/${slot.id}/reservations`}>
       <label class="grid gap-1.5">
         <span class="font-bold">参加人数</span>
-        <input type="number" name="participantCount" min="1" max={slot.remainingCapacity} value="1" class="field w-full tabular-nums" />
+        <input type="number" name="participantCount" min="1" max={slot.remainingCapacity} value="1" required class="field w-full tabular-nums" />
         <span class="text-brand-ink-soft">残り {slot.remainingCapacity} 名まで予約できます。</span>
       </label>
 
@@ -47,10 +97,10 @@ const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "l
 
       <p class="flex items-baseline justify-between gap-4 border-t border-brand-ink/10 pt-4 font-bold">
         <span>お支払い予定額</span>
-        <span class="text-lg whitespace-nowrap tabular-nums">{formatYen(slot.feePerPerson)}</span>
+        <span class="text-lg whitespace-nowrap tabular-nums">{formatYen(slot.feePerPerson)} / 名</span>
       </p>
 
-      <button type="submit" class="btn btn-blossom px-6 py-3">確認へ進む</button>
+      <button type="submit" class="btn btn-blossom px-6 py-3" disabled={block !== null}>確認へ進む</button>
     </form>
   </main>
 </Layout>

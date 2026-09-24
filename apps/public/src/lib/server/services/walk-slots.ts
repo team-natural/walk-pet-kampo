@@ -4,7 +4,7 @@ import { dogs, organizations, reservations, walkSlotDogs, walkSlots } from "@app
 import type { DbClient } from "@app/schema/client";
 import { ulid } from "@app/schema/ulid";
 import { InvalidStateTransitionError, NotFoundError, ValidationError } from "@app/server-kit/http";
-import { and, asc, desc, eq, gte, inArray, isNotNull, like, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, like, lt, notInArray, or, sql } from "drizzle-orm";
 import type { DogSummary } from "../../view-models/dog";
 import type { OrganizationSummary } from "../../view-models/organization";
 import type { WalkSlotDetail, WalkSlotSummary } from "../../view-models/walk-slot";
@@ -31,12 +31,17 @@ export function allowedWalkSlotTransitions(status: WalkSlotStatus): WalkSlotStat
   return TRANSITIONS[status] ?? [];
 }
 
-// A seat is taken by anything that has not been cancelled — plus D-025: an `awaiting_payment` row
-// past its deadline is not holding a seat, whether or not the cleanup Cron has run.
+// A seat is taken by anything that has not been cancelled — plus D-025: a hold past its deadline
+// is not holding a seat, whether or not any cleanup has run.
 const HOLDING_STATES = ["processing", "awaiting_payment", "confirmed", "organization_reviewing", "scheduled", "completed"] as const;
 
+// Both pre-payment states carry a deadline (`expires_at`): `processing` is a walker part-way
+// through the form, and an abandoned tab must not hold a seat until the walk happens. D-025 names
+// `awaiting_payment` because that was the only one when it was written.
+const EXPIRING_STATES: (typeof HOLDING_STATES)[number][] = ["processing", "awaiting_payment"];
+
 function seatsTaken(walkSlotId: number) {
-  return and(eq(reservations.walkSlotId, walkSlotId), inArray(reservations.status, HOLDING_STATES), or(sql`${reservations.status} <> 'awaiting_payment'`, gte(reservations.expiresAt, new Date().toISOString())));
+  return and(eq(reservations.walkSlotId, walkSlotId), inArray(reservations.status, HOLDING_STATES), or(notInArray(reservations.status, EXPIRING_STATES), gte(reservations.expiresAt, new Date().toISOString())));
 }
 
 export async function countTakenSeats(db: DbClient, walkSlotId: number): Promise<number> {

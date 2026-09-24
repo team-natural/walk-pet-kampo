@@ -202,13 +202,32 @@ flowchart TD
 
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
-| P11 | `feature/reservation-hold` | SCR-17。Reservation `processing → awaiting_payment`（DEV-09 §2-7）、`walk_slots.reserved_count` の加算を同一 `batch()` に、予約作成の KV レート制限（10 回/時/Walker、DEV-02 §7）。**電話確認（F-01-02、SCR-23）はここで実装する** — 予約作成の前提に `requirePhoneVerified` を置き、未確認なら確認画面へ誘導してから予約に戻す（GOV-01 D-036、DEV-09 §2-7-3） | P5,P9 | TBD-14/15、**TBD-61（SMS プロバイダ。着手前に確定させる）** | 未着手 |
+| P11 | `feature/reservation-hold` | SCR-17 + SCR-23。Reservation `processing → awaiting_payment`（DEV-09 §2-7）、予約作成の KV レート制限（10 回/時/Walker、DEV-02 §7）、**電話確認**（F-01-02。`walker_phone_verification_tokens` を DEV-07 §5-27 に追加、6 桁 10 分 5 回まで）。未確認なら SCR-23 へ誘導し、確認後は `next` で予約に戻す（GOV-01 D-036、DEV-09 §2-7-3） | P5,P9 | TBD-14/15、TBD-61（SMS プロバイダ） | 進行中 |
 | P12 | `feature/payments` | FG-08 前半。SCR-18/19/20。Stripe Checkout / Payment Intent、Webhook 受信 + `stripe_event_logs` による冪等性（DEV-10 §2）、Payment 7 状態、Reservation `confirmed` 遷移 | P11 | **TBD-01/02/08/09**（料金）、**TBD-37/38/39**（ドメイン・メール・Stripe 設定） | 未着手 |
 | P13 | `feature/cancel-refund` | FG-08 後半。SCR-24/25。キャンセル規定の判定、返金 API、WalkSlot 中止と予約の連動（DEV-09 §2-6-4） | P12 | **TBD-10/11/12**（キャンセル・返金条件） | 未着手 |
 | P14 | `feature/admin-ops-rpc` | D-022 の `AdminOps`（`WorkerEntrypoint`）+ SYS-13/14/15/16。`apps/public` の `main` を `src/worker.ts` へ変更 | P13 | **TBD-58 を解決するフェーズ** | 未着手 |
 
 > **P11 で一度区切る**のは、Stripe 関連の TBD が埋まらない間も予約導線の骨格を進められるように
 > するため。P12 は単独で最長のフェーズになる見込みで、ブロッカーも最多である。
+
+> **P11 の申し送り 4 点**
+>
+> 1. **SMS は送っていない**（GOV-02 TBD-61）。`lib/server/sms/client.ts` が送信の唯一の出口で、
+>    プロバイダ未定の間はログに落とすだけ（`mail/client.ts` が鍵なしのときと同じ挙動）。
+>    **確定後に変わるのは `deliver()` の中身だけ**で、呼び出し側・コードの生成・検証は変わらない。
+>    E2E は D1 のトークン行からコードを読んで確認フローを通している。
+> 2. **`walk_slots.reserved_count` は増やしていない。** 席の確保は予約行を数える側（GOV-01 D-025、
+>    P9 の `countTakenSeats()`）で成立しており、DEV-09 §2-7-4 は加算を `→ confirmed` の副作用と
+>    定めているため、**加算・減算は P12/P13 で実装する**。それまで SYS-11/12 に出る
+>    `reserved_count` は「確定済みの数」であって「押さえられている席数」ではない。
+> 3. **参加人数は 1〜20 で受け付けている**（`participant_count`）。TBD-14/15（複数名参加の可否）が
+>    「1 予約 = 1 名」に決まった場合は、`reservationSchema` の上限と SCR-17 の `max` を 1 にするだけ
+>    で足りる形にしてある。
+> 4. **離脱した予約の席は 30 分で開く**が、**行の掃除は未実装**。`expires_at` は作成時
+>    （`processing`）から入れ、空き枠計算は期限切れの `processing` / `awaiting_payment` を
+>    除外する（DEV-07 §5-11 に追記）。D-025 のとおり在庫計算は Cron に依存しないので席は開くが、
+>    行は残り続ける — `cancelled_by_platform` + `payment_timeout` への一括遷移（D-025 が「掃除
+>    目的の任意実装」とした Cron）は P12/P20 で足す。
 
 ### 3-6. Stage 5 — 実施後と運営
 

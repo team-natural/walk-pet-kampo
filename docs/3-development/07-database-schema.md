@@ -238,6 +238,8 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | `walker_password_reset_tokens` | `walkers` 向けパスワードリセット（SCR-13・14）。列定義は §5-23 |
 | `organization_member_password_reset_tokens` | `organization_members` 向けパスワードリセット（ADM-24・25）。列定義は §5-24 |
 | `organization_application_tokens` | 保護団体登録申請の差し戻し対応（SCR-51）。列定義は §5-25 |
+| `walker_email_verification_tokens` | `walkers` 向けメールアドレス確認（SCR-10）。列定義は §5-26 |
+| `walker_phone_verification_tokens` | `walker_profiles` 向け電話番号確認（SCR-23、初回予約時 — GOV-01 D-036）。列定義は §5-27 |
 
 > **単発トークンは系統ごとに別テーブルとする**（`Decided` — GOV-01 D-020）。`subject_type` + `subject_id` の polymorphic 1 テーブルにまとめない — 引くたびに系統の絞り込みを書く必要があり、**書き忘れると Walker のトークンで団体スタッフのパスワードを変更できる**。テーブルを分ければこの取り違えは構造的に起こり得ない。招待受諾（ADM-26）は `invitations`（§5-7）が担当する。いずれも `password_reset_tokens`（§4-6）と同じ Web Crypto HMAC 署名パターンを踏襲し、`used_at` で 1 回限りの使用を強制する。
 
@@ -679,7 +681,7 @@ NOT NULL を維持してダミー値を入れる案は採らない — 空文字
 | emergency_contact_name_snapshot | TEXT | NO | 予約時点の緊急連絡先スナップショット |
 | emergency_contact_phone_snapshot | TEXT | NO | 同上 |
 | status | TEXT | NO | processing / awaiting_payment / confirmed / organization_reviewing / scheduled / completed / cancelled_by_walker / cancelled_by_organization / cancelled_by_platform / no_show / cancelled_weather / cancelled_dog_condition（PRD-01 §7） |
-| expires_at | TEXT | YES | `awaiting_payment` の期限（作成から 30 分）。空き枠計算はこれを過ぎた `awaiting_payment` を在庫から除外する（GOV-01 D-025） |
+| expires_at | TEXT | YES | 決済前の保持期限（**作成時から 30 分**）。空き枠計算はこれを過ぎた `processing` / `awaiting_payment` を在庫から除外する（GOV-01 D-025）。**`processing` にも入れる**のは、フォーム入力の途中で離脱した予約が開催日まで席を押さえ続けないようにするため — D-025 が `awaiting_payment` だけを挙げているのは、決定時点でそれが唯一の保持状態だったから |
 | cancelled_reason | TEXT | YES | 期限切れの掃除処理は `cancelled_by_platform` + `payment_timeout` を入れる |
 | cancelled_at | TEXT | YES |  |
 | created_at | TEXT | NO |  |
@@ -940,6 +942,25 @@ NOT NULL を維持してダミー値を入れる案は採らない — 空文字
 **Index**: UNIQUE(`token`), `walker_id`, `expires_at`
 
 > **パスワード再設定と同じテーブルに `purpose` 列で相乗りさせない。** 用途を 1 列で分ける設計は、どこか 1 つのクエリで絞り込みを書き忘れた瞬間に「確認メールのリンクでパスワードが再設定できる」状態を作る。テーブルが分かれていれば、その取り違えは型とテーブル名の段階で止まる（§3-1 の注記・GOV-01 D-020 と同じ理由）。
+
+### 5-27. walker_phone_verification_tokens
+
+参加者の電話番号確認（F-01-02、SCR-23）。**初回予約時に要求する**（`Decided` — GOV-01 D-036、DEV-09 §2-7-3）。
+
+| カラム | 型 | NULL | 備考 |
+| --- | --- | --- | --- |
+| id | INTEGER | NO | PK |
+| walker_id | INTEGER | NO | FK → walkers.id |
+| phone | TEXT | NO | 送信先。確認完了時に `walker_profiles.phone` と一致することを確認する（番号を変えられた場合に古い確認を流用させないため） |
+| code | TEXT | NO | SMS に載せる 6 桁。**UNIQUE にしない** — 6 桁は総当たりできる値であり、一意制約は「他人のコードと衝突したら再発行できない」という別の問題を生む。照合は必ず `walker_id` + `code` の組で行う |
+| expires_at | TEXT | NO | ISO 8601。発行から 10 分（SMS はその場で読まれる前提） |
+| used_at | TEXT | YES | 使用済みになった時刻。NULL の間のみ有効 |
+| attempt_count | INTEGER | NO | DEFAULT 0。誤入力のたびに加算し、上限（5 回）で行を無効化する |
+| created_at | TEXT | NO |  |
+
+**Index**: `walker_id`, `expires_at`
+
+> **他の単発トークンと違い `token` は UNIQUE ではない**（上表の理由）。低エントロピーな値を本人性の担保に使えるのは、①宛先が `walker_profiles.phone` に固定されている ②有効期限が短い ③試行回数に上限がある、の 3 つが揃っているときだけで、どれか 1 つでも外すと 6 桁は総当たりで破れる。`used_at` による 1 回限りの使用は他のトークンと同じ（§3-1 の注記・GOV-01 D-020）。
 
 ---
 

@@ -270,8 +270,8 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 | POST | `/api/v1/auth/password/forgot` | パスワードリセット要求 | 不要 |
 | POST | `/api/v1/auth/password/reset` | パスワードリセット実行 | 不要 |
 | POST | `/api/v1/auth/verify-email/{token}` | メールアドレス確認（F-01-01） | 不要（トークンで検証） |
-| POST | `/api/v1/auth/verify-phone` | 電話番号確認コード送信（F-01-02） | 必須 |
-| POST | `/api/v1/auth/verify-phone/confirm` | SMS コード照合 | 必須 |
+| POST | `/api/v1/auth/verify-phone` | 電話番号確認コード送信（F-01-02）。宛先は `walker_profiles.phone` から読む（body では指定させない — 任意の番号へ SMS を送らせないため）。5 回/時/Walker（DEV-02 §7） | 必須 |
+| POST | `/api/v1/auth/verify-phone/confirm` | SMS コード照合（body: `code`、任意で `next`）。失敗理由は区別せず同一の応答。`next` は自サイト内のパスのみ許可（SCR-17 から来た場合に予約へ戻すため） | 必須 |
 | GET | `/api/v1/auth/callback/{provider}` | ソーシャルログイン（F-01-07、Medium/MVP 対象外 `△`） | 不要 |
 | GET | `/api/v1/auth/me` | 現在の Walker 情報 | 必須 |
 
