@@ -155,9 +155,20 @@ flowchart TD
 
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
-| P8 | `feature/dogs` | FG-05。ADM-05/06/07 + SCR-04/05 + SYS-09/10。Dog `adoptionStatus` 6 状態（DEV-09 §2-5）、写真、`internalNotes` の団体限定タブ（PRD-04 §4-3） | P7 | なし | 未着手 |
+| P8 | `feature/dogs` | FG-05。ADM-05/06/07 + SCR-04/05 + SYS-09/10。Dog `adoptionStatus` 6 状態（DEV-09 §2-5）、写真、`internalNotes`（PRD-04 §4-3）。**公開画像の配信ルート（`/images/[...key]`）もここで追加**（DEV-10 §4-3） | P7 | なし | 進行中 |
 | P9 | `feature/walk-slots` | FG-06。ADM-08/09/10 + SCR-06/07 + SYS-11/12。WalkSlot 8 状態（DEV-09 §2-6）、`walk_slot_dogs`、開催地のジオコーディング | P8 | TBD-14/15（複数名参加の可否が枠の定員設計に影響） | 未着手 |
 | P10 | `feature/search` | FG-07 の検索部分。SCR-01/02/03 の実データ化、エリア・日付フィルタ（URL クエリ保持）、**Haversine 距離検索**。絞り込みを先に適用してから距離計算する（DEV-05 §8） | P9 | TBD-40 | 未着手 |
+
+> **P8 の申し送り 3 点**
+>
+> 1. **SYS-10 は読み取り専用で結線した。** 運営の書き込みは `updateDogByPlatform`（RPC。DEV-04
+>    §5-15）で、それを叩く admin 側ルートが GOV-02 **TBD-58** で未決のため、`dog-edit-sheet.svelte`
+>    と公開/非公開の確認ダイアログは画面から外してある（存在しないパスへ POST するボタンを
+>    出さないため）。**P14 で戻す。** 共通フォーム部品の E2E は SYS-12（まだモック）側に移した。
+> 2. **SCR-04 は絞り込み・ページネーションなしの一覧**（60 件上限）。エリア・日付フィルタは
+>    P10 の範囲。
+> 3. **写真は 1 枚だけ**（`dogs.photo_key` が単数カラム。DEV-07 §5-8）。複数枚が要るなら
+>    DEV-07 の変更が先で、`walk_records.photo_keys` と同じ JSON 配列方式になる。
 
 ### 3-5. Stage 4 — 取引
 

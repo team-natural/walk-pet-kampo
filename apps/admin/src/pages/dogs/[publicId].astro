@@ -1,20 +1,18 @@
 ---
 // SYS-10 — PRD-04 §3-3
-// The write side is `updateDogByPlatform` on apps/public's AdminOps entrypoint, reached over the
-// Service Binding (DEV-04 §5-15). The path below is the admin-side HTTP wrapper that route still
-// needs — TBD-58 — so it is the one part of this screen that is not yet settled.
-// TODO(SYS-10): replace mockDogDetail with getDog() and post updateDogByPlatform() — F-15-05.
+// Read-only until P14. The write side is `updateDogByPlatform` on apps/public's AdminOps
+// entrypoint (DEV-04 §5-15), and the admin-side route that would call it is exactly what GOV-02
+// TBD-58 leaves undecided — a button posting to a path nobody serves is worse than no button.
+// `dog-edit-sheet.svelte` stays in place for it.
 import { env } from "cloudflare:workers";
 import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
-import ConfirmAction from "$lib/components/confirm-action.svelte";
 import DetailCard from "$lib/components/detail-card.astro";
-import DogEditSheet from "$lib/components/dog-edit-sheet.svelte";
 import PageHeader from "$lib/components/page-header.astro";
 import StatusBadge from "$lib/components/status-badge.svelte";
 import { Badge } from "$lib/components/ui/badge/index.js";
 import { formatDateTime } from "$lib/format";
-import { mockDogDetail } from "$lib/mocks";
 import { getSession } from "$lib/server/auth/session";
+import { getDogByPublicId } from "$lib/server/services/dogs";
 import { label, yesNo } from "$lib/status";
 import type { DogDetail } from "$lib/view-models/dog";
 import { createDb } from "@app/schema/client";
@@ -24,8 +22,7 @@ const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
-const dog: DogDetail = mockDogDetail;
-const updateAction = `/api/v1/dogs/${dog.id}`;
+const dog: DogDetail = await getDogByPublicId(db, publicId!);
 ---
 
 <ConsoleLayout title={dog.name} user={session} breadcrumbs={[{ label: "保護犬", href: "/dogs" }, { label: dog.name }]}>
@@ -36,14 +33,6 @@ const updateAction = `/api/v1/dogs/${dog.id}`;
           <StatusBadge domain="dog" value={dog.adoptionStatus} />
           <Badge variant={dog.isPublished ? "secondary" : "outline"}>{dog.isPublished ? "公開中" : "非公開"}</Badge>
         </p>
-      </Fragment>
-      <Fragment slot="actions">
-        <DogEditSheet client:load dog={dog} action={updateAction} />
-        {
-          /* Unpublishing is one click behind a confirmation, not buried in the edit form: it is the
-            one correction an operator reaches for in a hurry, and it is visible to the public. */
-        }
-        {dog.isPublished ? <ConfirmAction client:load action={updateAction} name="isPublished" value="0" destructive triggerLabel="非公開にする" title="この保護犬を非公開にしますか？" message="公開サイトから見えなくなります。この子が参加予定のおさんぽ募集はそのまま残ります。" confirmLabel="非公開にする" reasonLabel="理由（団体に通知されます）" /> : <ConfirmAction client:load action={updateAction} name="isPublished" value="1" triggerLabel="公開する" title="この保護犬を公開しますか？" message="公開サイトの一覧と検索結果に表示されるようになります。" confirmLabel="公開する" />}
       </Fragment>
     </PageHeader>
 

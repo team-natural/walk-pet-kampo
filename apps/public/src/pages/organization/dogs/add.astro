@@ -1,8 +1,10 @@
 ---
 // ADM-06 — PRD-04 §3-2 (guarded)
-// TODO(ADM-06): post to createDog() — F-05-02.
+// A new dog is created unlisted and unpublished. Both are set afterwards on ADM-07, where the
+// state machine (DEV-09 §2-5) decides what is reachable.
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
 import FormSection from "$lib/components/organization/form-section.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { createDb } from "@app/schema/client";
@@ -13,6 +15,7 @@ if (!session) return Astro.redirect("/organization/login", 302);
 ---
 
 <OrganizationLayout title="保護犬の登録 | 団体ページ" session={session}>
+  <FlashMessage />
   <header class="grid gap-2">
     <a href="/organization/dogs" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← 保護犬</a>
     <h1 class="text-xl font-bold">保護犬の登録</h1>
@@ -40,6 +43,25 @@ if (!session) return Astro.redirect("/organization/login", 302);
       </label>
 
       <label class="grid gap-1.5">
+        <span class="font-bold">性別</span>
+        <select name="gender" class="field w-full">
+          <option value="">不明</option>
+          <option value="male">オス</option>
+          <option value="female">メス</option>
+        </select>
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">推定年齢</span>
+        <input type="text" name="estimatedAge" placeholder="3歳くらい" class="field w-full" />
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">体重（kg）</span>
+        <input type="number" name="weight" step="0.1" min="0" class="field w-full" />
+      </label>
+
+      <label class="grid gap-1.5">
         <span class="font-bold">写真</span>
         <input type="file" name="photo" accept="image/*" class="field w-full" />
       </label>
@@ -53,6 +75,46 @@ if (!session) return Astro.redirect("/organization/login", 302);
           <option value="some">多少あると安心</option>
           <option value="experienced">経験者のみ</option>
         </select>
+      </label>
+
+      {/* Hidden "0" first: an unchecked box sends nothing at all, and the route reads the last value for the name. */}
+      <label class="flex items-center gap-3">
+        <input type="hidden" name="walkEligible" value="0" />
+        <input type="checkbox" name="walkEligible" value="1" checked class="size-5 accent-brand-blossom-deep" />
+        <span>おさんぽに参加できる</span>
+      </label>
+
+      <label class="flex items-center gap-3">
+        <input type="hidden" name="beginnerAllowed" value="0" />
+        <input type="checkbox" name="beginnerAllowed" value="1" checked class="size-5 accent-brand-blossom-deep" />
+        <span>はじめての方でも歩ける</span>
+      </label>
+
+      <label class="flex items-center gap-3">
+        <input type="hidden" name="childAllowed" value="0" />
+        <input type="checkbox" name="childAllowed" value="1" class="size-5 accent-brand-blossom-deep" />
+        <span>お子さま同伴でも歩ける</span>
+      </label>
+
+      <label class="flex items-center gap-3">
+        <input type="hidden" name="multiDogAllowed" value="0" />
+        <input type="checkbox" name="multiDogAllowed" value="1" checked class="size-5 accent-brand-blossom-deep" />
+        <span>ほかの犬と一緒に歩ける</span>
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">性格</span>
+        <input type="text" name="temperament" class="field w-full" />
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">人への慣れ</span>
+        <input type="text" name="humanSociability" class="field w-full" />
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">ほかの犬との相性</span>
+        <input type="text" name="dogSociability" class="field w-full" />
       </label>
 
       <label class="grid gap-1.5">

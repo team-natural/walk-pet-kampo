@@ -1,13 +1,17 @@
 ---
 // SCR-04 — PRD-04 §3-1
-// TODO(SCR-04): replace mockDogs with listDogs() — F-07-02.
+// Filters and pagination are P10's work (DEV-11 §3-4); this is the unfiltered list.
+import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
 import EmptyState from "$lib/components/empty-state.astro";
 import PageHeader from "$lib/components/page-header.astro";
-import { mockDogs } from "$lib/mocks";
+import { adoptionStatusLabel, dogSizeLabel } from "$lib/dog-status";
+import { imageUrl } from "$lib/images";
+import { listPublishedDogs } from "$lib/server/services/dogs";
 import type { DogSummary } from "$lib/view-models/dog";
+import { createDb } from "@app/schema/client";
 
-const dogs: DogSummary[] = mockDogs;
+const dogs: DogSummary[] = await listPublishedDogs(createDb(env.DB));
 ---
 
 <Layout title="保護犬をさがす | 保護犬おさんぽマッチング" description="おさんぽに参加できる保護犬の一覧です。性格や散歩時の注意を見てから選べます。">
@@ -19,17 +23,16 @@ const dogs: DogSummary[] = mockDogs;
         <ul class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {dogs.map((dog, index) => (
             <li class="anim-rise card p-6" style={`--delay: ${index * 0.06}s`}>
+              {dog.photoKey && <img src={imageUrl(dog.photoKey)} alt="" width="480" height="320" loading="lazy" class="mb-4 h-44 w-full rounded-2xl object-cover" />}
               <h2 class="line-clamp-2 text-lg font-bold text-balance">
                 <a href={`/dogs/${dog.slug}`} class="rounded underline-offset-4 hover:underline">
                   {dog.name}
                 </a>
               </h2>
-              <p class="mt-2 text-sm text-brand-ink-soft">
-                {dog.breed} / {dog.size} / {dog.estimatedAge}
-              </p>
+              <p class="mt-2 text-sm text-brand-ink-soft">{[dog.breed, dogSizeLabel(dog.size), dog.estimatedAge].filter(Boolean).join(" / ")}</p>
               <div class="mt-4 flex flex-wrap gap-2">
                 {dog.walkEligible === 1 && <span class="badge badge-blossom">おさんぽ参加中</span>}
-                <span class="badge badge-quiet">{dog.adoptionStatus}</span>
+                <span class="badge badge-quiet">{adoptionStatusLabel(dog.adoptionStatus)}</span>
               </div>
             </li>
           ))}

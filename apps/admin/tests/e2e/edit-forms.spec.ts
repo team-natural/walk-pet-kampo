@@ -1,9 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 import { E2E_ADMIN } from "./global-setup";
 
-// These screens still render mock data, so any id resolves — the subject here is the form, not
-// the record behind it.
-const DOG_URL = "/dogs/01HZZDOG00000000000000001";
+// SYS-12 still renders mock data, so any id resolves — the subject here is the form, not the
+// record behind it. SYS-10's sheet is not mounted until its write path exists (GOV-02 TBD-58),
+// so the shared field components are exercised through this one.
+const WALK_SLOT_URL = "/walks/01HZZWALKSLOT000000000001";
 
 async function signIn(page: Page) {
   await page.goto("/");
@@ -35,24 +36,24 @@ function serializeForm(page: Page) {
   });
 }
 
-test.describe("SYS-10 edit form", () => {
+test.describe("SYS-12 edit form", () => {
   test("submits every field the platform may patch", async ({ page }) => {
     await signIn(page);
-    await openEditSheet(page, DOG_URL);
+    await openEditSheet(page, WALK_SLOT_URL);
 
     const entries = await serializeForm(page);
 
     // Select and Checkbox are bits-ui widgets, not native controls: they only reach FormData
     // through the hidden inputs `name` makes them render. Drop the prop and the form silently
     // posts nothing for that field.
-    expect(entries).toContain("adoptionStatus=listed");
+    expect(entries).toContain("status=open");
     expect(entries).toContain("requiredExperience=none");
-    expect(entries).toContain("internalNotes=投薬中（2026-10 まで）。運営内のみ共有。");
+    expect(entries).toContain("precautions=雨天中止。前日 18 時までに連絡します。");
   });
 
   test("an unchecked box still submits a value", async ({ page }) => {
     await signIn(page);
-    await openEditSheet(page, DOG_URL);
+    await openEditSheet(page, WALK_SLOT_URL);
 
     const entries = await serializeForm(page);
 
@@ -60,12 +61,12 @@ test.describe("SYS-10 edit form", () => {
     // fixture, so without it the route could not tell "unchecked" from "field omitted".
     expect(entries.filter((entry) => entry.startsWith("childAllowed="))).toEqual(["childAllowed=0"]);
     // A checked box sends both, newest last — the route reads the last value for the name.
-    expect(entries.filter((entry) => entry.startsWith("isPublished="))).toEqual(["isPublished=0", "isPublished=1"]);
+    expect(entries.filter((entry) => entry.startsWith("staffAccompanied="))).toEqual(["staffAccompanied=0", "staffAccompanied=1"]);
   });
 
   test("keeps the capacity floor at the number already booked", async ({ page }) => {
     await signIn(page);
-    await openEditSheet(page, "/walks/01HZZWALKSLOT000000000001");
+    await openEditSheet(page, WALK_SLOT_URL);
 
     // Lowering capacity below the reservations would orphan them, so the browser refuses before
     // anything is sent.

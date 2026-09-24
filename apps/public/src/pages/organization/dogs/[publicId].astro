@@ -1,54 +1,197 @@
 ---
 // ADM-07 — PRD-04 §3-2 (guarded)
 // internalNotes is staff-only (PRD-04 §4-3) and appears here but never on SCR-05.
-// TODO(ADM-07): replace mockDogDetail with getOwnDog() and post updateDog() — F-05-02, F-05-03.
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import ConfirmDialog from "$lib/components/organization/confirm-dialog.svelte";
 import FlashMessage from "$lib/components/organization/flash-message.astro";
 import FormSection from "$lib/components/organization/form-section.astro";
+import { adoptionStatusLabel } from "$lib/dog-status";
+import { imageUrl } from "$lib/images";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
-import { mockOwnDogDetail } from "$lib/mocks";
+import { allowedAdoptionTransitions, getOwnDog } from "$lib/server/services/dogs";
 import type { OwnDogDetail } from "$lib/view-models/dog";
 import { createDb } from "@app/schema/client";
+import { NotFoundError } from "@app/server-kit/http";
 
 const db = createDb(env.DB);
 const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
 const { publicId } = Astro.params;
-const dog: OwnDogDetail = mockOwnDogDetail;
+
+// Another shelter's dog and a deleted one answer the same way — the lookup is tenant-scoped, so
+// there is nothing here to tell them apart with (DEV-02 §3).
+let dog: OwnDogDetail;
+try {
+  dog = await getOwnDog(db, session.organizationId, publicId!);
+} catch (error) {
+  if (error instanceof NotFoundError) return Astro.rewrite("/404");
+  throw error;
+}
+
+// The moves DEV-09 §2-5-2 allows from here. Offering the rest would mean buttons that 409.
+const nextStatuses = allowedAdoptionTransitions(dog.adoptionStatus);
+
+const ERRORS: Record<string, string> = {
+  state: "この子の状態が変わっています。画面を読み込み直してください。",
+  referenced: "おさんぽ募集や里親相談の記録があるため削除できません。非公開にしてください。",
+};
+const error = ERRORS[Astro.url.searchParams.get("error") ?? ""];
 ---
 
 <OrganizationLayout title={`${dog.name} | 団体ページ`} session={session}>
   <FlashMessage />
 
+  {
+    error && (
+      <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+        {error}
+      </p>
+    )
+  }
+
   <header class="grid gap-2" data-public-id={publicId}>
     <a href="/organization/dogs" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← 保護犬</a>
     <h1 class="text-xl font-bold">{dog.name}</h1>
-    <p class="text-sm">
-      <a href={`/dogs/${dog.slug}`} class="rounded text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">公開ページを見る</a>
+    <p class="flex flex-wrap items-center gap-2 text-sm">
+      <span class="badge badge-quiet">{adoptionStatusLabel(dog.adoptionStatus)}</span>
+      <span class="badge badge-quiet">{dog.isPublished === 1 ? "公開中" : "非公開"}</span>
+      {
+        dog.isPublished === 1 && (
+          <a href={`/dogs/${dog.slug}`} class="rounded text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">
+            公開ページを見る
+          </a>
+        )
+      }
     </p>
   </header>
 
-  <form class="grid max-w-2xl gap-4" method="post" action={`/api/v1/organization/dogs/${dog.id}`}>
+  {
+    nextStatuses.length > 0 && (
+      <section class="card grid max-w-2xl gap-3 p-6">
+        <h2 class="font-bold">里親募集の状況</h2>
+        <div class="flex flex-wrap gap-2">
+          {nextStatuses.map((status) => (
+            <form method="post" action={`/api/v1/organization/dogs/${dog.id}/adoption-status`}>
+              <input type="hidden" name="to" value={status} />
+              <button type="submit" class="btn btn-quiet px-4 text-sm">
+                {adoptionStatusLabel(status)}にする
+              </button>
+            </form>
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  <form class="grid max-w-2xl gap-4" method="post" action={`/api/v1/organization/dogs/${dog.id}`} enctype="multipart/form-data">
     <FormSection legend="基本情報">
       <label class="grid gap-1.5">
         <span class="font-bold">名前</span>
-        <input type="text" name="name" value={dog.name} class="field w-full" />
+        <input type="text" name="name" value={dog.name} required class="field w-full" />
       </label>
 
-      <label class="flex items-center gap-3">
-        <input type="checkbox" name="walkEligible" checked={dog.walkEligible === 1} class="size-5 accent-brand-blossom-deep" />
-        <span>おさんぽに参加できる</span>
+      <label class="grid gap-1.5">
+        <span class="font-bold">犬種</span>
+        <input type="text" name="breed" value={dog.breed} class="field w-full" />
       </label>
 
+      <label class="grid gap-1.5">
+        <span class="font-bold">サイズ</span>
+        <select name="size" class="field w-full">
+          <option value="" selected={dog.size === null}>未設定</option>
+          <option value="small" selected={dog.size === "small"}>小型</option>
+          <option value="medium" selected={dog.size === "medium"}>中型</option>
+          <option value="large" selected={dog.size === "large"}>大型</option>
+        </select>
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">性別</span>
+        <select name="gender" class="field w-full">
+          <option value="" selected={dog.gender === null}>不明</option>
+          <option value="male" selected={dog.gender === "male"}>オス</option>
+          <option value="female" selected={dog.gender === "female"}>メス</option>
+        </select>
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">推定年齢</span>
+        <input type="text" name="estimatedAge" value={dog.estimatedAge} class="field w-full" />
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">体重（kg）</span>
+        <input type="number" name="weight" value={dog.weight} step="0.1" min="0" class="field w-full" />
+      </label>
+
+      <div class="grid gap-1.5">
+        <span class="font-bold">写真</span>
+        {dog.photoKey && <img src={imageUrl(dog.photoKey)} alt="" width="240" height="180" class="h-44 w-60 rounded-2xl object-cover" />}
+        <label>
+          <span class="sr-only">写真を差し替える</span>
+          <input type="file" name="photo" accept="image/*" class="field w-full" />
+        </label>
+      </div>
+
       <label class="flex items-center gap-3">
-        <input type="checkbox" name="isPublished" checked={dog.isPublished === 1} class="size-5 accent-brand-blossom-deep" />
+        <input type="hidden" name="isPublished" value="0" />
+        <input type="checkbox" name="isPublished" value="1" checked={dog.isPublished === 1} class="size-5 accent-brand-blossom-deep" />
         <span>公開する</span>
       </label>
     </FormSection>
 
-    <FormSection legend="おさんぽの条件">
+    <FormSection legend="おさんぽの条件" description="参加者がこの子と歩けるかどうかの判断に使われます。">
+      <label class="grid gap-1.5">
+        <span class="font-bold">必要な経験</span>
+        <select name="requiredExperience" class="field w-full">
+          <option value="none" selected={dog.requiredExperience === "none"}>不問</option>
+          <option value="some" selected={dog.requiredExperience === "some"}>多少あると安心</option>
+          <option value="experienced" selected={dog.requiredExperience === "experienced"}>経験者のみ</option>
+        </select>
+      </label>
+
+      {/* Hidden "0" first: an unchecked box sends nothing at all, and the route reads the last value for the name. */}
+      <label class="flex items-center gap-3">
+        <input type="hidden" name="walkEligible" value="0" />
+        <input type="checkbox" name="walkEligible" value="1" checked={dog.walkEligible === 1} class="size-5 accent-brand-blossom-deep" />
+        <span>おさんぽに参加できる</span>
+      </label>
+
+      <label class="flex items-center gap-3">
+        <input type="hidden" name="beginnerAllowed" value="0" />
+        <input type="checkbox" name="beginnerAllowed" value="1" checked={dog.beginnerAllowed === 1} class="size-5 accent-brand-blossom-deep" />
+        <span>はじめての方でも歩ける</span>
+      </label>
+
+      <label class="flex items-center gap-3">
+        <input type="hidden" name="childAllowed" value="0" />
+        <input type="checkbox" name="childAllowed" value="1" checked={dog.childAllowed === 1} class="size-5 accent-brand-blossom-deep" />
+        <span>お子さま同伴でも歩ける</span>
+      </label>
+
+      <label class="flex items-center gap-3">
+        <input type="hidden" name="multiDogAllowed" value="0" />
+        <input type="checkbox" name="multiDogAllowed" value="1" checked={dog.multiDogAllowed === 1} class="size-5 accent-brand-blossom-deep" />
+        <span>ほかの犬と一緒に歩ける</span>
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">性格</span>
+        <input type="text" name="temperament" value={dog.temperament} class="field w-full" />
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">人への慣れ</span>
+        <input type="text" name="humanSociability" value={dog.humanSociability} class="field w-full" />
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">ほかの犬との相性</span>
+        <input type="text" name="dogSociability" value={dog.dogSociability} class="field w-full" />
+      </label>
+
       <label class="grid gap-1.5">
         <span class="font-bold">おさんぽの注意</span>
         <textarea name="walkNotes" rows="3" class="field w-full rounded-2xl">{dog.walkNotes}</textarea>
@@ -71,4 +214,11 @@ const dog: OwnDogDetail = mockOwnDogDetail;
 
     <button type="submit" class="btn btn-sun w-fit px-6 py-3">保存する</button>
   </form>
+
+  <section class="card grid max-w-2xl gap-3 border-2 border-red-200 p-6">
+    <h2 class="font-bold text-red-800">この子を削除する</h2>
+    <p class="text-sm text-brand-ink-soft">おさんぽ募集や里親相談の記録がある場合は削除できません。その場合は「公開する」を外してください。</p>
+    <ConfirmDialog client:load form="delete-dog-form" triggerLabel="削除する" title="この子を削除しますか？" message="登録内容と写真が消えます。この操作は取り消せません。" confirmLabel="削除する" />
+    <form id="delete-dog-form" method="post" action={`/api/v1/organization/dogs/${dog.id}/delete`}></form>
+  </section>
 </OrganizationLayout>

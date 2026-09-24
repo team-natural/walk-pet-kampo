@@ -67,6 +67,16 @@ export async function deleteUpload(bucket: R2Bucket, key: string): Promise<void>
   await bucket.delete(key);
 }
 
+// The public half of DEV-10 §4-3, expressed on the key. Anything not matched here is served only
+// through the signed route — an incident attachment and an application document sit under the
+// same `organizations/{id}/` prefix as a dog photo, and only the segment after it tells them
+// apart.
+const PUBLIC_KEY = /^(site\/|organizations\/\d+\/(logo|dogs|walk-records)\/)/;
+
+export function isPublicObjectKey(key: string): boolean {
+  return PUBLIC_KEY.test(key);
+}
+
 // The tenant boundary, expressed on the key itself. Every marketplace object lives under the
 // shelter that owns it, so one string comparison is the whole check — and it holds for objects
 // whose owning row has already been deleted.

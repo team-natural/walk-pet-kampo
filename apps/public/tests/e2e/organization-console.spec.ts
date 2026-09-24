@@ -79,11 +79,14 @@ test.describe("withdrawal (ADM-23)", () => {
     await page.goto("/organization/withdrawal");
 
     const trigger = page.getByRole("button", { name: "掲載終了を申請する" });
-    await expect(trigger).toBeEnabled({ timeout: 60_000 });
-    await trigger.click();
-
     const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible();
+
+    // The trigger carries no disabled state, so a click before the island hydrates is dropped
+    // rather than failing — retry until the dialog answers.
+    await expect(async () => {
+      await trigger.click();
+      await expect(dialog).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 60_000 });
     await expect(dialog.getByRole("button", { name: "申請する" })).toBeVisible();
 
     await dialog.getByRole("button", { name: "やめる" }).click();

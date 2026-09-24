@@ -389,6 +389,15 @@ await env.BUCKET.delete(key);
 
 > **実装状況**（DEV-11 P3 時点）: 検証側は実装済み（`apps/public/src/pages/api/v1/files/[...key].ts` が セッション認可 → 署名検証 → `env.BUCKET.get()` の順で処理し、鍵は `FILE_SIGNING_KEY`）。**発行側（`signObjectPath()` の呼び出し）と `apps/admin` 側の配信ルートは未実装**で、最初の利用者である P6（SYS-05 の審査画面が申請書類を開く）で追加する。
 
+> **パブリック側の「公開 URL」は Worker が配信する**（P8 で追加）。R2 のカスタムドメインは設けず、
+> `apps/public/src/pages/images/[...key].ts` が `Cache-Control: public, max-age=31536000, immutable`
+> で返す。対象は `isPublicObjectKey()` が許すプレフィックスのみ（`site/`、
+> `organizations/{id}/{logo,dogs,walk-records}/`）で、それ以外は 404 — 申請書類と Incident 添付は
+> 同じ `organizations/{id}/` の下にあり、セグメントだけが公開・非公開を分けているため。キーは
+> 必ず ULID を含むので、写真の差し替えは同じキーの上書きではなく新しいキーになる（＝ immutable
+> が成立する）。参照は `$lib/images.ts` の `imageUrl()` に集約し、将来カスタムドメインへ移す際の
+> 変更点を 1 箇所に保つ。
+
 > **署名付き URL は Astro API Route 方式で発行する**（`Decided` — GOV-01 D-024）。API Route が ① セッションによる認可チェック（admin または当該団体の org_staff 以上）→ ② 有効期限付き HMAC トークンの検証 → ③ `env.BUCKET.get()` の順で処理する。R2 の S3 互換 API による presigned URL は採用しない — 別途 R2 アクセスキーを Secret として持つ必要があり、かつ発行後の URL は capability そのものなのでテナント依存の認可を表現できず、転送されれば誰でも引ける。データ出力ファイルの 72 時間 URL（DEV-05 §11）も同方式。
 
 ### 4-4. アップロードフロー

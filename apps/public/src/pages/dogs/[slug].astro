@@ -1,23 +1,39 @@
 ---
 // SCR-05 — PRD-04 §3-1
-// TODO(SCR-05): replace mockDogDetail with getDogBySlug() — F-07-02, F-11-01.
+// Published dogs of approved shelters only — the Service decides that, and a dog that is neither
+// answers 404 here rather than rendering with a hidden flag.
+import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
 import PageHeader from "$lib/components/page-header.astro";
-import { mockDogDetail } from "$lib/mocks";
-import type { DogDetail } from "$lib/view-models/dog";
+import { adoptionStatusLabel, dogGenderLabel, dogSizeLabel, requiredExperienceLabel } from "$lib/dog-status";
+import { imageUrl } from "$lib/images";
+import { getPublishedDogBySlug, type PublicDogDetail } from "$lib/server/services/dogs";
+import { createDb } from "@app/schema/client";
+import { NotFoundError } from "@app/server-kit/http";
 
 const { slug } = Astro.params;
-const dog: DogDetail = mockDogDetail;
+
+let dog: PublicDogDetail;
+try {
+  dog = await getPublishedDogBySlug(createDb(env.DB), slug!);
+} catch (error) {
+  if (error instanceof NotFoundError) return Astro.rewrite("/404");
+  throw error;
+}
 ---
 
 <Layout title={`${dog.name} | 保護犬おさんぽマッチング`} description={dog.introduction ?? undefined}>
   <main id="main-content" class="mx-auto grid max-w-4xl gap-8 px-4 py-12" data-slug={slug}>
     <PageHeader title={dog.name} backHref="/dogs" backLabel="保護犬をさがす">
-      <p class="text-sm font-bold text-brand-ink-soft">{dog.breed} / {dog.size} / {dog.gender} / {dog.estimatedAge}</p>
+      <p class="text-sm font-bold text-brand-ink-soft">{[dog.breed, dogSizeLabel(dog.size), dogGenderLabel(dog.gender), dog.estimatedAge].filter(Boolean).join(" / ")}</p>
+      <p class="text-sm">
+        <a href={`/organizations/${dog.organizationSlug}`} class="rounded text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">{dog.organizationName}</a>
+      </p>
     </PageHeader>
 
     <div class="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-start">
       <div class="card grid gap-6 p-6 sm:p-8">
+        {dog.photoKey && <img src={imageUrl(dog.photoKey)} alt="" width="800" height="600" class="h-72 w-full rounded-2xl object-cover" />}
         <p class="leading-relaxed text-pretty">{dog.introduction}</p>
 
         <dl class="detail-list">
@@ -39,7 +55,7 @@ const dog: DogDetail = mockDogDetail;
           </div>
           <div>
             <dt>必要な経験</dt>
-            <dd>{dog.requiredExperience}</dd>
+            <dd>{requiredExperienceLabel(dog.requiredExperience)}</dd>
           </div>
         </dl>
       </div>
@@ -48,7 +64,7 @@ const dog: DogDetail = mockDogDetail;
         <div class="flex flex-wrap gap-2">
           {dog.beginnerAllowed === 1 && <span class="badge">はじめての方歓迎</span>}
           {dog.childAllowed === 1 && <span class="badge badge-quiet">お子さま同伴可</span>}
-          <span class="badge badge-blossom">{dog.adoptionStatus}</span>
+          <span class="badge badge-blossom">{adoptionStatusLabel(dog.adoptionStatus)}</span>
         </div>
 
         <a href={`/dogs/${dog.slug}/adoption-inquiry`} class="btn btn-blossom px-6 py-3">里親について相談する</a>

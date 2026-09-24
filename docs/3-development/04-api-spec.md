@@ -359,8 +359,9 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 | GET | `/api/v1/organization/dogs` | 保護犬一覧（団体内。F-05-01） | — |
 | POST | `/api/v1/organization/dogs` | 保護犬登録（公開プロフィール + 非公開の健康・安全情報。F-05-02） | — |
 | GET | `/api/v1/organization/dogs/{id}` | 保護犬詳細（`internal_notes` 含む） | — |
-| PATCH | `/api/v1/organization/dogs/{id}` | 保護犬編集・削除/非公開化（F-05-02・F-05-04） | — |
+| POST | `/api/v1/organization/dogs/{id}` | 保護犬編集・非公開化（`is_published` を同じフォームで送る。写真の差し替えも同経路 — `multipart/form-data`。F-05-02・F-05-04）。**PATCH ではない** — §5-16 参照 | — |
 | POST | `/api/v1/organization/dogs/{id}/adoption-status` | 里親募集状況の遷移（body: `{ to }`。F-05-03、DEV-09 §2-5） | — |
+| POST | `/api/v1/organization/dogs/{id}/delete` | 保護犬の削除（F-05-04）。**DELETE ではない** — §5-16 参照。`walk_slot_dogs` / `adoption_inquiries` / `incidents` から参照されている場合は 409 相当で拒否し、非公開化を案内する（論理削除は使わない — DEV-07 §1） | — |
 | GET | `/api/v1/organization/walk-slots` | お散歩枠一覧（F-06-01） | — |
 | POST | `/api/v1/organization/walk-slots` | お散歩枠登録（日時・場所・定員・参加費・候補犬。F-06-01） | — |
 | GET | `/api/v1/organization/walk-slots/{id}` | お散歩枠詳細 | — |

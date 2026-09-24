@@ -15,12 +15,17 @@ async function signIn(page: Page) {
 
 async function act(page: Page, trigger: string, confirm: string, reason?: string) {
   const button = page.getByRole("button", { name: trigger });
-  await expect(button).toBeEnabled({ timeout: 60_000 });
-  await button.click();
-
   // Scoped to the dialog: confirm-action.svelte reuses the trigger's wording on the confirm
   // button, so both are on the page once it opens. It renders an AlertDialog, hence the role.
   const dialog = page.getByRole("alertdialog");
+
+  // The trigger is a plain button with no disabled state, so being enabled says nothing about
+  // hydration — a click before it lands is simply dropped. Retry until the dialog answers.
+  await expect(async () => {
+    await button.click();
+    await expect(dialog).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 60_000 });
+
   if (reason !== undefined) await dialog.getByRole("textbox").fill(reason);
   await dialog.getByRole("button", { name: confirm, exact: true }).click();
   await page.waitForURL(/status=saved|error=/);

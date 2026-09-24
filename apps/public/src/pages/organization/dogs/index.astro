@@ -1,12 +1,12 @@
 ---
 // ADM-05 — PRD-04 §3-2 (guarded)
-// TODO(ADM-05): replace mockDogs with listOwnDogs() — F-05-01.
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
 import DataTable from "$lib/components/organization/data-table.astro";
 import FlashMessage from "$lib/components/organization/flash-message.astro";
+import { adoptionStatusLabel, dogSizeLabel } from "$lib/dog-status";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
-import { mockDogs } from "$lib/mocks";
+import { listOwnDogs } from "$lib/server/services/dogs";
 import type { DogSummary } from "$lib/view-models/dog";
 import { createDb } from "@app/schema/client";
 
@@ -14,7 +14,7 @@ const db = createDb(env.DB);
 const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
-const dogs: DogSummary[] = mockDogs;
+const dogs: DogSummary[] = await listOwnDogs(db, session.organizationId);
 ---
 
 <OrganizationLayout title="保護犬 | 団体ページ" session={session}>
@@ -34,10 +34,10 @@ const dogs: DogSummary[] = mockDogs;
               {dog.name}
             </a>
           </td>
-          <td>{dog.breed}</td>
-          <td>{dog.size}</td>
+          <td>{dog.breed ?? "—"}</td>
+          <td>{dogSizeLabel(dog.size)}</td>
           <td>
-            <span class="badge badge-quiet">{dog.adoptionStatus}</span>
+            <span class="badge badge-quiet">{adoptionStatusLabel(dog.adoptionStatus)}</span>
           </td>
           <td>{dog.walkEligible === 1 ? "可" : "不可"}</td>
         </tr>
