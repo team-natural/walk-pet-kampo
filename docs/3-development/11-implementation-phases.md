@@ -121,7 +121,7 @@ flowchart TD
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
 | P4 | `feature/walker-registration` | FG-01。SCR-08/09/10/13/14。WalkerProfile `provisional → pending_verification → active`（DEV-09 §2-4。**条件はメール確認 + 規約同意** — 電話確認は P11 へ、GOV-01 D-036）、規約同意の版番号記録。メール確認・再設定トークンは P1 の団体側（`organization-auth.ts`）と同じ形で Walker 用に実装する（コードは系統ごとに分ける — DEV-02 §1-4） | P2 | TBD-62（単発トークンの方式。P1 と同じ D1 トークン方式を踏襲して進行中）、TBD-42（規約改定時の再同意） | 進行中 |
-| P5 | `feature/walker-profile` | FG-02。SCR-21/22/23/29/33。緊急連絡先、お気に入り、退会（`withdrawn`）。**P4 からの持ち越し 3 点**: ①プロフィール保存から `refreshWalkerProfileStatus()` を呼んで `pending_verification → active` を成立させる ②確認メールの再送導線（現状は期限切れ時にお問い合わせへ誘導しているだけ）③WalkerProfile の遷移マトリクスのうち P4 で網羅していない `any → withdrawn` のテスト（`restricted` / `suspended` は admin 操作のため P19） | P4 | なし | 未着手 |
+| P5 | `feature/walker-profile` | FG-02。SCR-21/22/23/29/33。プロフィール編集・緊急連絡先・お気に入り・退会（`withdrawn`）。P4 からの持ち越しのうち①（`refreshWalkerProfileStatus()` の結線）と③（`any → withdrawn` のテスト）は解決済み。**②確認メールの再送導線は未実装**（期限切れ時はお問い合わせへ誘導）。`restricted` / `suspended` の遷移は admin 操作のため P19 | P4 | なし | 進行中 |
 
 > **電話確認は P4 では実装しない**（`Decided` — GOV-01 D-036）。`pending_verification → active`
 > の条件は「メール確認 + 規約同意」で、電話確認は初回予約時の別条件として P11 で実装する。
@@ -166,7 +166,7 @@ flowchart TD
 | P16 | `feature/incidents` | FG-12。ADM-17/18/19 + SYS-19/20。Incident 5 状態（DEV-09 §2-11）、P1 重大度の運営への即時メール（F-12-02）。添付は非公開（`UPLOAD_KINDS.incidentAttachment`）で、P3 の `/api/v1/files/[...key]` 経由で開く | P15 | TBD-17/18/20（保険・責任分担。**画面文言のみ**の依存でフロー自体は進められる） | 未着手 |
 | P17 | `feature/adoption-inquiries` | FG-11。SCR-49/50/30/31 + ADM-20/21 + SYS-21/22。AdoptionInquiry 7 状態（DEV-09 §2-12） | P8 | TBD-30〜34 | 未着手 |
 | P18 | `feature/payouts` | FG-09。Cron Triggers の月次集計 + admin の確定操作 + Stripe Connect Transfer + ADM-15/16 + SYS-17/18。集計・確定は `apps/admin`、参照専用クエリのみ `apps/public`（DEV-05 §7） | P13 | **TBD-29**（振込サイクル） | 未着手 |
-| P19 | `feature/admin-platform` | FG-15 残り。SYS-02/03（WalkerProfile の `restricted` / `suspended`）、SYS-25 管理操作履歴、SYS-01 ダッシュボードの実データ化 | P14 | TBD-13（利用制限の基準） | 未着手 |
+| P19 | `feature/admin-platform` | FG-15 残り。SYS-02/03（WalkerProfile の `restricted` / `suspended`。**P5 までに実装済みの遷移は前進のみ**で、制限・停止・解除は admin 操作としてここで足す）、SYS-25 管理操作履歴、SYS-01 ダッシュボードの実データ化 | P14 | TBD-13（利用制限の基準） | 未着手 |
 | P20 | `chore/ops-hardening` | 残りの KV レート制限（DEV-02 §7）、データ保管期限の削除バッチ（OPS-02 §4-3）、**TBD-60 の Access 実測**（DEV-08 §4）、staging → production | P19 | なし | 未着手 |
 
 ---

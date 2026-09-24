@@ -50,6 +50,17 @@ function organizationMemberSql({ name, email, passwordHash, role, organizationNa
   return `${organization} ${member}`;
 }
 
+// A Walker always has a profile row — registration creates both (DEV-11 P4), and every mypage
+// screen reads it. Seeding only `walkers` produced an account whose SCR-22/23 answered 500.
+// `provisional` with empty details is what a fresh registration looks like before SCR-22.
+function walkerSql({ name, email, passwordHash, now }) {
+  const account = `INSERT INTO walkers (public_id, name, email, password_hash, status, created_at, updated_at) VALUES (${[ulid(), name, email, passwordHash, "active", now, now].map(sqlQuote).join(", ")});`;
+
+  const profile = [`INSERT INTO walker_profiles (public_id, walker_id, status, created_at, updated_at)`, `SELECT ${sqlQuote(ulid())}, id, ${["provisional", now, now].map(sqlQuote).join(", ")}`, `FROM walkers WHERE email = ${sqlQuote(email)} LIMIT 1;`].join(" ");
+
+  return `${account} ${profile}`;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const table = TABLES.includes(args.table) ? args.table : null;
@@ -71,9 +82,16 @@ async function main() {
 
   const passwordHash = await hashPassword(password);
   const now = new Date().toISOString();
-  const columns = ["public_id", "name", "email", "password_hash", "status", "created_at", "updated_at"];
-  const values = [ulid(), name, email, passwordHash, "active", now, now];
-  const sql = table === "organization_members" ? organizationMemberSql({ name, email, passwordHash, role, organizationName: typeof args.organization === "string" ? args.organization : "開発用保護団体", now }) : `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${values.map(sqlQuote).join(", ")});`;
+
+  // Only admin_users is a single INSERT; the other two tables need a companion row (a profile,
+  // an organization) or the account is unusable on arrival.
+  const adminUserSql = () => {
+    const columns = ["public_id", "name", "email", "password_hash", "status", "created_at", "updated_at"];
+    const values = [ulid(), name, email, passwordHash, "active", now, now];
+    return `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${values.map(sqlQuote).join(", ")});`;
+  };
+
+  const sql = table === "organization_members" ? organizationMemberSql({ name, email, passwordHash, role, organizationName: typeof args.organization === "string" ? args.organization : "開発用保護団体", now }) : table === "walkers" ? walkerSql({ name, email, passwordHash, now }) : adminUserSql();
 
   // Binding name, not database_name: it's valid before a project replaces the placeholders.
   const db = typeof args.db === "string" && args.db !== "" ? args.db : "DB";

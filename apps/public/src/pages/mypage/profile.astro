@@ -1,12 +1,10 @@
 ---
 // SCR-22 — PRD-04 §3-1 (guarded)
-// TODO(SCR-22): replace mockWalkerProfile with getWalkerProfile() and post updateWalkerProfile()
-// — F-02-02, F-02-03.
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
 import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
-import { mockWalkerProfile } from "$lib/mocks";
+import { getWalkerProfile } from "$lib/server/services/walker-profile";
 import type { WalkerProfileView } from "$lib/view-models/walker";
 import { createDb } from "@app/schema/client";
 
@@ -14,12 +12,48 @@ const db = createDb(env.DB);
 const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/auth/login", 302);
 
-const profile: WalkerProfileView = mockWalkerProfile;
+const profile: WalkerProfileView = await getWalkerProfile(db, session.walkerId);
+
+// Filling these in is what moves the profile towards `active` (DEV-09 §2-4-3), so the screen
+// says which are still missing rather than leaving the walker to guess why booking is closed.
+const missing = [
+  { label: "生年月日", filled: profile.birthdate !== null },
+  { label: "電話番号", filled: profile.phone !== null },
+  { label: "緊急連絡先の氏名", filled: profile.emergencyContactName !== null },
+  { label: "緊急連絡先の電話番号", filled: profile.emergencyContactPhone !== null },
+].filter((field) => !field.filled);
+
+const saved = Astro.url.searchParams.get("status") === "saved";
+const invalid = Astro.url.searchParams.get("error") === "input";
 ---
 
 <Layout title="プロフィール編集 | 保護犬おさんぽマッチング">
   <main id="main-content" class="mx-auto grid max-w-2xl gap-6 px-4 py-12">
     <PageHeader title="プロフィール編集" backHref="/mypage" backLabel="マイページ" />
+
+    {
+      saved && (
+        <p role="status" class="rounded-2xl border-2 border-brand-blossom/60 bg-brand-blossom/20 px-4 py-3 text-sm font-bold">
+          プロフィールを保存しました。
+        </p>
+      )
+    }
+    {
+      invalid && (
+        <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+          入力内容をご確認ください。
+        </p>
+      )
+    }
+
+    {
+      missing.length > 0 && (
+        <p class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm">
+          <span class="font-bold">おさんぽの予約には、あと {missing.length} 項目の入力が必要です。</span>
+          <span class="text-brand-ink-soft">（{missing.map((field) => field.label).join("・")}）</span>
+        </p>
+      )
+    }
 
     <form class="grid gap-4" method="post" action="/api/v1/me/profile">
       <fieldset class="card grid gap-4 p-6 text-sm sm:p-8">

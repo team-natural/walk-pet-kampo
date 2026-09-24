@@ -2,13 +2,12 @@
 // SCR-29 — PRD-04 §3-1 (guarded)
 // favorites is polymorphic (favoritable_type / favoritable_id — DEV-07 §5-17), so the Service
 // returns each kind already resolved rather than the screen branching on the raw pair.
-// TODO(SCR-29): replace the mocks with listWalkerFavorites() — F-02-04.
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
 import EmptyState from "$lib/components/empty-state.astro";
 import PageHeader from "$lib/components/page-header.astro";
 import { getSession } from "$lib/server/auth/session";
-import { mockDogs, mockOrganizations } from "$lib/mocks";
+import { listFavorites } from "$lib/server/services/walker-profile";
 import type { DogSummary } from "$lib/view-models/dog";
 import type { OrganizationSummary } from "$lib/view-models/organization";
 import { createDb } from "@app/schema/client";
@@ -17,8 +16,9 @@ const db = createDb(env.DB);
 const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/auth/login", 302);
 
-const dogs: DogSummary[] = mockDogs;
-const organizations: OrganizationSummary[] = mockOrganizations;
+const favorites = await listFavorites(db, session.walkerId);
+const dogs: DogSummary[] = favorites.dogs;
+const organizations: OrganizationSummary[] = favorites.organizations;
 ---
 
 <Layout title="お気に入り | 保護犬おさんぽマッチング">

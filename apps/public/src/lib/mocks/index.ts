@@ -15,7 +15,6 @@ import type { PayoutDetail, PayoutSummary } from "$lib/view-models/payout";
 import type { PaymentSummary, ReservationDetail, ReservationSummary } from "$lib/view-models/reservation";
 import type { WalkRecordDetail, WalkRecordSummary } from "$lib/view-models/walk-record";
 import type { WalkSlotDetail, WalkSlotSummary } from "$lib/view-models/walk-slot";
-import type { WalkerAccount, WalkerProfileView } from "$lib/view-models/walker";
 
 const NOW = "2026-09-17T09:00:00.000Z";
 
@@ -204,33 +203,6 @@ export const mockReservationDetail: ReservationDetail = {
 };
 
 export const mockReservations: ReservationSummary[] = [mockReservationSummary];
-
-export const mockWalkerAccount: WalkerAccount = {
-  id: "01HZZWALKER0000000000001",
-  name: "山田 太郎",
-  email: "walker@example.test",
-};
-
-export const mockWalkerProfile: WalkerProfileView = {
-  id: "01HZZWALKERPROFILE00000001",
-  nameKana: "ヤマダ タロウ",
-  birthdate: "1992-05-14",
-  gender: "male",
-  postalCode: "1150045",
-  address: "東京都北区赤羽2-2-2",
-  phone: "090-1111-2222",
-  phoneVerifiedAt: NOW,
-  emergencyContactName: "山田 花子",
-  emergencyContactPhone: "090-0000-0000",
-  dogExperience: 1,
-  largeDogWalkExperience: 0,
-  preferredArea: "東京都北区",
-  guardianName: null,
-  guardianPhone: null,
-  termsAgreedAt: NOW,
-  termsAgreedVersion: "2026-09-01",
-  status: "active",
-};
 
 export const mockWalkRecordSummary: WalkRecordSummary = {
   id: "01HZZWALKRECORD00000000001",
