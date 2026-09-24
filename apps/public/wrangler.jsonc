@@ -20,6 +20,9 @@
     // Non-secret half of the mail config (DEV-10 §3-1); RESEND_API_KEY is a Workers Secret.
     "MAIL_FROM_ADDRESS": "noreply@replace-with-domain.example",
     "MAIL_FROM_NAME": "保護犬おさんぽマッチング",
+    // Where a P0/P1 incident report goes the moment it is filed (F-12-02, DEV-10 §11). Empty =
+    // skip the send and log it, the same way a missing RESEND_API_KEY behaves.
+    "MAIL_ADMIN_ALERTS": "",
     "APP_NAME": "保護犬おさんぽマッチング",
     "APP_URL": "https://replace-with-domain.example",
   },
@@ -55,6 +58,7 @@
         "AUTH_LOCKOUT_MINUTES": "15",
         "MAIL_FROM_ADDRESS": "noreply@replace-with-domain.example",
         "MAIL_FROM_NAME": "保護犬おさんぽマッチング",
+        "MAIL_ADMIN_ALERTS": "",
         "APP_NAME": "保護犬おさんぽマッチング",
         "APP_URL": "https://staging.replace-with-domain.example",
       },
@@ -75,6 +79,7 @@
         "AUTH_LOCKOUT_MINUTES": "15",
         "MAIL_FROM_ADDRESS": "noreply@replace-with-domain.example",
         "MAIL_FROM_NAME": "保護犬おさんぽマッチング",
+        "MAIL_ADMIN_ALERTS": "",
         "APP_NAME": "保護犬おさんぽマッチング",
         "APP_URL": "https://replace-with-domain.example",
       },

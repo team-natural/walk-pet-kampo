@@ -234,11 +234,30 @@ flowchart TD
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
 | P15 | `feature/walk-records` | FG-10。ADM-13/14 + SCR-26/27/28 | P12 | なし | 未着手 |
-| P16 | `feature/incidents` | FG-12。ADM-17/18/19 + SYS-19/20。Incident 5 状態（DEV-09 §2-11）、P1 重大度の運営への即時メール（F-12-02）。添付は非公開（`UPLOAD_KINDS.incidentAttachment`）で、P3 の `/api/v1/files/[...key]` 経由で開く | P15 | TBD-17/18/20（保険・責任分担。**画面文言のみ**の依存でフロー自体は進められる） | 未着手 |
+| P16 | `feature/incidents` | FG-12。ADM-17/18/19 + SYS-19/20。Incident 5 状態（DEV-09 §2-10）、P0/P1 の運営への即時メール（F-12-02。`OPS_ALERT_EMAIL` 宛、`waitUntil()`）、報告の KV レート制限（20 回/日/スタッフ）。添付は非公開（`UPLOAD_KINDS.incidentAttachment`）で、**P3 からの持ち越しだった署名リンクの発行側（`lib/server/files.ts`）もここで実装**し、P3 の `/api/v1/files/[...key]` 経由で開く。**P15 への依存は実際には無い**（`incidents` で必須の FK は `organization_id` だけで、`reservation_id` / `dog_id` / `walker_id` はいずれも NULL 可）ため、P12 を待たずに実装した | ~~P15~~ なし | TBD-17/18/20（保険・責任分担。**画面文言のみ**の依存でフロー自体は進められる） | 進行中 |
 | P17 | `feature/adoption-inquiries` | FG-11。SCR-49/50/30/31 + ADM-20/21 + SYS-21/22。AdoptionInquiry 7 状態（DEV-09 §2-12） | P8 | TBD-30〜34 | 未着手 |
 | P18 | `feature/payouts` | FG-09。Cron Triggers の月次集計 + admin の確定操作 + Stripe Connect Transfer + ADM-15/16 + SYS-17/18。集計・確定は `apps/admin`、参照専用クエリのみ `apps/public`（DEV-05 §7） | P13 | **TBD-29**（振込サイクル） | 未着手 |
 | P19 | `feature/admin-platform` | FG-15 残り。SYS-02/03（WalkerProfile の `restricted` / `suspended`。**P5 までに実装済みの遷移は前進のみ**で、制限・停止・解除は admin 操作としてここで足す）、**Organization の `approved → suspended` / `→ deactivated` / `suspended,deactivated → approved`**（P6 は審査系のみ。掲載停止の基準は TBD-28）、SYS-25 管理操作履歴、SYS-01 ダッシュボードの実データ化 | P14 | TBD-13（利用制限の基準）、TBD-28（団体掲載停止基準） | 未着手 |
 | P20 | `chore/ops-hardening` | 残りの KV レート制限（DEV-02 §7）、データ保管期限の削除バッチ（OPS-02 §4-3）、**TBD-60 の Access 実測**（DEV-08 §4）、staging → production | P19 | なし | 未着手 |
+
+> **P16 の申し送り 4 点**
+>
+> 1. **SYS-20 は読み取り専用**（SYS-10/12 と同じ理由。GOV-02 TBD-58 → P14）。`incidents.status`
+>    の書き手は `apps/public` の Service 1 つ（DEV-09 §3-1）なので、運営の対応更新は RPC 経由に
+>    なる。**その間は団体スタッフが ADM-19 で自分の報告を進められる** — DEV-09 §2-10-2 が
+>    トリガーとして団体スタッフを挙げているため、スケルトンにあった「対応状況の更新は運営が
+>    行います」という文言の方が誤りだった。
+> 2. **`MAIL_ADMIN_ALERTS` を `apps/public` にも置いた**（DEV-10 §11 が正本。従来は apps/admin
+>    だけの想定だったが、報告が書き込まれるのは `apps/public` 側）。未設定の間は送信をスキップ
+>    してログに残す（`RESEND_API_KEY` 未設定時と同じ挙動）。**本番では必ず設定すること** —
+>    設定漏れは「重大事故が誰にも届かない」形で表面化する。
+> 3. **署名付きリンクの発行側を実装した**（P3 の持ち越し ③）。`lib/server/files.ts` の
+>    `signedFileUrl()` が 15 分の署名を付ける。**`FILE_SIGNING_KEY` が未設定のときは添付の
+>    ファイル名だけを表示してリンクにしない** — 壊れたリンクを出すよりよいため。E2E はこの
+>    フォールバック側を、署名の形は `tests/unit/files.test.ts` を見る。
+> 4. **参加者からの報告経路は未実装。** `incidents.reported_by_type` は `walker` も取るが、
+>    PRD-04 に参加者が報告する画面が無い。現状の入口は ADM-18 だけで、参加者からの申告は
+>    お問い合わせ（F-14-03）経由になる。必要になったら PRD-04 の画面追加が先。
 
 ---
 

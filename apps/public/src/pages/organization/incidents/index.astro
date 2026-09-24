@@ -1,12 +1,12 @@
 ---
 // ADM-17 — PRD-04 §3-2 (guarded)
-// TODO(ADM-17): replace mockIncidents with listOwnIncidents() — F-12-01.
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
 import DataTable from "$lib/components/organization/data-table.astro";
 import FlashMessage from "$lib/components/organization/flash-message.astro";
+import { incidentCategoryLabel, incidentStatusLabel } from "$lib/incident-status";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
-import { mockIncidents } from "$lib/mocks";
+import { listOwnIncidents } from "$lib/server/services/incidents";
 import type { IncidentSummary } from "$lib/view-models/incident";
 import { createDb } from "@app/schema/client";
 
@@ -14,7 +14,7 @@ const db = createDb(env.DB);
 const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
-const incidents: IncidentSummary[] = mockIncidents;
+const incidents: IncidentSummary[] = await listOwnIncidents(db, session.organizationId);
 
 const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
@@ -39,9 +39,9 @@ const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "n
           <td>
             <span class="badge badge-blossom">{incident.severity}</span>
           </td>
-          <td>{incident.category}</td>
+          <td>{incidentCategoryLabel(incident.category)}</td>
           <td>
-            <span class="badge badge-quiet">{incident.status}</span>
+            <span class="badge badge-quiet">{incidentStatusLabel(incident.status)}</span>
           </td>
         </tr>
       ))

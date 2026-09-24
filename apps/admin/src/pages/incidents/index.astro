@@ -1,6 +1,5 @@
 ---
 // SYS-19 — PRD-04 §3-3
-// TODO(SYS-19): replace mockIncidents with listIncidents() — F-15-10.
 import { env } from "cloudflare:workers";
 import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
 import DataTable from "$lib/components/data-table.astro";
@@ -10,17 +9,16 @@ import SeverityBadge from "$lib/components/severity-badge.svelte";
 import StatusBadge from "$lib/components/status-badge.svelte";
 import * as Table from "$lib/components/ui/table/index.js";
 import { formatDateTime } from "$lib/format";
-import { mockIncidents } from "$lib/mocks";
 import { getSession } from "$lib/server/auth/session";
+import { listIncidents } from "$lib/server/services/incidents";
 import { label } from "$lib/status";
-import type { IncidentSummary } from "$lib/view-models/incident";
 import { createDb } from "@app/schema/client";
 
 const db = createDb(env.DB);
 const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/", 302);
 
-const incidents: IncidentSummary[] = mockIncidents;
+const { items: incidents } = await listIncidents(db);
 ---
 
 <ConsoleLayout title="事故・トラブル" user={session} breadcrumbs={[{ label: "事故・トラブル" }]}>

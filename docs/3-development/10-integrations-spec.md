@@ -387,7 +387,7 @@ await env.BUCKET.delete(key);
 | パブリック（保護犬・団体ロゴ・お散歩記録写真・サイトロゴ）| 公開 URL |
 | プライベート（団体登録の提出書類・本人確認書類、Incident 添付）| 署名付き URL（15 分有効）、運営スタッフ（admin）または該当団体の org_staff 以上に限定 |
 
-> **実装状況**（DEV-11 P3 時点）: 検証側は実装済み（`apps/public/src/pages/api/v1/files/[...key].ts` が セッション認可 → 署名検証 → `env.BUCKET.get()` の順で処理し、鍵は `FILE_SIGNING_KEY`）。**発行側（`signObjectPath()` の呼び出し）と `apps/admin` 側の配信ルートは未実装**で、最初の利用者である P6（SYS-05 の審査画面が申請書類を開く）で追加する。
+> **実装状況**（DEV-11 P16 時点）: 検証側は `apps/public/src/pages/api/v1/files/[...key].ts`（セッション認可 → 署名検証 → `env.BUCKET.get()`、鍵は `FILE_SIGNING_KEY`）。**発行側は `apps/public/src/lib/server/files.ts` の `signedFileUrl()`**（有効期限 15 分）で、最初の利用者は ADM-19 の事故・トラブル添付。`FILE_SIGNING_KEY` が未設定の環境ではリンクを作らず、ファイル名のみを表示する。**`apps/admin` 側の配信ルートは未実装** — 最初の利用者は SYS-05（審査画面が申請書類を開く）で、TBD-25 と同時に着手する。
 
 > **パブリック側の「公開 URL」は Worker が配信する**（P8 で追加）。R2 のカスタムドメインは設けず、
 > `apps/public/src/pages/images/[...key].ts` が `Cache-Control: public, max-age=31536000, immutable`
@@ -659,7 +659,9 @@ MAIL_FROM_NAME=
 # メール本文で使う（§3-3 の Subject 接頭辞と、本文内リンクの絶対 URL 化）。vars 側に置く
 APP_NAME=
 APP_URL=
-# 運営（admin）向けアラートの宛先（Incident P0/P1、Payout Transfer 失敗等 — apps/admin）
+# 運営向けアラートの宛先。**apps/public と apps/admin の両方に置く** — Incident P0/P1 の即時共有
+# （F-12-02）は報告が書き込まれる apps/public から送り、Payout Transfer 失敗等は apps/admin から送る。
+# 非機密のため vars 側。未設定時は送信をスキップしてログに残す
 MAIL_ADMIN_ALERTS=
 
 # ファイルストレージ（Cloudflare R2、DEV-01 §1）

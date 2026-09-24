@@ -7,7 +7,6 @@
 import type { AdoptionInquiryDetail, AdoptionInquirySummary } from "$lib/view-models/adoption-inquiry";
 import type { OrganizationDashboardView } from "$lib/view-models/dashboard";
 import type { DogDetail, DogSummary, OwnDogDetail } from "$lib/view-models/dog";
-import type { IncidentDetail, IncidentSummary } from "$lib/view-models/incident";
 import { formatYen } from "$lib/pricing";
 import type { OrganizationDetail, OrganizationSummary } from "$lib/view-models/organization";
 import type { PayoutDetail, PayoutSummary } from "$lib/view-models/payout";
@@ -230,26 +229,6 @@ export const mockAdoptionInquiryDetail: AdoptionInquiryDetail = {
 };
 
 export const mockAdoptionInquiries: AdoptionInquirySummary[] = [mockAdoptionInquirySummary];
-
-export const mockIncidentSummary: IncidentSummary = {
-  id: "01HZZINCIDENT000000000001",
-  reportedByName: "北川 一郎",
-  severity: "P2",
-  category: "dog_condition",
-  occurredAt: NOW,
-  status: "reported",
-};
-
-export const mockIncidentDetail: IncidentDetail = {
-  ...mockIncidentSummary,
-  description: "散歩中に足を引きずる様子が見られたため中断しました。",
-  location: "荒川河川敷",
-  preventionMeasures: null,
-  attachmentKeys: null,
-  resolvedAt: null,
-};
-
-export const mockIncidents: IncidentSummary[] = [mockIncidentSummary];
 
 export const mockPayoutSummary: PayoutSummary = {
   id: "01HZZPAYOUT00000000000001",

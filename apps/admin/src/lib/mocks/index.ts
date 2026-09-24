@@ -8,7 +8,6 @@ import type { AdoptionInquiryDetail, AdoptionInquirySummary } from "$lib/view-mo
 import type { AuditLogEntry } from "$lib/view-models/audit-log";
 import type { DashboardView } from "$lib/view-models/dashboard";
 import type { DogDetail, DogSummary } from "$lib/view-models/dog";
-import type { IncidentDetail, IncidentSummary } from "$lib/view-models/incident";
 import type { PayoutDetail, PayoutSummary } from "$lib/view-models/payout";
 import type { PaymentSummary, ReservationDetail, ReservationSummary } from "$lib/view-models/reservation";
 import type { WalkerDetail, WalkerSummary } from "$lib/view-models/walker";
@@ -142,30 +141,6 @@ export const mockPayoutDetail: PayoutDetail = {
 
 export const mockPayouts: PayoutSummary[] = [mockPayoutSummary];
 
-export const mockIncidentSummary: IncidentSummary = {
-  id: "01HZZINCIDENT000000000001",
-  organizationName: ORGANIZATION_NAME,
-  reportedByName: "北川 一郎",
-  severity: "P2",
-  category: "dog_condition",
-  occurredAt: NOW,
-  status: "reported",
-};
-
-export const mockIncidentDetail: IncidentDetail = {
-  ...mockIncidentSummary,
-  walkerName: "山田 太郎",
-  dogName: "モモ",
-  description: "散歩中に足を引きずる様子が見られたため中断しました。",
-  location: "荒川河川敷",
-  preventionMeasures: null,
-  attachmentKeys: null,
-  resolvedAt: null,
-  updatedAt: NOW,
-};
-
-export const mockIncidents: IncidentSummary[] = [mockIncidentSummary];
-
 export const mockAdoptionInquirySummary: AdoptionInquirySummary = {
   id: "01HZZADOPTIONINQUIRY000001",
   organizationName: ORGANIZATION_NAME,
@@ -210,5 +185,5 @@ export const mockDashboard: DashboardView = {
     { label: "未対応のお問い合わせ", value: 5, href: "/inquiries" },
   ],
   pendingApplications: [{ id: "01HZZORGANIZATION0000000001", name: ORGANIZATION_NAME, submittedAt: NOW }],
-  recentIncidents: [{ id: mockIncidentSummary.id, organizationName: ORGANIZATION_NAME, severity: "P2", occurredAt: NOW }],
+  recentIncidents: [{ id: "01HZZINCIDENT000000000001", organizationName: ORGANIZATION_NAME, severity: "P2", occurredAt: NOW }],
 };

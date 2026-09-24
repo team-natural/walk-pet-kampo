@@ -378,9 +378,9 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 | GET | `/api/v1/organization/payouts` | 団体還元・振込履歴確認（閲覧のみ。確定操作は運営側 §5-15。F-09-02・F-09-04） | org_admin |
 | GET | `/api/v1/organization/payouts/{id}` | 明細確認 | org_admin |
 | GET | `/api/v1/organization/incidents` | 事故・トラブル報告履歴（F-12-01） | — |
-| POST | `/api/v1/organization/incidents` | 事故・トラブル報告（重大度 P0/P1 は運営へ即時共有。F-12-01・F-12-02） | org_staff |
+| POST | `/api/v1/organization/incidents` | 事故・トラブル報告（`multipart/form-data`。重大度 P0/P1 は `OPS_ALERT_EMAIL` 宛に `waitUntil()` で即時共有 — F-12-01・F-12-02）。添付は非公開プレフィックスへ、20 回/日/スタッフ（DEV-02 §7） | org_staff |
 | GET | `/api/v1/organization/incidents/{id}` | 対応状況確認 | — |
-| POST | `/api/v1/organization/incidents/{id}/transition` | 対応状況・再発防止策の更新（body: `{ to, prevention_measures? }`。F-12-03、DEV-09 §2-10） | — |
+| POST | `/api/v1/organization/incidents/{id}/transition` | 対応状況・再発防止策の更新（body: `{ to, preventionMeasures? }`。F-12-03、DEV-09 §2-10）。**`resolved` は再発防止策が空だと拒否する**。`reported → in_progress` は P0/P1 のみ | — |
 | GET | `/api/v1/organization/adoption-inquiries` | 里親相談一覧（F-11-02） | — |
 | GET | `/api/v1/organization/adoption-inquiries/{id}` | 相談対応詳細 | — |
 | POST | `/api/v1/organization/adoption-inquiries/{id}/transition` | 対応状況の更新（body: `{ to }`。DEV-09 §2-11） | — |

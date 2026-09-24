@@ -2,19 +2,33 @@
 // ADM-18 — PRD-04 §3-2 (guarded)
 // A high severity report reaches the operator immediately, and the form says so before the
 // submit rather than after (PRD-03 F-12-02).
-// TODO(ADM-18): post to createIncident() — F-12-01.
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
 import FormSection from "$lib/components/organization/form-section.astro";
+import { INCIDENT_CATEGORY_LABELS } from "$lib/incident-status";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
 import { createDb } from "@app/schema/client";
 
 const db = createDb(env.DB);
 const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
+
+const ERRORS: Record<string, string> = {
+  input: "入力内容をご確認ください。添付は画像・PDF のみ、1 件 8MB までです。",
+  too_many: "本日の報告件数の上限に達しました。急ぎの場合はお問い合わせからご連絡ください。",
+};
+const error = ERRORS[Astro.url.searchParams.get("error") ?? ""];
 ---
 
 <OrganizationLayout title="事故・トラブルの報告 | 団体ページ" session={session}>
+  {
+    error && (
+      <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+        {error}
+      </p>
+    )
+  }
+
   <header class="grid gap-2">
     <a href="/organization/incidents" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← 事故・トラブル</a>
     <h1 class="text-xl font-bold">事故・トラブルの報告</h1>
@@ -34,14 +48,9 @@ if (!session) return Astro.redirect("/organization/login", 302);
 
       <label class="grid gap-1.5">
         <span class="font-bold">種別</span>
+        {/* Every value the column allows (DEV-07 §5-15) — a category missing from the form is one the shelter has to write into the description instead. */}
         <select name="category" class="field w-full">
-          <option value="bite">咬傷</option>
-          <option value="escape">脱走</option>
-          <option value="injury">怪我</option>
-          <option value="dog_condition">犬の体調</option>
-          <option value="walker_condition">参加者の体調</option>
-          <option value="property_damage">物損</option>
-          <option value="other">その他</option>
+          {Object.entries(INCIDENT_CATEGORY_LABELS).map(([value, label]) => <option value={value}>{label}</option>)}
         </select>
       </label>
 

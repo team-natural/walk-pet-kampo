@@ -1,17 +1,17 @@
 ---
 // SYS-20 — PRD-04 §3-3
-// TODO(SYS-20): replace mockIncidentDetail with getIncident() and post transitionIncident()
-// — F-15-10.
+// Read-only until P14, like SYS-10/12: `incidents.status` is written by apps/public's Service
+// (DEV-09 §3-1) and the admin-side route that would reach it is GOV-02 TBD-58. The shelter can
+// work its own report through in the meantime (ADM-19), which is what DEV-09 §2-10-2 allows.
 import { env } from "cloudflare:workers";
 import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
-import ConfirmAction from "$lib/components/confirm-action.svelte";
 import DetailCard from "$lib/components/detail-card.astro";
 import PageHeader from "$lib/components/page-header.astro";
 import SeverityBadge from "$lib/components/severity-badge.svelte";
 import StatusBadge from "$lib/components/status-badge.svelte";
 import { formatDateTime } from "$lib/format";
-import { mockIncidentDetail } from "$lib/mocks";
 import { getSession } from "$lib/server/auth/session";
+import { getIncidentByPublicId } from "$lib/server/services/incidents";
 import { label } from "$lib/status";
 import type { IncidentDetail } from "$lib/view-models/incident";
 import { createDb } from "@app/schema/client";
@@ -21,9 +21,7 @@ const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
-const incident: IncidentDetail = mockIncidentDetail;
-const transitionAction = `/api/v1/incidents/${incident.id}/transition`;
-const open = incident.status !== "resolved" && incident.status !== "closed";
+const incident: IncidentDetail = await getIncidentByPublicId(db, publicId!);
 ---
 
 <ConsoleLayout title={`${incident.organizationName} の報告`} user={session} breadcrumbs={[{ label: "事故・トラブル", href: "/incidents" }, { label: incident.organizationName }]}>
@@ -34,17 +32,6 @@ const open = incident.status !== "resolved" && incident.status !== "closed";
           <SeverityBadge severity={incident.severity} />
           <StatusBadge domain="incident" value={incident.status} />
         </p>
-      </Fragment>
-      <Fragment slot="actions">
-        {
-          open && (
-            <Fragment>
-              <ConfirmAction client:load action={transitionAction} name="to" value="investigating" triggerLabel="調査を開始" title="調査を開始しますか？" message="報告者と団体に、運営が確認を始めた旨が通知されます。" confirmLabel="開始する" />
-              <ConfirmAction client:load action={transitionAction} name="to" value="resolved" triggerLabel="解決にする" title="この報告を解決にしますか？" message="対応が完了した扱いになります。再発防止策は必ず記録に残してください。" confirmLabel="解決にする" reasonLabel="対応内容と再発防止策（必須）" reasonRequired />
-            </Fragment>
-          )
-        }
-        <ConfirmAction client:load action={transitionAction} name="to" value="closed" destructive triggerLabel="クローズ" title="この報告をクローズしますか？" message="クローズは取り消せません。以降は参照専用の記録になります。" confirmLabel="クローズする" reasonLabel="クローズの理由" />
       </Fragment>
     </PageHeader>
 

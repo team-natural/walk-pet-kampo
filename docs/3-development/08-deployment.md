@@ -253,10 +253,15 @@ AUTH_LOCKOUT_MINUTES=15
 # Cache / Queue（Queues は不採用 — DEV-01 §1。Session は D1 で確定のため環境変数不要。
 # KV バインディング名・接続情報は wrangler.jsonc で管理）
 
-# Mail（Resend — DEV-01 §1。Workers Secrets で管理）
+# Mail（Resend — DEV-01 §1。RESEND_API_KEY のみ Workers Secrets、残りは vars。変数名は DEV-10 §11 が正本）
 RESEND_API_KEY=
 MAIL_FROM_ADDRESS=
 MAIL_FROM_NAME=
+# 運営向けアラートの宛先。**apps/public にも設定する** — Incident P0/P1 の即時共有（F-12-02）は
+# 報告が書き込まれる apps/public から送るため。未設定だと重大事故の通知が誰にも届かない
+MAIL_ADMIN_ALERTS=
+# 非公開 R2 オブジェクトの署名鍵（GOV-01 D-024）。両アプリに同一値。未設定だと添付がリンクにならない
+FILE_SIGNING_KEY=
 
 # 決済（Stripe + Stripe Connect — `Decided` GOV-01 D-008。Workers Secrets で管理。変数名は DEV-10 §2 と一致させる）
 STRIPE_KEY=

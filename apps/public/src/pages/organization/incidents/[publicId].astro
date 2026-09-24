@@ -1,30 +1,63 @@
 ---
 // ADM-19 — PRD-04 §3-2 (guarded)
-// TODO(ADM-19): replace mockIncidentDetail with getOwnIncident() — F-12-03.
+// The shelter works its own report through (F-12-03, DEV-09 §2-10-2 names org staff as a
+// trigger). The operator's half of the same state machine is SYS-20, which waits for P14.
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
+import { incidentCategoryLabel, incidentSeverityLabel, incidentStatusLabel } from "$lib/incident-status";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
-import { mockIncidentDetail } from "$lib/mocks";
+import { signedAttachments } from "$lib/server/files";
+import { allowedIncidentTransitions, getOwnIncident } from "$lib/server/services/incidents";
 import type { IncidentDetail } from "$lib/view-models/incident";
 import { createDb } from "@app/schema/client";
+import { NotFoundError } from "@app/server-kit/http";
 
 const db = createDb(env.DB);
 const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
 const { publicId } = Astro.params;
-const incident: IncidentDetail = mockIncidentDetail;
+
+let incident: IncidentDetail;
+try {
+  incident = await getOwnIncident(db, session.organizationId, publicId!);
+} catch (error) {
+  if (error instanceof NotFoundError) return Astro.rewrite("/404");
+  throw error;
+}
+
+// Signed here, not linked by key: an attachment can show an injury, so the link carries a
+// 15-minute signature and the route checks the session as well (GOV-01 D-024).
+const attachments = await signedAttachments(incident.attachmentKeys);
+const nextStatuses = allowedIncidentTransitions(incident.status, incident.severity);
+
+const ERRORS: Record<string, string> = {
+  prevention: "解決にするには、再発防止策の記録が必要です。",
+  state: "この報告の状態が変わっています。画面を読み込み直してください。",
+};
+const error = ERRORS[Astro.url.searchParams.get("error") ?? ""];
 
 const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
 
 <OrganizationLayout title="事故・トラブルの詳細 | 団体ページ" session={session}>
+  <FlashMessage />
+
+  {
+    error && (
+      <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+        {error}
+      </p>
+    )
+  }
+
   <header class="grid gap-2" data-public-id={publicId}>
     <a href="/organization/incidents" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← 事故・トラブル</a>
-    <h1 class="text-xl font-bold">{incident.category}</h1>
+    <h1 class="text-xl font-bold">{incidentCategoryLabel(incident.category)}</h1>
     <p class="flex flex-wrap gap-2">
-      <span class="badge badge-blossom">{incident.severity}</span>
-      <span class="badge badge-quiet">{incident.status}</span>
+      <span class="badge badge-blossom">{incidentSeverityLabel(incident.severity)}</span>
+      <span class="badge badge-quiet">{incidentStatusLabel(incident.status)}</span>
     </p>
   </header>
 
@@ -36,7 +69,7 @@ const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "l
       </div>
       <div>
         <dt>場所</dt>
-        <dd>{incident.location}</dd>
+        <dd>{incident.location ?? "—"}</dd>
       </div>
       <div>
         <dt>報告者</dt>
@@ -50,8 +83,62 @@ const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "l
         <dt>再発防止</dt>
         <dd class="text-pretty">{incident.preventionMeasures ?? "—"}</dd>
       </div>
+      {
+        incident.resolvedAt && (
+          <div>
+            <dt>解決日時</dt>
+            <dd class="tabular-nums">{dateFormat.format(new Date(incident.resolvedAt))}</dd>
+          </div>
+        )
+      }
+      {
+        attachments.length > 0 && (
+          <div>
+            <dt>添付</dt>
+            <dd>
+              <ul class="grid gap-1">
+                {attachments.map((attachment) => (
+                  <li>
+                    {attachment.url ? (
+                      <a href={attachment.url} class="rounded break-all text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">
+                        {attachment.name}
+                      </a>
+                    ) : (
+                      <span class="break-all text-brand-ink-soft">{attachment.name}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </dd>
+          </div>
+        )
+      }
     </dl>
   </div>
 
-  <p class="max-w-2xl text-sm text-pretty text-brand-ink-soft">対応状況の更新は運営が行います。追加の情報があればお問い合わせからご連絡ください。</p>
+  {
+    nextStatuses.length > 0 && (
+      <form method="post" action={`/api/v1/organization/incidents/${incident.id}/transition`} class="card grid max-w-2xl gap-4 p-6">
+        <h2 class="font-bold">対応状況を更新する</h2>
+
+        <label class="grid gap-1.5 text-sm">
+          <span class="font-bold">再発防止策</span>
+          <textarea name="preventionMeasures" rows="4" class="field w-full rounded-2xl">
+            {incident.preventionMeasures}
+          </textarea>
+          <span class="text-brand-ink-soft">「解決」にするには入力が必要です。</span>
+        </label>
+
+        <div class="flex flex-wrap gap-3">
+          {nextStatuses.map((status) => (
+            <button type="submit" name="to" value={status} class="btn btn-quiet px-5 text-sm">
+              {incidentStatusLabel(status)}にする
+            </button>
+          ))}
+        </div>
+      </form>
+    )
+  }
+
+  <p class="max-w-2xl text-sm text-pretty text-brand-ink-soft">重大度 P0・P1 の報告は、送信と同時に運営へ共有されています。運営からの連絡は登録のメールアドレス宛に届きます。</p>
 </OrganizationLayout>
