@@ -295,7 +295,7 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 | POST | `/api/v1/organization-applications` | 申請フォーム送信（`organizations` を `pending_review` で作成、F-03-01） | 不要 |
 | POST | `/api/v1/organization-applications/{id}/documents` | 申請書類・本人確認書類アップロード（R2、F-03-02） | 不要（申請 ID + アップロードトークンで検証 `[Assumed]`） |
 | POST | `/api/v1/organization/resubmit` | 追加確認依頼への対応（`needs_more_info → under_review`、F-03-05） | 必須（org_admin） |
-| POST | `/api/v1/organization/activate` | 承認後の初回パスワード設定（`organization_members` を `org_admin` で作成し `organization_session` を発行。F-03-06） | 不要（招待同様のトークンで検証） |
+| POST | `/api/v1/organization/activate` | 承認後の初回パスワード設定（`organization_members` を `org_admin` で作成し `organization_session` を発行。F-03-06） | 不要（`organization_activation_tokens` で検証 — DEV-07 §5-28、GOV-01 D-038） |
 | POST | `/api/v1/organization/withdrawal` | 団体退会・掲載終了申請（`approved/suspended/deactivated → withdrawn`。F-04-05） | 必須（org_admin） |
 
 ### 5-10. `apps/public` — 公開検索（F-07、未認証）

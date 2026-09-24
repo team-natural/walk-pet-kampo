@@ -341,6 +341,27 @@ export const organizationApplicationTokens = sqliteTable(
   (table) => [uniqueIndex("uq_organization_application_tokens_token").on(table.token), index("idx_organization_application_tokens_organization_id").on(table.organizationId), index("idx_organization_application_tokens_expires_at").on(table.expiresAt)],
 );
 
+// The approval link that creates a shelter's first org_admin (DEV-07 §5-28, GOV-01 D-038). A
+// separate table from the application tokens above: sharing one would mean a single forgotten
+// filter turns a "please send more information" link into an account-creation link.
+export const organizationActivationTokens = sqliteTable(
+  "organization_activation_tokens",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    organizationId: integer("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    // Snapshotted from the shelter at issue time: the account is created with this address, so a
+    // later edit to the shelter's contact must not move where the link can sign someone in.
+    email: text("email").notNull(),
+    token: text("token").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    usedAt: text("used_at"),
+    createdAt: createdAt(),
+  },
+  (table) => [uniqueIndex("uq_organization_activation_tokens_token").on(table.token), index("idx_organization_activation_tokens_organization_id").on(table.organizationId), index("idx_organization_activation_tokens_expires_at").on(table.expiresAt)],
+);
+
 export const invitations = sqliteTable(
   "invitations",
   {

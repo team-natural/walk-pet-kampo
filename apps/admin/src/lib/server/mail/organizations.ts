@@ -8,12 +8,14 @@ export type ReviewOutcome = "approved" | "rejected" | "needs_more_info";
 // The reason is the message for two of the three outcomes: sending an application back with no
 // explanation gives the applicant nothing to act on, which is why the Service refuses to record
 // one without it.
-function reviewBody(name: string, outcome: ReviewOutcome, reason: string | null, resubmitToken?: string): MailBody {
+function reviewBody(name: string, outcome: ReviewOutcome, reason: string | null, token?: string): MailBody {
   if (outcome === "approved") {
+    // This link is the only way the first org_admin exists (F-03-06): there is nobody inside the
+    // shelter yet to invite them.
     return {
       heading: "登録申請が承認されました",
-      paragraphs: [`${name} 様`, "保護団体の登録申請が承認されました。団体ページにログインすると、保護犬とおさんぽ募集の登録を始められます。", "ログイン用のアカウントは、別途お送りする招待メールから設定してください。"],
-      action: { label: "団体ログインへ", path: "/organization/login" },
+      paragraphs: [`${name} 様`, "保護団体の登録申請が承認されました。下のリンクからパスワードを設定すると、団体ページにログインできるようになります。", "リンクは 7 日間有効です。期限が切れた場合はお問い合わせフォームよりご連絡ください。"],
+      action: { label: "アカウントを有効化する", path: `/organization/invitations/${token}` },
     };
   }
 
@@ -21,7 +23,7 @@ function reviewBody(name: string, outcome: ReviewOutcome, reason: string | null,
     return {
       heading: "登録申請について確認させてください",
       paragraphs: [`${name} 様`, "登録申請の審査にあたり、以下の点について確認させてください。", reason ?? "", "下のリンクから内容をご確認のうえ、再提出をお願いします。リンクは 14 日間有効です。"],
-      action: { label: "申請状況を確認する", path: `/organization/apply/${resubmitToken}` },
+      action: { label: "申請状況を確認する", path: `/organization/apply/${token}` },
     };
   }
 
@@ -31,7 +33,10 @@ function reviewBody(name: string, outcome: ReviewOutcome, reason: string | null,
   };
 }
 
-export async function sendOrganizationReviewResultEmail(to: string, name: string, outcome: ReviewOutcome, reason: string | null, resubmitToken?: string): Promise<void> {
-  const body = reviewBody(name, outcome, reason, resubmitToken);
+// `token` is the resubmission token for `needs_more_info` and the activation token for
+// `approved` — two different tables (DEV-07 §5-25, §5-28), one parameter, because the caller
+// issues whichever the outcome calls for.
+export async function sendOrganizationReviewResultEmail(to: string, name: string, outcome: ReviewOutcome, reason: string | null, token?: string): Promise<void> {
+  const body = reviewBody(name, outcome, reason, token);
   await sendMail({ to, subject: subject(body.heading), text: renderText(body), html: renderHtml(body) });
 }

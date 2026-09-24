@@ -9,7 +9,8 @@ import { createDb } from "@app/schema/client";
 import { AppError, ValidationError } from "@app/server-kit/http";
 import { sendOrganizationReviewResultEmail, type ReviewOutcome } from "$lib/server/mail/organizations";
 import { requireSession } from "$lib/server/auth/session";
-import { getOrganizationByPublicId, issueApplicationToken, transitionOrganization, type OrganizationStatus } from "$lib/server/services/organizations";
+import { getOrganizationByPublicId, hasAnyMember, issueActivationToken, issueApplicationToken, transitionOrganization, type OrganizationStatus, type TransitionResult } from "$lib/server/services/organizations";
+import type { DbClient } from "@app/schema/client";
 
 // The three outcomes the applicant hears about. `suspended` and the rest are operational and
 // reach the shelter through its console, not a review mail (DEV-09 §2-1-4).
@@ -22,6 +23,14 @@ function isNotified(to: OrganizationStatus): to is ReviewOutcome {
 // SYS-05 and SYS-07 post here alike. Which screen the operator came from is decided by the state
 // they are leaving, not by a form field — a caller-supplied return path is an open redirect.
 const REVIEW_STATES: OrganizationStatus[] = ["pending_review", "under_review", "needs_more_info"];
+
+async function tokenFor(db: DbClient, to: ReviewOutcome, result: TransitionResult): Promise<string | undefined> {
+  if (to === "needs_more_info") return issueApplicationToken(db, result.organizationId);
+  // Only the first approval: a shelter coming back from `suspended` already has its accounts, and
+  // a fresh activation link would create a second org_admin for anyone holding the mail.
+  if (to === "approved" && !(await hasAnyMember(db, result.organizationId))) return issueActivationToken(db, result.organizationId, result.email!);
+  return undefined;
+}
 
 export async function POST({ params, request, cookies, locals }: APIContext): Promise<Response> {
   const publicId = params.id!;
@@ -41,7 +50,11 @@ export async function POST({ params, request, cookies, locals }: APIContext): Pr
     const result = await transitionOrganization(db, publicId, to, session, reason);
 
     if (result.email && isNotified(to)) {
-      const token = to === "needs_more_info" ? await issueApplicationToken(db, result.organizationId) : undefined;
+      // Two different tokens, two different tables (DEV-07 §5-25, §5-28): one sends the applicant
+      // back to fix the application, the other creates the shelter's first account (F-03-06).
+      // Issued only on the first approval — a second one would mint a live link for an account
+      // that already exists.
+      const token = await tokenFor(db, to, result);
       locals.cfContext.waitUntil(sendOrganizationReviewResultEmail(result.email, result.name, to, reason.trim() || null, token));
     }
 

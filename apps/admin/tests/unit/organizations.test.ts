@@ -1,14 +1,14 @@
 // Organization review (F-15-03). The subject is the state machine in DEV-09 §2-1-2: which moves
 // are legal from where, and what the operator must supply to make one.
 import { env } from "cloudflare:workers";
-import { activityLog, adminUsers, organizationApplicationTokens, organizationMembers, organizations } from "@app/schema";
+import { activityLog, adminUsers, organizationActivationTokens, organizationApplicationTokens, organizationMembers, organizations } from "@app/schema";
 import { createDb } from "@app/schema/client";
 import { ulid } from "@app/schema/ulid";
 import { InvalidStateTransitionError, NotFoundError, ValidationError } from "@app/server-kit/http";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Session } from "../../src/lib/server/auth/session";
-import { allowedTransitions, countApplicationsAwaitingReview, getOrganizationByPublicId, issueApplicationToken, listApplications, listOrganizationMembers, listOrganizations, transitionOrganization, type OrganizationStatus } from "../../src/lib/server/services/organizations";
+import { allowedTransitions, countApplicationsAwaitingReview, getOrganizationByPublicId, hasAnyMember, issueActivationToken, issueApplicationToken, listApplications, listOrganizationMembers, listOrganizations, transitionOrganization, type OrganizationStatus } from "../../src/lib/server/services/organizations";
 
 const db = createDb(env.DB);
 let session: Session;
@@ -30,6 +30,7 @@ async function insertMember(organizationId: number, name: string) {
 beforeEach(async () => {
   await db.delete(activityLog);
   await db.delete(organizationApplicationTokens);
+  await db.delete(organizationActivationTokens);
   await db.delete(organizationMembers);
   await db.delete(organizations);
   await db.delete(adminUsers);
@@ -57,6 +58,30 @@ describe("the review queue (SYS-04)", () => {
     await insertOrganization("approved", "C");
 
     await expect(countApplicationsAwaitingReview(db)).resolves.toBe(2);
+  });
+});
+
+// F-03-06. The operator's half: an approval is what mints the link that creates the shelter's
+// first account (GOV-01 D-038).
+describe("activation tokens (F-03-06)", () => {
+  it("is offered only while the shelter has nobody in it", async () => {
+    const empty = await insertOrganization("approved", "誰もいない団体");
+    const staffed = await insertOrganization("approved", "スタッフのいる団体");
+    await insertMember(staffed.id, "既存のスタッフ");
+
+    await expect(hasAnyMember(db, empty.id)).resolves.toBe(false);
+    await expect(hasAnyMember(db, staffed.id)).resolves.toBe(true);
+  });
+
+  it("issues a single-use link bound to the shelter's contact address", async () => {
+    const organization = await insertOrganization("approved");
+
+    const token = await issueActivationToken(db, organization.id, "shelter@example.test");
+
+    const [row] = await db.select().from(organizationActivationTokens).where(eq(organizationActivationTokens.token, token));
+    expect(row).toMatchObject({ organizationId: organization.id, email: "shelter@example.test", usedAt: null });
+    // Seven days, like an invitation — long enough to be read, short enough to expire.
+    expect(new Date(row!.expiresAt).getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
   });
 });
 

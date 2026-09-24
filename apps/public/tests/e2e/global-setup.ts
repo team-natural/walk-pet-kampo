@@ -19,6 +19,15 @@ export const E2E_BOOKING_WALKER = {
   phone: "09012345678",
 };
 
+// An approved shelter with nobody inside it, plus the link the approval mail would have carried
+// (F-03-06). Issuing it is the operator's side and is covered in apps/admin; this is the half a
+// shelter sees.
+export const E2E_ACTIVATION = {
+  organization: "E2E 有効化団体",
+  email: "e2e-activation@example.test",
+  token: "e2e-activation-token-0000000000",
+};
+
 // The same password as the Walker above, on purpose: the lockout counter keys per account system
 // (GOV-01 D-021), and a shared credential is what would expose a counter that does not.
 export const E2E_ORGANIZATION_MEMBER = {
@@ -66,6 +75,11 @@ export default function globalSetup() {
   const memberEmail = E2E_ORGANIZATION_MEMBER.email.replaceAll("'", "''");
   const organizationName = E2E_ORGANIZATION_MEMBER.organization.replaceAll("'", "''");
   runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`DELETE FROM organization_sessions WHERE organization_member_id IN (SELECT id FROM organization_members WHERE email = '${memberEmail}');`, `DELETE FROM organization_member_password_reset_tokens WHERE organization_member_id IN (SELECT id FROM organization_members WHERE email = '${memberEmail}');`, `DELETE FROM activity_log WHERE organization_id IN (SELECT id FROM organizations WHERE name = '${organizationName}');`, `DELETE FROM notifications WHERE recipient_type = 'organization_member' AND recipient_id IN (SELECT id FROM organization_members WHERE email = '${memberEmail}');`, `DELETE FROM notification_settings WHERE subject_type = 'organization_member' AND subject_id IN (SELECT id FROM organization_members WHERE email = '${memberEmail}');`, `DELETE FROM invitations WHERE organization_id IN (SELECT id FROM organizations WHERE name = '${organizationName}');`, `DELETE FROM walk_slot_dogs WHERE walk_slot_id IN (SELECT id FROM walk_slots WHERE organization_id IN (SELECT id FROM organizations WHERE name = '${organizationName}'));`, `DELETE FROM walk_slots WHERE organization_id IN (SELECT id FROM organizations WHERE name = '${organizationName}');`, `DELETE FROM dogs WHERE organization_id IN (SELECT id FROM organizations WHERE name = '${organizationName}');`, `DELETE FROM organization_members WHERE email = '${memberEmail}';`, `DELETE FROM organizations WHERE name = '${organizationName}';`].join(" ")]);
+
+  // The shelter waiting to be activated, recreated each run because the spec consumes the token.
+  const activationName = E2E_ACTIVATION.organization.replaceAll("'", "''");
+  const activationScope = `(SELECT id FROM organizations WHERE name = '${activationName}')`;
+  runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`DELETE FROM organization_sessions WHERE organization_member_id IN (SELECT id FROM organization_members WHERE organization_id IN ${activationScope});`, `DELETE FROM organization_members WHERE organization_id IN ${activationScope};`, `DELETE FROM organization_activation_tokens WHERE organization_id IN ${activationScope};`, `DELETE FROM activity_log WHERE organization_id IN ${activationScope};`, `DELETE FROM organizations WHERE name = '${activationName}';`, `INSERT INTO organizations (public_id, name, slug, representative_name, email, address_visibility, status, created_at, updated_at) VALUES ('01HZZE2EACTIVATION0000001', '${activationName}', 'org-e2e-activation', '代表 太郎', '${E2E_ACTIVATION.email}', 'prefecture_only', 'approved', datetime('now'), datetime('now'));`, `INSERT INTO organization_activation_tokens (organization_id, email, token, expires_at, created_at) SELECT id, '${E2E_ACTIVATION.email}', '${E2E_ACTIVATION.token}', datetime('now', '+7 days'), datetime('now') FROM organizations WHERE name = '${activationName}';`].join(" ")]);
 
   // The application spec needs a name nobody has applied for, so it generates one per run and
   // cannot clean up by name the way the seeded shelter does.

@@ -1,17 +1,23 @@
 ---
-// ADM-26 — PRD-04 §3-2
-// The receiving end of ADM-04. The invitee has no account yet, so the invitations token is what
-// establishes who this is — there is no session guard here on purpose.
+// ADM-26 — PRD-04 §3-2 (F-03-06, F-04-03)
+// Two arrivals, one screen, as PRD-04 §3-2 maps it: a colleague invited by an org_admin (ADM-04),
+// and the shelter's very first administrator, whose link came from the approval mail. Neither has
+// an account yet, so the token is the whole identity claim — there is no session guard here.
 import { env } from "cloudflare:workers";
 import Layout from "../../../layouts/Layout.astro";
 import PageHeader from "$lib/components/page-header.astro";
-import { getPendingInvitation } from "$lib/server/services/organization-auth";
+import { getPendingActivation, getPendingInvitation } from "$lib/server/services/organization-auth";
 import { createDb } from "@app/schema/client";
 
 const { token } = Astro.params;
+const db = createDb(env.DB);
+
 // Resolved before the form renders so a link sent to the wrong person is visibly for someone
-// else, and a dead link says so instead of failing after a password has been typed.
-const invitation = await getPendingInvitation(createDb(env.DB), token!);
+// else, and a dead link says so instead of failing after a password has been typed. The two
+// lookups hit different tables (DEV-07 §5-7, §5-28) and never fall through to each other.
+const invitation = await getPendingInvitation(db, token!);
+const activation = invitation ? null : await getPendingActivation(db, token!);
+const pending = invitation ?? activation;
 
 const ERRORS: Record<string, string> = {
   input: "お名前とパスワード（8 文字以上）を入力してください。",
@@ -35,24 +41,24 @@ const ROLE_LABELS = { org_admin: "団体管理者", org_staff: "スタッフ" } 
     }
 
     {
-      invitation ? (
+      pending ? (
         <>
           <dl class="card grid gap-2 p-6 text-sm sm:p-8">
             <div class="flex gap-3">
               <dt class="w-24 shrink-0 font-bold">団体</dt>
-              <dd>{invitation.organizationName}</dd>
+              <dd>{pending.organizationName}</dd>
             </div>
             <div class="flex gap-3">
               <dt class="w-24 shrink-0 font-bold">メール</dt>
-              <dd class="break-all">{invitation.email}</dd>
+              <dd class="break-all">{pending.email}</dd>
             </div>
             <div class="flex gap-3">
               <dt class="w-24 shrink-0 font-bold">権限</dt>
-              <dd>{ROLE_LABELS[invitation.role]}</dd>
+              <dd>{ROLE_LABELS[invitation ? invitation.role : "org_admin"]}</dd>
             </div>
           </dl>
 
-          <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action="/api/v1/organization/invitations/accept">
+          <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action={invitation ? "/api/v1/organization/invitations/accept" : "/api/v1/organization/activate"}>
             <input type="hidden" name="token" value={token} />
 
             <label class="grid gap-1.5">
@@ -72,8 +78,8 @@ const ROLE_LABELS = { org_admin: "団体管理者", org_staff: "スタッフ" } 
         </>
       ) : (
         <div class="card grid gap-3 p-6 text-sm sm:p-8">
-          <p class="font-bold">この招待リンクは使用済みか、有効期限が切れています。</p>
-          <p class="text-brand-ink-soft">招待は発行から 7 日で期限切れになります。お手数ですが、団体管理者に再送を依頼してください。</p>
+          <p class="font-bold">このリンクは使用済みか、有効期限が切れています。</p>
+          <p class="text-brand-ink-soft">リンクは発行から 7 日で期限切れになります。招待の場合は団体管理者に、承認後の有効化リンクの場合はお問い合わせフォームから運営に、再送をご依頼ください。</p>
           <a href="/organization/login" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">
             団体ログインへ
           </a>
