@@ -496,6 +496,20 @@ related-docs:
 
 ---
 
+### D-037：単発トークンは「行を持つか」で 2 方式に分ける
+
+| 項目 | 内容 |
+| --- | --- |
+| 日付 | 2026-09-24 |
+| カテゴリ | 設計 |
+| 決定内容 | **D1 に行を持つトークン**（`invitations` / `walker_password_reset_tokens` / `organization_member_password_reset_tokens` / `walker_email_verification_tokens` / `organization_application_tokens`）は `crypto.getRandomValues` の 256bit ランダム値を行に保存し、`used_at` と `expires_at` で失効させる。**行を持たない capability**（非公開 R2 オブジェクトの期限付きリンク、DEV-05 §11 のエクスポート URL）は Web Crypto の HMAC 署名とする。DEV-01 §2 の「単発署名トークンは HMAC で自作」という記述を、この 2 分割に書き換える |
+| 背景 | DEV-01 §2 は全ての単発トークンを HMAC 署名と定めていたが、実装（DEV-11 P1・P4）は行を持つトークンをランダム値 + `used_at` で作っており、GOV-02 TBD-62 として未整合が残っていた。**行を持つ側に HMAC を重ねても失効性は増えない** — `expires_at` と `used_at` の照合でどのみち行を引くため、署名は検証を二重化するだけで、鍵のローテーションで既存トークンが一斉に無効になる副作用だけが増える。**行を持たない側は HMAC が唯一の選択肢** — ファイルリンクは URL 自体が capability で、1 リンクごとに行を作るのは非現実的（DEV-11 P3 の `@app/server-kit/files` がこの方式で実装済み）。判断軸を「行があるか」に置くと、新しいトークンを足すときに迷いが残らない |
+| 影響範囲 | DEV-01 §2、DEV-02 §1-3、GOV-02 TBD-62（解決）。**コード変更なし** — 既存実装はすべてこの規則に従っている |
+| 決定者 | Tech Lead |
+| 関連 TBD | TBD-62（本決定で解決） |
+
+---
+
 ## 3. 記録すべき意思決定の種別
 
 - 顧客セグメントの変更

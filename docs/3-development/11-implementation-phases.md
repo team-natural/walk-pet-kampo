@@ -132,8 +132,8 @@ flowchart TD
 
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
-| P6 | `feature/org-application` | FG-03。SCR-15/16/51 + SYS-04/05。Organization の審査遷移 8 状態（DEV-09 §2-1）、申請書類のアップロード、審査結果通知。審査系の書き込みは `apps/admin` から D1 直接（DEV-05 §1 の例外パターン）。**P3 からの持ち越し 3 点**: ①申請書類のアップロード経路（申請者はセッションを持たないため `organization_application_tokens` で認可する。`UPLOAD_KINDS.applicationDocument` は定義済みで、現行の `/api/v1/uploads` は明示的に拒否している）②`apps/admin` 側の非公開ファイル配信ルート（SYS-05 の審査画面が書類を開くため。`apps/public` の `/api/v1/files/[...key]` と同じ D-024 の順序で実装する）③署名リンクの発行側（`signObjectPath` の呼び出し。現状は検証側だけが存在する） | P1,P2,P3 | TBD-24/25/28（審査基準）、TBD-62（単発トークンの方式 — 申請トークンが該当） | 未着手 |
-| P7 | `feature/org-profile-staff` | FG-04。ADM-02/03/04/23 + SYS-06/07/08。Invitation（3 状態）、OrganizationMember（3 状態）、団体退会申請、**住所のジオコーディング**（DEV-10 §9） | P6 | TBD-40（Google Maps API キー） | 未着手 |
+| P6 | `feature/org-application` | FG-03。SCR-15/16/51 + SYS-04/05。Organization の審査遷移 8 状態（DEV-09 §2-1）、審査結果通知。審査系の書き込みは `apps/admin` から D1 直接（DEV-05 §1 の例外パターン）。**申請書類（F-03-02）は TBD-25 待ちで未実装** — 必須提出書類が決まらないとフォーム項目も R2 のキー構造も確定しないため、当面は運営が `needs_more_info` の差し戻しで依頼する。**P3 からの持ち越し 3 点も TBD-25 と同時に着手**: ①申請トークンで認可するアップロード経路（`UPLOAD_KINDS.applicationDocument` は定義済み、`/api/v1/uploads` は明示的に拒否中）②`apps/admin` 側の非公開ファイル配信ルート ③署名リンクの発行側 | P1,P2,P3 | TBD-24/25/28（審査基準・必須提出書類） | 進行中 |
+| P7 | `feature/org-profile-staff` | FG-04。ADM-02/03/04/23 + SYS-06/07/08。Invitation（3 状態）、OrganizationMember（3 状態）、団体退会申請、**住所のジオコーディング**（DEV-10 §9）。**P6 からの持ち越し 2 点**: ①`approved → withdrawn`（ADM-23 の退会申請）の実装とテスト — P6 は審査系 5 遷移のみ実装・網羅済みで、運用系（`suspended` / `deactivated` / `withdrawn`）は未実装 ②SYS-06/07 の一覧・詳細（`listOrganizations()` は P6 では書かず、この画面を繋ぐときに追加する） | P6 | TBD-40（Google Maps API キー） | 未着手 |
 
 > **P6 が「団体が存在できる」分岐点**で、Stage 3 以降の全フェーズの前提になる。P7 で初めて
 > `org_admin` 限定操作が登場するため、ロール認可のテストはここから必須（DEV-06 §12）。
@@ -166,7 +166,7 @@ flowchart TD
 | P16 | `feature/incidents` | FG-12。ADM-17/18/19 + SYS-19/20。Incident 5 状態（DEV-09 §2-11）、P1 重大度の運営への即時メール（F-12-02）。添付は非公開（`UPLOAD_KINDS.incidentAttachment`）で、P3 の `/api/v1/files/[...key]` 経由で開く | P15 | TBD-17/18/20（保険・責任分担。**画面文言のみ**の依存でフロー自体は進められる） | 未着手 |
 | P17 | `feature/adoption-inquiries` | FG-11。SCR-49/50/30/31 + ADM-20/21 + SYS-21/22。AdoptionInquiry 7 状態（DEV-09 §2-12） | P8 | TBD-30〜34 | 未着手 |
 | P18 | `feature/payouts` | FG-09。Cron Triggers の月次集計 + admin の確定操作 + Stripe Connect Transfer + ADM-15/16 + SYS-17/18。集計・確定は `apps/admin`、参照専用クエリのみ `apps/public`（DEV-05 §7） | P13 | **TBD-29**（振込サイクル） | 未着手 |
-| P19 | `feature/admin-platform` | FG-15 残り。SYS-02/03（WalkerProfile の `restricted` / `suspended`。**P5 までに実装済みの遷移は前進のみ**で、制限・停止・解除は admin 操作としてここで足す）、SYS-25 管理操作履歴、SYS-01 ダッシュボードの実データ化 | P14 | TBD-13（利用制限の基準） | 未着手 |
+| P19 | `feature/admin-platform` | FG-15 残り。SYS-02/03（WalkerProfile の `restricted` / `suspended`。**P5 までに実装済みの遷移は前進のみ**で、制限・停止・解除は admin 操作としてここで足す）、**Organization の `approved → suspended` / `→ deactivated` / `suspended,deactivated → approved`**（P6 は審査系のみ。掲載停止の基準は TBD-28）、SYS-25 管理操作履歴、SYS-01 ダッシュボードの実データ化 | P14 | TBD-13（利用制限の基準）、TBD-28（団体掲載停止基準） | 未着手 |
 | P20 | `chore/ops-hardening` | 残りの KV レート制限（DEV-02 §7）、データ保管期限の削除バッチ（OPS-02 §4-3）、**TBD-60 の Access 実測**（DEV-08 §4）、staging → production | P19 | なし | 未着手 |
 
 ---

@@ -1,49 +1,80 @@
 ---
 // SCR-51 — PRD-04 §3-1
 // The applicant has no account yet, so the URL token in organization_application_tokens is what
-// establishes who this is (GOV-01 D-020). There is no session guard here on purpose.
-// TODO(SCR-51): resolve the token with getApplicationByToken() and post the resubmission — F-03-05.
+// establishes who this is (GOV-01 D-020, D-037). There is no session guard here on purpose.
+// TODO(SCR-51): document upload lands with GOV-02 TBD-25 (see SCR-15).
+import { env } from "cloudflare:workers";
 import Layout from "../../../layouts/Layout.astro";
 import PageHeader from "$lib/components/page-header.astro";
-import { mockOrganizationApplicationStatus } from "$lib/mocks";
+import { getApplicationByToken } from "$lib/server/services/organizations";
 import type { OrganizationApplicationStatus } from "$lib/view-models/organization";
+import { createDb } from "@app/schema/client";
 
 const { token } = Astro.params;
-const organization: OrganizationApplicationStatus = mockOrganizationApplicationStatus;
+const organization: OrganizationApplicationStatus | null = await getApplicationByToken(createDb(env.DB), token!);
+
+const ERRORS: Record<string, string> = {
+  input: "追加のご説明を入力してください。",
+  token: "このリンクは使用済みか、有効期限が切れています。",
+};
+const error = ERRORS[Astro.url.searchParams.get("error") ?? ""];
 ---
 
 <Layout title="申請状況の確認 | 保護犬おさんぽマッチング">
   <main id="main-content" class="mx-auto grid max-w-2xl gap-6 px-4 py-12">
     <PageHeader title="申請状況の確認" lead="追加の確認をお願いしています。以下の内容をご記入のうえ、再提出してください。">
-      <p class="flex flex-wrap items-center gap-3 text-sm">
-        <span class="font-bold">{organization.name}</span>
-        <span class="badge">{organization.status}</span>
-      </p>
+      {
+        organization && (
+          <p class="flex flex-wrap items-center gap-3 text-sm">
+            <span class="font-bold">{organization.name}</span>
+            <span class="badge">追加確認依頼中</span>
+          </p>
+        )
+      }
     </PageHeader>
 
     {
-      organization.rejectionReason && (
-        <div class="card grid gap-2 border-2 border-brand-sun/60 p-6 text-sm">
-          <p class="font-bold">運営からの確認事項</p>
-          <p class="text-pretty text-brand-ink-soft">{organization.rejectionReason}</p>
-        </div>
+      error && (
+        <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+          {error}
+        </p>
       )
     }
 
-    <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action="/api/v1/organization/resubmit" enctype="multipart/form-data">
-      <input type="hidden" name="token" value={token} />
+    {
+      organization ? (
+        <>
+          {organization.rejectionReason && (
+            <div class="card grid gap-2 border-2 border-brand-sun/60 p-6 text-sm">
+              <p class="font-bold">運営からの確認事項</p>
+              <p class="text-pretty text-brand-ink-soft">{organization.rejectionReason}</p>
+            </div>
+          )}
 
-      <label class="grid gap-1.5">
-        <span class="font-bold">追加のご説明</span>
-        <textarea name="note" rows="5" class="field w-full rounded-2xl"></textarea>
-      </label>
+          <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action="/api/v1/organization/resubmit">
+            <input type="hidden" name="token" value={token} />
 
-      <label class="grid gap-1.5">
-        <span class="font-bold">追加書類</span>
-        <input type="file" name="documents" multiple class="field w-full" />
-      </label>
+            <label class="grid gap-1.5">
+              <span class="font-bold">追加のご説明</span>
+              <textarea name="note" rows="5" required class="field w-full rounded-2xl" />
+            </label>
 
-      <button type="submit" class="btn btn-sun px-6 py-3">再提出する</button>
-    </form>
+            <p class="text-pretty text-brand-ink-soft">書類の提出が必要な場合は、運営からの確認事項に記載の方法でお送りください。</p>
+
+            <button type="submit" class="btn btn-sun px-6 py-3">
+              再提出する
+            </button>
+          </form>
+        </>
+      ) : (
+        <div class="card grid gap-3 p-6 text-sm sm:p-8">
+          <p class="font-bold">このリンクは使用済みか、有効期限が切れています。</p>
+          <p class="text-brand-ink-soft">再提出用のリンクは発行から 14 日で期限切れになります。お手数ですが、運営からのメールに記載の連絡先までお問い合わせください。</p>
+          <a href="/contact" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">
+            お問い合わせへ
+          </a>
+        </div>
+      )
+    }
   </main>
 </Layout>

@@ -1,6 +1,5 @@
 ---
 // SYS-04 — PRD-04 §3-3
-// TODO(SYS-04): replace mockOrganizations with listOrganizationApplications() — F-15-03.
 import { env } from "cloudflare:workers";
 import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
 import DataTable from "$lib/components/data-table.astro";
@@ -9,16 +8,15 @@ import RowLink from "$lib/components/row-link.svelte";
 import StatusBadge from "$lib/components/status-badge.svelte";
 import * as Table from "$lib/components/ui/table/index.js";
 import { formatDate } from "$lib/format";
-import { mockOrganizations } from "$lib/mocks";
 import { getSession } from "$lib/server/auth/session";
-import type { OrganizationSummary } from "$lib/view-models/organization";
+import { listApplications } from "$lib/server/services/organizations";
 import { createDb } from "@app/schema/client";
 
 const db = createDb(env.DB);
 const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/", 302);
 
-const applications: OrganizationSummary[] = mockOrganizations;
+const { items: applications } = await listApplications(db);
 ---
 
 <ConsoleLayout title="登録申請" user={session} breadcrumbs={[{ label: "登録申請" }]}>

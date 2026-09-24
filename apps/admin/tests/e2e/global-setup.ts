@@ -3,6 +3,13 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 // Seeded below rather than read from env vars, so `pnpm test:e2e` works unconfigured.
+// The application SYS-04/05 review. Fixed ids so the spec can navigate straight to it.
+export const E2E_APPLICANT = {
+  publicId: "01HZZE2EAPPLICANT000000001",
+  name: "E2E 審査対象団体",
+  slug: "org-e2e-applicant",
+};
+
 export const E2E_ADMIN = {
   email: "e2e-admin@example.test",
   password: "e2e-only-password",
@@ -28,10 +35,18 @@ export default function globalSetup() {
 
   run("npx", ["wrangler", "d1", "migrations", "apply", "DB", "--local", ...persist]);
 
-  // Drop only this account, so a developer's own seeded admin survives a test run. Sessions go
-  // first: admin_sessions.admin_user_id has no ON DELETE CASCADE.
+  // Drop only this account, so a developer's own seeded admin survives a test run. Order matters
+  // and none of these cascade: `organizations.reviewed_by` points at the admin a previous run
+  // reviewed with, so anything referencing the account goes before the account itself.
   const email = E2E_ADMIN.email.replaceAll("'", "''");
-  run("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", `DELETE FROM admin_sessions WHERE admin_user_id IN (SELECT id FROM admin_users WHERE email = '${email}'); DELETE FROM admin_users WHERE email = '${email}';`]);
+  const adminScope = `(SELECT id FROM admin_users WHERE email = '${email}')`;
+  const applicantScope = `(SELECT id FROM organizations WHERE name = '${E2E_APPLICANT.name}')`;
+
+  run("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`DELETE FROM organization_application_tokens WHERE organization_id IN ${applicantScope};`, `DELETE FROM activity_log WHERE organization_id IN ${applicantScope};`, `DELETE FROM organizations WHERE name = '${E2E_APPLICANT.name}';`, `UPDATE organizations SET reviewed_by = NULL WHERE reviewed_by IN ${adminScope};`, `UPDATE activity_log SET causer_id = NULL, causer_type = 'system' WHERE causer_type = 'platform' AND causer_id IN ${adminScope};`, `DELETE FROM admin_sessions WHERE admin_user_id IN ${adminScope};`, `DELETE FROM admin_users WHERE email = '${email}';`].join(" ")]);
 
   run("pnpm", ["seed", "--", "--table=admin_users", `--email=${E2E_ADMIN.email}`, `--password=${E2E_ADMIN.password}`, `--name=${E2E_ADMIN.name}`]);
+
+  // SYS-04/05 review a real row, and the spec moves it through the state machine — so it is
+  // recreated each run rather than left in whatever state the last one ended in.
+  run("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`INSERT INTO organizations (public_id, name, slug, representative_name, email, address_visibility, status, created_at, updated_at)`, `VALUES ('${E2E_APPLICANT.publicId}', '${E2E_APPLICANT.name}', '${E2E_APPLICANT.slug}', '代表 太郎', 'e2e-applicant@example.test', 'prefecture_only', 'pending_review', datetime('now'), datetime('now'));`].join(" ")]);
 }

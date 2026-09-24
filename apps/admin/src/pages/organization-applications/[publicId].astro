@@ -2,8 +2,6 @@
 // SYS-05 — PRD-04 §3-3
 // Organization review is the one transition that lives in apps/admin rather than apps/public
 // (DEV-09 §2-1-5), so this screen calls a local Service, not the RPC.
-// TODO(SYS-05): replace mockOrganizationDetail with getOrganizationApplication() and post
-// transitionOrganization() — F-15-03.
 import { env } from "cloudflare:workers";
 import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
 import ConfirmAction from "$lib/components/confirm-action.svelte";
@@ -11,8 +9,8 @@ import DetailCard from "$lib/components/detail-card.astro";
 import PageHeader from "$lib/components/page-header.astro";
 import StatusBadge from "$lib/components/status-badge.svelte";
 import { formatDate, formatPostalCode } from "$lib/format";
-import { mockOrganizationDetail } from "$lib/mocks";
 import { getSession } from "$lib/server/auth/session";
+import { allowedTransitions, getOrganizationByPublicId } from "$lib/server/services/organizations";
 import { label, yesNo } from "$lib/status";
 import type { OrganizationDetail } from "$lib/view-models/organization";
 import { createDb } from "@app/schema/client";
@@ -22,8 +20,18 @@ const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
-const organization: OrganizationDetail = mockOrganizationDetail;
+const organization: OrganizationDetail = await getOrganizationByPublicId(db, publicId!);
 const transitionAction = `/api/v1/organizations/${organization.id}/transition`;
+
+// Only the moves DEV-09 §2-1-2 allows from here. An operator offered a button that 409s has been
+// shown a stale screen, and the state machine is the only thing that knows which those are.
+const canMoveTo = (to: string) => allowedTransitions(organization.status).includes(to as OrganizationDetail["status"]);
+
+const ERRORS: Record<string, string> = {
+  reason: "理由を入力してください。",
+  state: "この申請の状態が変わっています。画面を再読み込みしてください。",
+};
+const error = ERRORS[Astro.url.searchParams.get("error") ?? ""];
 ---
 
 <ConsoleLayout title={`${organization.name} の審査`} user={session} breadcrumbs={[{ label: "登録申請", href: "/organization-applications" }, { label: organization.name }]}>
@@ -33,11 +41,20 @@ const transitionAction = `/api/v1/organizations/${organization.id}/transition`;
         <p class="pt-1"><StatusBadge domain="organization" value={organization.status} /></p>
       </Fragment>
       <Fragment slot="actions">
-        <ConfirmAction client:load action={transitionAction} name="to" value="approved" triggerLabel="承認する" title="この団体を承認しますか？" message="承認すると団体ページが使えるようになり、おさんぽ募集の公開が可能になります。承認の通知メールが送られます。" confirmLabel="承認する" />
-        <ConfirmAction client:load action={transitionAction} name="to" value="needs_more_info" triggerLabel="差し戻す" title="追加の情報を依頼しますか？" message="入力いただいた内容はそのまま残り、団体側で修正して再申請できます。記入した理由がそのまま通知されます。" confirmLabel="差し戻す" reasonLabel="確認したい内容（必須）" reasonRequired />
-        <ConfirmAction client:load action={transitionAction} name="to" value="rejected" destructive triggerLabel="否認する" title="この申請を否認しますか？" message="否認は取り消せません。同じ団体が再申請するには、新しく申請し直す必要があります。" confirmLabel="否認する" reasonLabel="否認の理由（必須）" reasonRequired />
+        {canMoveTo("under_review") && <ConfirmAction client:load action={transitionAction} name="to" value="under_review" triggerLabel="審査を開始する" title="審査を開始しますか？" message="この申請を審査中にします。団体への通知は送られません。" confirmLabel="開始する" />}
+        {canMoveTo("approved") && <ConfirmAction client:load action={transitionAction} name="to" value="approved" triggerLabel="承認する" title="この団体を承認しますか？" message="承認すると団体ページが使えるようになり、おさんぽ募集の公開が可能になります。承認の通知メールが送られます。" confirmLabel="承認する" />}
+        {canMoveTo("needs_more_info") && <ConfirmAction client:load action={transitionAction} name="to" value="needs_more_info" triggerLabel="差し戻す" title="追加の情報を依頼しますか？" message="入力いただいた内容はそのまま残り、団体側で修正して再申請できます。記入した理由がそのまま通知されます。" confirmLabel="差し戻す" reasonLabel="確認したい内容（必須）" reasonRequired />}
+        {canMoveTo("rejected") && <ConfirmAction client:load action={transitionAction} name="to" value="rejected" destructive triggerLabel="否認する" title="この申請を否認しますか？" message="否認は取り消せません。同じ団体が再申請するには、新しく申請し直す必要があります。" confirmLabel="否認する" reasonLabel="否認の理由（必須）" reasonRequired />}
       </Fragment>
     </PageHeader>
+
+    {
+      error && (
+        <p role="alert" class="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm font-medium">
+          {error}
+        </p>
+      )
+    }
 
     {
       organization.rejectionReason && (
