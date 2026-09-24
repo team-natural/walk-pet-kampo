@@ -234,11 +234,30 @@ flowchart TD
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
 | P15 | `feature/walk-records` | FG-10。ADM-13/14 + SCR-26/27/28 | P12 | なし | 未着手 |
-| P16 | `feature/incidents` | FG-12。ADM-17/18/19 + SYS-19/20。Incident 5 状態（DEV-09 §2-11）、P1 重大度の運営への即時メール（F-12-02）。添付は非公開（`UPLOAD_KINDS.incidentAttachment`）で、P3 の `/api/v1/files/[...key]` 経由で開く | P15 | TBD-17/18/20（保険・責任分担。**画面文言のみ**の依存でフロー自体は進められる） | 未着手 |
-| P17 | `feature/adoption-inquiries` | FG-11。SCR-49/50/30/31 + ADM-20/21 + SYS-21/22。AdoptionInquiry 7 状態（DEV-09 §2-12） | P8 | TBD-30〜34 | 未着手 |
+| P16 | `feature/incidents` | FG-12。ADM-17/18/19 + SYS-19/20。Incident 5 状態（DEV-09 §2-10）、P1 重大度の運営への即時メール（F-12-02）。添付は非公開（`UPLOAD_KINDS.incidentAttachment`）で、P3 の `/api/v1/files/[...key]` 経由で開く | P15 | TBD-17/18/20（保険・責任分担。**画面文言のみ**の依存でフロー自体は進められる） | 未着手 |
+| P17 | `feature/adoption-inquiries` | FG-11。SCR-49/50/30/31 + ADM-20/21 + SYS-21/22。AdoptionInquiry 7 状態（**DEV-09 §2-11**）、`listed → in_consultation` の連鎖遷移、団体スタッフ全員への通知、相談送信の KV レート制限（5 回/日/Walker） | P8 | TBD-30〜34（いずれも `[Assumed]` の既定値で実装。§3-6 の注記参照） | 進行中 |
 | P18 | `feature/payouts` | FG-09。Cron Triggers の月次集計 + admin の確定操作 + Stripe Connect Transfer + ADM-15/16 + SYS-17/18。集計・確定は `apps/admin`、参照専用クエリのみ `apps/public`（DEV-05 §7） | P13 | **TBD-29**（振込サイクル） | 未着手 |
 | P19 | `feature/admin-platform` | FG-15 残り。SYS-02/03（WalkerProfile の `restricted` / `suspended`。**P5 までに実装済みの遷移は前進のみ**で、制限・停止・解除は admin 操作としてここで足す）、**Organization の `approved → suspended` / `→ deactivated` / `suspended,deactivated → approved`**（P6 は審査系のみ。掲載停止の基準は TBD-28）、SYS-25 管理操作履歴、SYS-01 ダッシュボードの実データ化 | P14 | TBD-13（利用制限の基準）、TBD-28（団体掲載停止基準） | 未着手 |
 | P20 | `chore/ops-hardening` | 残りの KV レート制限（DEV-02 §7）、データ保管期限の削除バッチ（OPS-02 §4-3）、**TBD-60 の Access 実測**（DEV-08 §4）、staging → production | P19 | なし | 未着手 |
+
+> **P17 の申し送り 5 点**
+>
+> 1. **TBD-30〜34 は `[Assumed]` の既定値のまま実装した。** 必須入力は希望理由・飼育環境の 2 つ
+>    （TBD-30）、運営は仲介せず受付と通知のみ（TBD-32）、団体に渡すのは氏名・メール・電話で
+>    **住所は渡さない**（TBD-34 — view model に `address` を載せず、テンプレートから漏らしようが
+>    ない形にした）。確定内容が違った場合の変更点は `getOrganizationInquiry()` の戻り値と
+>    `validation/adoption-inquiries.ts` の 2 箇所。
+> 2. **相談後のやり取りはサービス外**（TBD-31）。画面にもその旨を書いてあり、メッセージ機能は
+>    作っていない。要求が出た場合は新テーブルになるので DEV-07 の変更が先。
+> 3. **相談履歴の保存期間（TBD-33、暫定 3 年）の削除バッチは未実装**。他のデータ保管期限と
+>    まとめて P20 で入れる（OPS-02 §4-3）。
+> 4. **`received` 以外での重複相談は許している。** 同じ犬への 2 通目は 1 通目が `received` の
+>    間だけ拒否する。団体が `closed` にした後の再相談まで塞ぐのは行き過ぎと判断した — 変えるなら
+>    `createAdoptionInquiry()` の重複チェック 1 箇所。
+> 5. **相談が終わっても犬は `in_consultation` のまま。** 連鎖遷移は `listed → in_consultation`
+>    の片道だけで（DEV-09 §2-11-3 もそれしか定めていない）、取下げ・相談終了で自動的に `listed`
+>    へは戻さない。団体が ADM-07 で戻す運用になる — 相談が 1 件終わっただけで再公開してよいかを
+>    判断できるのは団体だけのため。自動化するなら「他に生きている相談が無いこと」の確認が要る。
 
 ---
 

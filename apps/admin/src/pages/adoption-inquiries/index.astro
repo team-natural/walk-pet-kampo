@@ -1,6 +1,5 @@
 ---
 // SYS-21 — PRD-04 §3-3
-// TODO(SYS-21): replace mockAdoptionInquiries with listAdoptionInquiries() — F-15-11.
 import { env } from "cloudflare:workers";
 import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
 import DataTable from "$lib/components/data-table.astro";
@@ -9,16 +8,15 @@ import RowLink from "$lib/components/row-link.svelte";
 import StatusBadge from "$lib/components/status-badge.svelte";
 import * as Table from "$lib/components/ui/table/index.js";
 import { formatDate } from "$lib/format";
-import { mockAdoptionInquiries } from "$lib/mocks";
 import { getSession } from "$lib/server/auth/session";
-import type { AdoptionInquirySummary } from "$lib/view-models/adoption-inquiry";
+import { listAdoptionInquiries } from "$lib/server/services/adoption-inquiries";
 import { createDb } from "@app/schema/client";
 
 const db = createDb(env.DB);
 const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/", 302);
 
-const inquiries: AdoptionInquirySummary[] = mockAdoptionInquiries;
+const { items: inquiries } = await listAdoptionInquiries(db);
 ---
 
 <ConsoleLayout title="里親相談" user={session} breadcrumbs={[{ label: "里親相談" }]}>

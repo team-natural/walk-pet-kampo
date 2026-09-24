@@ -338,7 +338,7 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 | GET | `/api/v1/me/walk-records` | お散歩記録一覧（F-10-02） |
 | GET | `/api/v1/me/walk-records/{id}` | お散歩記録詳細 |
 | GET | `/api/v1/me/support-summary` | 累計参加回数・累計団体還元額（F-10-03） |
-| POST | `/api/v1/dogs/{id}/adoption-inquiries` | 里親相談フォーム送信（F-11-01。`Dog.adoption_status` を `listed → in_consultation` へ連鎖遷移、DEV-09 §2-11-3） |
+| POST | `/api/v1/dogs/{slug}/adoption-inquiries` | 里親相談フォーム送信（F-11-01）。**犬は `slug` で指定する** — SCR-05・SCR-49 が slug で引く公開画面のため。**`listed → in_consultation` の連鎖はここでは起きない**: 送信時点ではまだ団体が見ていないので、遷移は団体が `organization_reviewing` にしたときに走る（DEV-09 §2-11-3）。5 回/日/Walker（DEV-02 §7） |
 | GET | `/api/v1/me/adoption-inquiries` | 相談履歴一覧（F-11-03） |
 | GET | `/api/v1/me/adoption-inquiries/{id}` | 相談詳細 |
 | POST | `/api/v1/me/adoption-inquiries/{id}/withdraw` | 相談の取下げ |
