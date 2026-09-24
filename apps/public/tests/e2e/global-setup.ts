@@ -43,8 +43,11 @@ export default function globalSetup() {
   // Drop only these accounts, so a developer's own data survives a test run. Child rows go first:
   // none of these foreign keys cascade — and notifications / notification_settings have none at
   // all, so a stale row would outlive the account and land in the next run's inbox.
+  // `LIKE 'e2e-signup-%'` sweeps the accounts the registration spec creates: it needs a fresh
+  // address every run, so it cannot clean up by name the way the seeded accounts do.
   const email = E2E_WALKER.email.replaceAll("'", "''");
-  runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", `DELETE FROM walker_sessions WHERE walker_id IN (SELECT id FROM walkers WHERE email = '${email}'); DELETE FROM walkers WHERE email = '${email}';`]);
+  const walkerScope = `(SELECT id FROM walkers WHERE email = '${email}' OR email LIKE 'e2e-signup-%')`;
+  runInAdmin("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`DELETE FROM walker_sessions WHERE walker_id IN ${walkerScope};`, `DELETE FROM walker_password_reset_tokens WHERE walker_id IN ${walkerScope};`, `DELETE FROM walker_email_verification_tokens WHERE walker_id IN ${walkerScope};`, `DELETE FROM walker_profiles WHERE walker_id IN ${walkerScope};`, `DELETE FROM walkers WHERE email = '${email}' OR email LIKE 'e2e-signup-%';`].join(" ")]);
 
   const memberEmail = E2E_ORGANIZATION_MEMBER.email.replaceAll("'", "''");
   const organizationName = E2E_ORGANIZATION_MEMBER.organization.replaceAll("'", "''");

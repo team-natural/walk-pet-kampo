@@ -15,6 +15,13 @@
       "when": 1789625864162,
       "tag": "0001_needy_hawkeye",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790207845697,
+      "tag": "0002_wet_jamie_braddock",
+      "breakpoints": true
     }
   ]
 }

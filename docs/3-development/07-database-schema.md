@@ -427,6 +427,7 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | name | TEXT | NO | 最大 255 文字を想定 |
 | email | TEXT | NO | UNIQUE、最大 255 文字を想定 |
 | password_hash | TEXT | NO | Web Crypto PBKDF2 でハッシュ化（admin_users と同じ技術だが実装コードは共有しない） |
+| email_verified_at | TEXT | YES | メールアドレス確認（F-01-01）の完了時刻。`walker_profiles.status` が `active` へ進む条件の 1 つ（DEV-09 §2-4-3）。トークンは §5-26 |
 | status | TEXT | NO | active / suspended（アカウント自体の状態。予約可否等の詳細な利用資格は `walker_profiles.status` — §5-3 — が担う） |
 | stripe_customer_id | TEXT | YES | Stripe Customer ID（決済手段の再利用用。旧仕様の `users.stripe_customer_id` を踏襲） |
 | last_login_at | TEXT | YES | ISO 8601 |
@@ -461,14 +462,14 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 | public_id | TEXT | NO | UNIQUE（ULID） |
 | walker_id | INTEGER | NO | FK → walkers.id, UNIQUE |
 | name_kana | TEXT | YES |  |
-| birthdate | TEXT | NO | ISO 8601 日付。年齢確認 |
+| birthdate | TEXT | YES | ISO 8601 日付。年齢確認。§5-3-1 |
 | gender | TEXT | YES | 任意項目 |
 | postal_code | TEXT | YES |  |
 | address | TEXT | YES |  |
-| phone | TEXT | NO |  |
-| phone_verified_at | TEXT | YES |  |
-| emergency_contact_name | TEXT | NO |  |
-| emergency_contact_phone | TEXT | NO |  |
+| phone | TEXT | YES | §5-3-1 |
+| phone_verified_at | TEXT | YES | 初回予約時に埋まる（`Decided` — GOV-01 D-036）。`status = active` とは独立した予約の前提条件 |
+| emergency_contact_name | TEXT | YES | §5-3-1 |
+| emergency_contact_phone | TEXT | YES | §5-3-1 |
 | dog_experience | INTEGER | NO | DEFAULT 0（犬の飼育経験） |
 | large_dog_walk_experience | INTEGER | NO | DEFAULT 0 |
 | preferred_area | TEXT | YES | 希望する活動エリア |
@@ -483,6 +484,14 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 **Index**: UNIQUE(`public_id`), UNIQUE(`walker_id`), `status`
 
 > 日時だけでは「どの版に同意したか」が復元できない。規約改定後に再同意を求める判定（F-01-06）はこの列と `TERMS_VERSION` の比較で行う。規約本文は `.astro` 直書きで改定履歴は git が持つため、版番号だけをコード定数に置く（GOV-01 D-016、DEV-06 §1-1）。
+
+#### 5-3-1. 必須項目が NULL 許容である理由
+
+`birthdate` / `phone` / `emergency_contact_name` / `emergency_contact_phone` は**業務上は必須**だが、列としては NULL を許容する。参加者登録（SCR-08）が受け取るのは氏名・メール・パスワード・規約同意の 4 項目だけで、これらの詳細はプロフィール編集（SCR-22・SCR-23）で入力されるため、登録時点では値が存在しない。
+
+**必須性は `status` が表現する**（DEV-09 §2-4）: `provisional` は「アカウントはあるがプロフィール未入力」、`pending_verification` は「必須項目の入力が完了し、メール確認待ち」。予約は `active` が前提なので、これらの項目が埋まっていない利用者は予約に到達できない。
+
+NOT NULL を維持してダミー値を入れる案は採らない — 空文字や `1900-01-01` が「未入力」を意味する規約は、どのクエリからも見えないまま事故になる。
 
 ### 5-4. organizations
 
@@ -914,6 +923,23 @@ D1 セッション + httpOnly 署名クッキー方式。`jose`/JWT・Cloudflare
 **Index**: UNIQUE(`token`), `organization_id`, `expires_at`
 
 > 申請者はまだアカウントを持たない（団体アカウントの発行は承認後 — F-03-06）。ログインさせられないため、本人性をこのトークンだけで担保する。差し戻しのたびに新しい行を発行し、古い行は `used_at` か `expires_at` で無効化する。
+
+### 5-26. walker_email_verification_tokens
+
+参加者のメールアドレス確認（F-01-01、SCR-10）。`walker_password_reset_tokens`（§5-23）と列構成は同一で、FK だけが違う。
+
+| カラム | 型 | NULL | 備考 |
+| --- | --- | --- | --- |
+| id | INTEGER | NO | PK |
+| walker_id | INTEGER | NO | FK → walkers.id |
+| token | TEXT | NO | UNIQUE。確認リンクに埋め込む値 |
+| expires_at | TEXT | NO | ISO 8601。発行から 24 時間（再設定の 60 分より長いのは、確認メールが後で読まれる前提のため） |
+| used_at | TEXT | YES | 使用済みになった時刻。NULL の間のみ有効なリンクとして扱う |
+| created_at | TEXT | NO |  |
+
+**Index**: UNIQUE(`token`), `walker_id`, `expires_at`
+
+> **パスワード再設定と同じテーブルに `purpose` 列で相乗りさせない。** 用途を 1 列で分ける設計は、どこか 1 つのクエリで絞り込みを書き忘れた瞬間に「確認メールのリンクでパスワードが再設定できる」状態を作る。テーブルが分かれていれば、その取り違えは型とテーブル名の段階で止まる（§3-1 の注記・GOV-01 D-020 と同じ理由）。
 
 ---
 

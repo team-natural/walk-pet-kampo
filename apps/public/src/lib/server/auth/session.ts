@@ -50,3 +50,9 @@ export async function createSession(db: DbClient, walkerId: number, ttlDays: num
 export async function destroySession(db: DbClient, token: string): Promise<void> {
   await db.delete(walkerSessions).where(eq(walkerSessions.sessionToken, token));
 }
+
+// Used after a password reset: the point of resetting is that someone else may hold the old
+// credential, so every session opened with it has to go, not just the current browser's.
+export async function destroyAllSessions(db: DbClient, walkerId: number): Promise<void> {
+  await db.delete(walkerSessions).where(eq(walkerSessions.walkerId, walkerId));
+}

@@ -9,11 +9,22 @@ import { env } from "cloudflare:workers";
 
 const session = await getSession(Astro.cookies, createDb(env.DB));
 if (session) return Astro.redirect("/mypage", 302);
+
+// Set by the password reset (SCR-14), which sends the walker here rather than signing them in.
+const passwordReset = Astro.url.searchParams.get("status") === "password_reset";
 ---
 
 <Layout title="ログイン | 保護犬おさんぽマッチング">
   <main id="main-content" class="mx-auto grid max-w-md gap-6 px-4 py-16">
     <h1 class="text-2xl font-bold">ログイン</h1>
+
+    {
+      passwordReset && (
+        <p role="status" class="rounded-2xl border-2 border-brand-blossom/60 bg-brand-blossom/20 px-4 py-3 text-sm font-bold">
+          パスワードを変更しました。新しいパスワードでログインしてください。
+        </p>
+      )
+    }
 
     <div class="card p-6 sm:p-8">
       <LoginForm client:load />

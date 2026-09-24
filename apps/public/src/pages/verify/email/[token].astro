@@ -1,14 +1,41 @@
 ---
 // SCR-10 — PRD-04 §3-1
-// TODO(SCR-10): verify the token with consumeEmailVerificationToken() and show the outcome — F-01-01.
+// The link is consumed here rather than by a form: the mail has no way to POST, and the visitor
+// arrives with a GET. Safe to spend on a GET because the token is single-use and does nothing
+// but mark an address the recipient already controls.
+import { env } from "cloudflare:workers";
 import Layout from "../../../layouts/Layout.astro";
 import CompletionPanel from "$lib/components/completion-panel.astro";
+import { InvalidTokenError, verifyEmail } from "$lib/server/services/walker-registration";
+import { createDb } from "@app/schema/client";
 
 const { token } = Astro.params;
+
+let verified = true;
+try {
+  await verifyEmail(createDb(env.DB), token!);
+} catch (error) {
+  if (!(error instanceof InvalidTokenError)) throw error;
+  verified = false;
+}
 ---
 
-<Layout title="メールアドレスを確認しました | 保護犬おさんぽマッチング">
-  <main id="main-content" class="mx-auto max-w-2xl px-4 py-16" data-token={token}>
-    <CompletionPanel title="メールアドレスを確認しました" message="ご登録が完了しました。ログインすると、おさんぽの予約ができるようになります。" actionHref="/auth/login" actionLabel="ログインする" />
+<Layout title={verified ? "メールアドレスを確認しました | 保護犬おさんぽマッチング" : "リンクの有効期限が切れています | 保護犬おさんぽマッチング"}>
+  <main id="main-content" class="mx-auto max-w-2xl px-4 py-16">
+    {
+      verified ? (
+        <CompletionPanel title="メールアドレスを確認しました" message="ご登録が完了しました。ログインすると、プロフィールの入力に進めます。" actionHref="/auth/login" actionLabel="ログインする" />
+      ) : (
+        <CompletionPanel title="リンクの有効期限が切れています" message="確認リンクは発行から 24 時間で無効になります。すでに確認がお済みの場合は、そのままログインしてください。" actionHref="/auth/login" actionLabel="ログインする">
+          <p class="text-sm text-pretty text-brand-ink-soft">
+            確認がお済みでない場合は、お手数ですが
+            <a href="/contact" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">
+              お問い合わせ
+            </a>
+            からご連絡ください。
+          </p>
+        </CompletionPanel>
+      )
+    }
   </main>
 </Layout>

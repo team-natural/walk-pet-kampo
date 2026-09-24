@@ -1,21 +1,31 @@
 ---
 // SCR-14 — PRD-04 §3-1
-// TODO(SCR-14): validate the token and post to resetWalkerPassword() — F-01-04.
+// The token is checked on submit, not here: a link that expires between render and submit has to
+// fail at the write anyway, so validating twice would add a second answer to keep consistent.
 import Layout from "../../../layouts/Layout.astro";
 import PageHeader from "$lib/components/page-header.astro";
 
 const { token } = Astro.params;
+const invalidPassword = Astro.url.searchParams.get("error") === "password";
 ---
 
 <Layout title="新しいパスワードの設定 | 保護犬おさんぽマッチング">
   <main id="main-content" class="mx-auto grid max-w-md gap-6 px-4 py-16">
-    <PageHeader title="新しいパスワードの設定" lead="新しいパスワードを入力してください。設定後、そのままログインできます。" />
+    <PageHeader title="新しいパスワードの設定" lead="新しいパスワードを入力してください。設定後、ログイン画面から新しいパスワードでログインできます。" />
+
+    {
+      invalidPassword && (
+        <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+          パスワードは 8 文字以上で入力してください。
+        </p>
+      )
+    }
 
     <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action="/api/v1/auth/password/reset">
       <input type="hidden" name="token" value={token} />
       <label class="grid gap-1.5">
         <span class="font-bold">新しいパスワード</span>
-        <input type="password" name="password" required autocomplete="new-password" class="field w-full" />
+        <input type="password" name="password" required minlength="8" autocomplete="new-password" class="field w-full" />
       </label>
       <button type="submit" class="btn btn-blossom px-6 py-3">設定する</button>
     </form>

@@ -121,7 +121,7 @@ flowchart TD
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
 | P4 | `feature/walker-registration` | FG-01。SCR-08/09/10/13/14。WalkerProfile `provisional → pending_verification → active`（DEV-09 §2-4。**条件はメール確認 + 規約同意** — 電話確認は P11 へ、GOV-01 D-036）、規約同意の版番号記録。メール確認・再設定トークンは P1 の団体側（`organization-auth.ts`）と同じ形で Walker 用に実装する（コードは系統ごとに分ける — DEV-02 §1-4） | P2 | TBD-62（単発トークンの方式。P1 と同じ D1 トークン方式を踏襲して進行中）、TBD-42（規約改定時の再同意） | 進行中 |
-| P5 | `feature/walker-profile` | FG-02。SCR-21/22/23/29/33。緊急連絡先、お気に入り、退会（`withdrawn`） | P4 | なし | 未着手 |
+| P5 | `feature/walker-profile` | FG-02。SCR-21/22/23/29/33。緊急連絡先、お気に入り、退会（`withdrawn`）。**P4 からの持ち越し 3 点**: ①プロフィール保存から `refreshWalkerProfileStatus()` を呼んで `pending_verification → active` を成立させる ②確認メールの再送導線（現状は期限切れ時にお問い合わせへ誘導しているだけ）③WalkerProfile の遷移マトリクスのうち P4 で網羅していない `any → withdrawn` のテスト（`restricted` / `suspended` は admin 操作のため P19） | P4 | なし | 未着手 |
 
 > **電話確認は P4 では実装しない**（`Decided` — GOV-01 D-036）。`pending_verification → active`
 > の条件は「メール確認 + 規約同意」で、電話確認は初回予約時の別条件として P11 で実装する。

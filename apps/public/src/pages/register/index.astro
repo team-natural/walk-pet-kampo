@@ -1,13 +1,30 @@
 ---
 // SCR-08 — PRD-04 §3-1
-// TODO(SCR-08): post to registerWalker() and redirect to /register/complete — F-02-01.
 import Layout from "../../layouts/Layout.astro";
 import PageHeader from "$lib/components/page-header.astro";
+
+// Nothing here says whether an address is already registered — that answer belongs in the
+// mailbox, not on the screen (F-01-01, see the register endpoint).
+const ERRORS: Record<string, string> = {
+  input: "入力内容をご確認ください。",
+  password: "パスワードは 8 文字以上で入力してください。",
+  terms: "利用規約とプライバシーポリシーへの同意が必要です。",
+};
+
+const error = ERRORS[Astro.url.searchParams.get("error") ?? ""];
 ---
 
 <Layout title="参加者登録 | 保護犬おさんぽマッチング" description="おさんぽに参加するためのアカウント登録です。登録は無料です。">
   <main id="main-content" class="mx-auto grid max-w-md gap-6 px-4 py-16">
     <PageHeader title="参加者登録" lead="登録は無料です。登録後、確認メールのリンクを開くと予約ができるようになります。" />
+
+    {
+      error && (
+        <p role="alert" class="rounded-2xl border-2 border-brand-sun/70 bg-brand-sun/25 px-4 py-3 text-sm font-bold">
+          {error}
+        </p>
+      )
+    }
 
     <form class="card grid gap-4 p-6 text-sm sm:p-8" method="post" action="/api/v1/auth/register">
       <label class="grid gap-1.5">
@@ -22,7 +39,8 @@ import PageHeader from "$lib/components/page-header.astro";
 
       <label class="grid gap-1.5">
         <span class="font-bold">パスワード</span>
-        <input type="password" name="password" required autocomplete="new-password" class="field w-full" />
+        <input type="password" name="password" required minlength="8" autocomplete="new-password" class="field w-full" />
+        <span class="text-brand-ink-soft">8 文字以上</span>
       </label>
 
       <label class="flex items-start gap-3">

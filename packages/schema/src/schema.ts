@@ -108,6 +108,7 @@ export const walkers = sqliteTable(
     name: text("name").notNull(),
     email: text("email").notNull(),
     passwordHash: text("password_hash").notNull(),
+    emailVerifiedAt: text("email_verified_at"),
     // Account-level only. Whether this walker may reserve is walker_profiles.status.
     status: text("status", { enum: ["active", "suspended"] }).notNull(),
     stripeCustomerId: text("stripe_customer_id"),
@@ -141,14 +142,20 @@ export const walkerProfiles = sqliteTable(
       .notNull()
       .references(() => walkers.id),
     nameKana: text("name_kana"),
-    birthdate: text("birthdate").notNull(),
+    // Nullable although the business requires them: registration (SCR-08) collects four fields
+    // and these arrive with the profile form. `status` carries the requirement instead, and
+    // `active` — the state reservations need — is unreachable until they are filled
+    // (DEV-07 §5-3-1).
+    birthdate: text("birthdate"),
     gender: text("gender"),
     postalCode: text("postal_code"),
     address: text("address"),
-    phone: text("phone").notNull(),
+    phone: text("phone"),
+    // Filled at the first reservation, not at signup (GOV-01 D-036): an unverified number is
+    // only dangerous once someone is actually going to meet a dog.
     phoneVerifiedAt: text("phone_verified_at"),
-    emergencyContactName: text("emergency_contact_name").notNull(),
-    emergencyContactPhone: text("emergency_contact_phone").notNull(),
+    emergencyContactName: text("emergency_contact_name"),
+    emergencyContactPhone: text("emergency_contact_phone"),
     dogExperience: integer("dog_experience").notNull().default(0),
     largeDogWalkExperience: integer("large_dog_walk_experience").notNull().default(0),
     preferredArea: text("preferred_area"),
@@ -178,6 +185,24 @@ export const walkerPasswordResetTokens = sqliteTable(
     createdAt: createdAt(),
   },
   (table) => [uniqueIndex("uq_walker_password_reset_tokens_token").on(table.token), index("idx_walker_password_reset_tokens_walker_id").on(table.walkerId), index("idx_walker_password_reset_tokens_expires_at").on(table.expiresAt)],
+);
+
+// Same shape as the reset tokens above, deliberately a separate table: one table with a
+// `purpose` column means a single forgotten filter turns a verification link into a password
+// reset (DEV-07 §5-26, same reasoning as GOV-01 D-020).
+export const walkerEmailVerificationTokens = sqliteTable(
+  "walker_email_verification_tokens",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    walkerId: integer("walker_id")
+      .notNull()
+      .references(() => walkers.id),
+    token: text("token").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    usedAt: text("used_at"),
+    createdAt: createdAt(),
+  },
+  (table) => [uniqueIndex("uq_walker_email_verification_tokens_token").on(table.token), index("idx_walker_email_verification_tokens_walker_id").on(table.walkerId), index("idx_walker_email_verification_tokens_expires_at").on(table.expiresAt)],
 );
 
 // ---------------------------------------------------------------------------
