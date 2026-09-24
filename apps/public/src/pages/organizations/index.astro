@@ -1,18 +1,28 @@
 ---
-// SCR-02 — PRD-04 §3-1
-// TODO(SCR-02): replace mockOrganizations with listOrganizations() — F-07-01.
+// SCR-02 — PRD-04 §3-1 (F-07-01)
+import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
 import EmptyState from "$lib/components/empty-state.astro";
 import PageHeader from "$lib/components/page-header.astro";
-import { mockOrganizations } from "$lib/mocks";
+import { listPublicOrganizations } from "$lib/server/services/organization-catalog";
 import type { OrganizationSummary } from "$lib/view-models/organization";
+import { createDb } from "@app/schema/client";
 
-const organizations: OrganizationSummary[] = mockOrganizations;
+const area = Astro.url.searchParams.get("area");
+const organizations: OrganizationSummary[] = await listPublicOrganizations(createDb(env.DB), { area });
 ---
 
 <Layout title="参加保護団体 | 保護犬おさんぽマッチング" description="おさんぽの受け入れをしている保護団体の一覧です。">
   <main id="main-content" class="mx-auto grid max-w-6xl gap-8 px-4 py-12">
     <PageHeader title="参加保護団体" lead="おさんぽの受け入れをしている保護団体の一覧です。気になる団体のページから、募集中のおさんぽを見られます。" />
+
+    <form action="/organizations" method="get" role="search" aria-label="保護団体の検索" class="card grid gap-3 p-4 sm:grid-cols-[1fr_auto]">
+      <label>
+        <span class="sr-only">団体名・活動エリア</span>
+        <input type="search" name="area" value={area} autocomplete="off" spellcheck="false" placeholder="団体名・活動エリア（例: 東京都北区）" class="field w-full" />
+      </label>
+      <button type="submit" class="btn btn-blossom px-6">さがす</button>
+    </form>
 
     {
       organizations.length > 0 ? (

@@ -99,6 +99,9 @@ test.describe("public site", () => {
     expect(headers["x-content-type-options"]).toBe("nosniff");
     expect(headers["x-frame-options"]).toBe("DENY");
     expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+    // Geolocation is allowed for this origin alone — SCR-06's distance search needs it, and a
+    // blanket `geolocation=()` would deny it before the visitor is even asked (F-07-04).
+    expect(headers["permissions-policy"]).toBe("camera=(), microphone=(), geolocation=(self)");
   });
 
   test("the contact endpoint accepts a post from a visitor with no session", async ({ request, baseURL }) => {

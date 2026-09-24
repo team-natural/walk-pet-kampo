@@ -1,19 +1,29 @@
 ---
-// SCR-03 — PRD-04 §3-1
-// TODO(SCR-03): replace the mocks with getOrganizationBySlug() / listDogs() / listWalkSlots() — F-07-01.
+// SCR-03 — PRD-04 §3-1 (F-07-01)
+// The exact address never reaches this page: the Service hands over only what
+// `address_visibility` allows (DEV-07 §5-4).
+import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
 import EmptyState from "$lib/components/empty-state.astro";
 import PageHeader from "$lib/components/page-header.astro";
-import { mockDogs, mockOrganizationDetail, mockWalkSlots } from "$lib/mocks";
+import { dogSizeLabel } from "$lib/dog-status";
+import { imageUrl } from "$lib/images";
 import { formatYen } from "$lib/pricing";
-import type { DogSummary } from "$lib/view-models/dog";
-import type { OrganizationDetail } from "$lib/view-models/organization";
-import type { WalkSlotSummary } from "$lib/view-models/walk-slot";
+import { getPublicOrganizationBySlug, type PublicOrganizationPage } from "$lib/server/services/organization-catalog";
+import { createDb } from "@app/schema/client";
+import { NotFoundError } from "@app/server-kit/http";
 
 const { slug } = Astro.params;
-const organization: OrganizationDetail = mockOrganizationDetail;
-const dogs: DogSummary[] = mockDogs;
-const walkSlots: WalkSlotSummary[] = mockWalkSlots;
+
+let page: PublicOrganizationPage;
+try {
+  page = await getPublicOrganizationBySlug(createDb(env.DB), slug!);
+} catch (error) {
+  if (error instanceof NotFoundError) return Astro.rewrite("/404");
+  throw error;
+}
+
+const { organization, dogs, walkSlots } = page;
 
 const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
@@ -30,14 +40,30 @@ const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "nu
           <dt>代表者</dt>
           <dd>{organization.representativeName}</dd>
         </div>
-        <div>
-          <dt>活動開始</dt>
-          <dd>{organization.activityStartedOn}</dd>
-        </div>
-        <div>
-          <dt>譲渡実績</dt>
-          <dd>{organization.adoptionTrackRecord}</dd>
-        </div>
+        {
+          organization.publicAddress && (
+            <div>
+              <dt>所在地</dt>
+              <dd>{organization.publicAddress}</dd>
+            </div>
+          )
+        }
+        {
+          organization.activityStartedOn && (
+            <div>
+              <dt>活動開始</dt>
+              <dd>{organization.activityStartedOn}</dd>
+            </div>
+          )
+        }
+        {
+          organization.adoptionTrackRecord && (
+            <div>
+              <dt>譲渡実績</dt>
+              <dd>{organization.adoptionTrackRecord}</dd>
+            </div>
+          )
+        }
         {
           organization.website && (
             <div>
@@ -80,22 +106,25 @@ const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "nu
 
     <section class="grid gap-5">
       <h2 class="text-xl font-bold text-balance">この団体の保護犬</h2>
-      <ul class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {
-          dogs.map((dog) => (
-            <li class="card p-6">
-              <h3 class="line-clamp-2 text-lg font-bold text-balance">
-                <a href={`/dogs/${dog.slug}`} class="rounded underline-offset-4 hover:underline">
-                  {dog.name}
-                </a>
-              </h3>
-              <p class="mt-2 text-sm text-brand-ink-soft">
-                {dog.breed} / {dog.size}
-              </p>
-            </li>
-          ))
-        }
-      </ul>
+      {
+        dogs.length > 0 ? (
+          <ul class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {dogs.map((dog) => (
+              <li class="card p-6">
+                {dog.photoKey && <img src={imageUrl(dog.photoKey)} alt="" width="480" height="320" loading="lazy" class="mb-4 h-40 w-full rounded-2xl object-cover" />}
+                <h3 class="line-clamp-2 text-lg font-bold text-balance">
+                  <a href={`/dogs/${dog.slug}`} class="rounded underline-offset-4 hover:underline">
+                    {dog.name}
+                  </a>
+                </h3>
+                <p class="mt-2 text-sm text-brand-ink-soft">{[dog.breed, dogSizeLabel(dog.size)].filter(Boolean).join(" / ")}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState message="この団体が公開している保護犬はまだいません。" actionHref="/dogs" actionLabel="ほかの保護犬を見る" />
+        )
+      }
     </section>
   </main>
 </Layout>

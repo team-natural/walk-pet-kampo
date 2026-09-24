@@ -4,7 +4,7 @@ import { dogs, organizations, reservations, walkSlotDogs, walkSlots } from "@app
 import type { DbClient } from "@app/schema/client";
 import { ulid } from "@app/schema/ulid";
 import { InvalidStateTransitionError, NotFoundError, ValidationError } from "@app/server-kit/http";
-import { and, asc, desc, eq, gte, inArray, like, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, like, lt, or, sql } from "drizzle-orm";
 import type { DogSummary } from "../../view-models/dog";
 import type { OrganizationSummary } from "../../view-models/organization";
 import type { WalkSlotDetail, WalkSlotSummary } from "../../view-models/walk-slot";
@@ -244,17 +244,39 @@ export async function transitionWalkSlot(db: DbClient, session: OrganizationSess
 
 // SCR-06 / SCR-07. What a visitor may see: an approved shelter's slot that is published and has
 // not already happened. `draft`, `scheduled` and `unpublished` are the shelter's own business.
-const PUBLIC_STATES = ["open", "full", "closed"] as const;
+export const PUBLIC_WALK_SLOT_STATES = ["open", "full", "closed"] as const;
 
 export interface WalkSearchFilters {
   /** Free text matched against prefecture and city (SCR-06's one search box). */
   area?: string | null;
   /** A single JST calendar day, as the `date` input sends it. */
   date?: string | null;
+  /** F-07-03: the one condition a first-timer filters on. */
+  beginnerOnly?: boolean;
+  /** The shelter's slug, for the "this shelter's walks" view. */
+  organizationSlug?: string | null;
+  /** F-07-04. All three together or none — a radius without a point means nothing. */
+  latitude?: number | null;
+  longitude?: number | null;
+  radiusKm?: number | null;
 }
 
-export async function searchWalkSlots(db: DbClient, filters: WalkSearchFilters = {}, limit = 60): Promise<WalkSlotSummary[]> {
-  const conditions = [inArray(walkSlots.status, PUBLIC_STATES), eq(organizations.status, "approved")];
+export interface WalkSlotSearchResult extends WalkSlotSummary {
+  /** Null unless the search carried a point to measure from. */
+  distanceKm: number | null;
+}
+
+// Haversine in SQL with bind variables (GOV-01 D-009, DEV-05 §8) — no spatial extension, and no
+// pulling every row into the Worker to measure it. `min(1.0, …)` guards acos() against a rounding
+// error just over 1 at zero distance, which would return NaN for "you are standing here".
+const EARTH_RADIUS_KM = 6371;
+
+function distanceExpression(latitude: number, longitude: number) {
+  return sql<number>`${EARTH_RADIUS_KM} * acos(min(1.0, cos(radians(${latitude})) * cos(radians(${walkSlots.latitude})) * cos(radians(${walkSlots.longitude}) - radians(${longitude})) + sin(radians(${latitude})) * sin(radians(${walkSlots.latitude}))))`;
+}
+
+export async function searchWalkSlots(db: DbClient, filters: WalkSearchFilters = {}, limit = 60): Promise<WalkSlotSearchResult[]> {
+  const conditions = [inArray(walkSlots.status, PUBLIC_WALK_SLOT_STATES), eq(organizations.status, "approved")];
 
   if (filters.area) {
     const pattern = `%${filters.area}%`;
@@ -268,15 +290,26 @@ export async function searchWalkSlots(db: DbClient, filters: WalkSearchFilters =
     conditions.push(gte(walkSlots.startAt, from), lt(walkSlots.startAt, to));
   }
 
+  if (filters.beginnerOnly) conditions.push(eq(walkSlots.beginnerAllowed, 1));
+  if (filters.organizationSlug) conditions.push(eq(organizations.slug, filters.organizationSlug));
+
+  // The coarse filters go in first and the distance last: DEV-05 §8 exists so a radius search
+  // never becomes a Haversine over the whole table.
+  const point = filters.latitude != null && filters.longitude != null ? distanceExpression(filters.latitude, filters.longitude) : null;
+  if (point) {
+    conditions.push(isNotNull(walkSlots.latitude), isNotNull(walkSlots.longitude));
+    if (filters.radiusKm != null) conditions.push(sql`${point} <= ${filters.radiusKm}`);
+  }
+
   const rows = await db
-    .select({ slot: walkSlots })
+    .select({ slot: walkSlots, distanceKm: point ?? sql<number | null>`NULL` })
     .from(walkSlots)
     .innerJoin(organizations, eq(walkSlots.organizationId, organizations.id))
     .where(and(...conditions))
-    .orderBy(asc(walkSlots.startAt))
+    .orderBy(point ? asc(point) : asc(walkSlots.startAt))
     .limit(limit);
 
-  return Promise.all(rows.map(async (row) => toSummary(row.slot, await countTakenSeats(db, row.slot.id))));
+  return Promise.all(rows.map(async (row) => ({ ...toSummary(row.slot, await countTakenSeats(db, row.slot.id)), distanceKm: row.distanceKm })));
 }
 
 export async function getPublicWalkSlot(db: DbClient, publicId: string): Promise<WalkSlotDetail> {
@@ -284,7 +317,7 @@ export async function getPublicWalkSlot(db: DbClient, publicId: string): Promise
     .select({ slot: walkSlots, organization: organizations })
     .from(walkSlots)
     .innerJoin(organizations, eq(walkSlots.organizationId, organizations.id))
-    .where(and(eq(walkSlots.publicId, publicId), inArray(walkSlots.status, PUBLIC_STATES), eq(organizations.status, "approved")))
+    .where(and(eq(walkSlots.publicId, publicId), inArray(walkSlots.status, PUBLIC_WALK_SLOT_STATES), eq(organizations.status, "approved")))
     .limit(1);
 
   if (!row) throw new NotFoundError("おさんぽ募集が見つかりません。");

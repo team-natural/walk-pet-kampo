@@ -14,7 +14,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // `geolocation=(self)`, not `()`: SCR-06's distance search (F-07-04) asks the browser for the
+  // visitor's position, and a blanket denial makes that feature fail with a permission error even
+  // after the visitor agrees. Camera and microphone stay off — nothing here uses them.
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
 
   // This origin is cacheable by default, unlike the admin subdomain.
   if (PRIVATE_ROUTES.some((route) => context.url.pathname.startsWith(route))) {

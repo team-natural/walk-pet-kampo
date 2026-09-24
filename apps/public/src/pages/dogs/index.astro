@@ -1,6 +1,5 @@
 ---
-// SCR-04 — PRD-04 §3-1
-// Filters and pagination are P10's work (DEV-11 §3-4); this is the unfiltered list.
+// SCR-04 — PRD-04 §3-1 (F-07-02)
 import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
 import EmptyState from "$lib/components/empty-state.astro";
@@ -11,12 +10,29 @@ import { listPublishedDogs } from "$lib/server/services/dogs";
 import type { DogSummary } from "$lib/view-models/dog";
 import { createDb } from "@app/schema/client";
 
-const dogs: DogSummary[] = await listPublishedDogs(createDb(env.DB));
+const keyword = Astro.url.searchParams.get("q");
+const walkEligibleOnly = Astro.url.searchParams.get("walkable") === "1";
+const dogs: DogSummary[] = await listPublishedDogs(createDb(env.DB), { keyword, walkEligibleOnly });
 ---
 
 <Layout title="保護犬をさがす | 保護犬おさんぽマッチング" description="おさんぽに参加できる保護犬の一覧です。性格や散歩時の注意を見てから選べます。">
   <main id="main-content" class="mx-auto grid max-w-6xl gap-8 px-4 py-12">
     <PageHeader title="保護犬をさがす" lead="おさんぽに参加できる子の一覧です。性格や散歩のときの注意は、それぞれの詳細ページに書いてあります。" />
+
+    <form action="/dogs" method="get" role="search" aria-label="保護犬の検索" class="card grid gap-3 p-4">
+      <div class="grid gap-3 sm:grid-cols-[1fr_auto]">
+        <label>
+          <span class="sr-only">名前・犬種・団体名</span>
+          <input type="search" name="q" value={keyword} autocomplete="off" spellcheck="false" placeholder="名前・犬種・団体名" class="field w-full" />
+        </label>
+        <button type="submit" class="btn btn-blossom px-6">さがす</button>
+      </div>
+
+      <label class="flex items-center gap-2 px-1 text-sm">
+        <input type="checkbox" name="walkable" value="1" checked={walkEligibleOnly} class="size-5 accent-brand-blossom-deep" />
+        <span>おさんぽに参加できる子だけ</span>
+      </label>
+    </form>
 
     {
       dogs.length > 0 ? (

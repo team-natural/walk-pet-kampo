@@ -4,7 +4,7 @@ import { adoptionInquiries, dogs, incidents, organizations, walkSlotDogs } from 
 import type { DbClient } from "@app/schema/client";
 import { ulid } from "@app/schema/ulid";
 import { InvalidStateTransitionError, NotFoundError, ValidationError } from "@app/server-kit/http";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, like, or } from "drizzle-orm";
 import type { DogDetail, DogSummary, OwnDogDetail } from "../../view-models/dog";
 import type { OrganizationSession } from "../auth/organization-session";
 import { activityLogInsert, organizationMemberActor } from "./activity-log";
@@ -203,8 +203,31 @@ export async function deleteDog(db: DbClient, bucket: R2Bucket, session: Organiz
 // withdrawn keeps its rows, and this join is what keeps them off the public site.
 const PUBLIC_DOG_WHERE = and(eq(dogs.isPublished, 1), eq(organizations.status, "approved"));
 
-export async function listPublishedDogs(db: DbClient, limit = 60): Promise<DogSummary[]> {
-  const rows = await db.select({ dog: dogs }).from(dogs).innerJoin(organizations, eq(dogs.organizationId, organizations.id)).where(PUBLIC_DOG_WHERE).orderBy(desc(dogs.id)).limit(limit);
+export interface DogFilters {
+  /** F-07-02's one box: the name, the breed, or the shelter behind the dog. */
+  keyword?: string | null;
+  /** Only the dogs a visitor could actually book a walk with (F-05-03). */
+  walkEligibleOnly?: boolean;
+}
+
+export async function listPublishedDogs(db: DbClient, filters: DogFilters = {}, limit = 60): Promise<DogSummary[]> {
+  const conditions = [PUBLIC_DOG_WHERE];
+
+  if (filters.keyword) {
+    const pattern = `%${filters.keyword}%`;
+    conditions.push(or(like(dogs.name, pattern), like(dogs.breed, pattern), like(organizations.name, pattern))!);
+  }
+
+  if (filters.walkEligibleOnly) conditions.push(eq(dogs.walkEligible, 1));
+
+  const rows = await db
+    .select({ dog: dogs })
+    .from(dogs)
+    .innerJoin(organizations, eq(dogs.organizationId, organizations.id))
+    .where(and(...conditions))
+    .orderBy(desc(dogs.id))
+    .limit(limit);
+
   return rows.map((row) => toSummary(row.dog));
 }
 

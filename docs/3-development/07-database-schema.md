@@ -508,7 +508,7 @@ NOT NULL を維持してダミー値を入れる案は採らない — 空文字
 | contact_name | TEXT | YES |  |
 | postal_code | TEXT | YES |  |
 | address | TEXT | YES | 詳細住所（非公開範囲は address_visibility で制御） |
-| address_visibility | TEXT | NO | prefecture_only / city_only / reservation_confirmed_only |
+| address_visibility | TEXT | NO | prefecture_only / city_only / reservation_confirmed_only。**公開画面に出す文字列は Service（`organization-catalog.ts` の `publicAddress()`）が切り詰める** — `prefecture_only` は都道府県まで、`city_only` は市区町村（郡を含む）まで、`reservation_confirmed_only` は非公開（予約確定者は P11 で予約画面から参照）。SCR-03 の view model には `address` 自体を渡さない（テンプレートから漏らしようがない形にする） |
 | latitude | REAL | YES | ジオコーディング結果（`Decided` — GOV-01 D-009、DEV-10 §9） |
 | longitude | REAL | YES | 同上 |
 | phone | TEXT | YES |  |
