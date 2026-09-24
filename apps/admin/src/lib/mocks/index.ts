@@ -11,7 +11,6 @@ import type { DogDetail, DogSummary } from "$lib/view-models/dog";
 import type { IncidentDetail, IncidentSummary } from "$lib/view-models/incident";
 import type { PayoutDetail, PayoutSummary } from "$lib/view-models/payout";
 import type { PaymentSummary, ReservationDetail, ReservationSummary } from "$lib/view-models/reservation";
-import type { WalkSlotDetail, WalkSlotSummary } from "$lib/view-models/walk-slot";
 import type { WalkerDetail, WalkerSummary } from "$lib/view-models/walker";
 
 const NOW = "2026-09-17T09:00:00.000Z";
@@ -79,42 +78,6 @@ export const mockDogDetail: DogDetail = {
 };
 
 export const mockDogs: DogSummary[] = [mockDogSummary];
-
-export const mockWalkSlotSummary: WalkSlotSummary = {
-  id: "01HZZWALKSLOT000000000001",
-  organizationName: ORGANIZATION_NAME,
-  title: "朝の荒川河川敷さんぽ",
-  startAt: "2026-10-03T00:00:00.000Z",
-  areaPrefecture: "東京都",
-  areaCity: "北区",
-  capacity: 4,
-  reservedCount: 2,
-  feePerPerson: 500,
-  status: "open",
-};
-
-export const mockWalkSlotDetail: WalkSlotDetail = {
-  ...mockWalkSlotSummary,
-  description: "河川敷をゆっくり 1 時間歩きます。スタッフが同行します。",
-  acceptanceStartAt: "2026-09-19T00:00:00.000Z",
-  acceptanceEndAt: "2026-10-01T00:00:00.000Z",
-  durationMinutes: 60,
-  meetingPlace: "赤羽岩淵駅 2 番出口",
-  latitude: 35.7836,
-  longitude: 139.7229,
-  staffAccompanied: 1,
-  beginnerAllowed: 1,
-  childAllowed: 0,
-  minAge: 18,
-  requiredExperience: "none",
-  clothingNotes: "動きやすい服装・スニーカー",
-  precautions: "雨天中止。前日 18 時までに連絡します。",
-  weatherPolicy: "荒天時は中止",
-  cancellationPolicy: "開催 48 時間前まで無料",
-  updatedAt: NOW,
-};
-
-export const mockWalkSlots: WalkSlotSummary[] = [mockWalkSlotSummary];
 
 export const mockPaymentSummary: PaymentSummary = {
   id: "01HZZPAYMENT00000000000001",

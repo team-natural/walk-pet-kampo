@@ -156,7 +156,7 @@ flowchart TD
 | # | ブランチ | 範囲 | 依存 | ブロッカー | 状態 |
 | --- | --- | --- | --- | --- | --- |
 | P8 | `feature/dogs` | FG-05。ADM-05/06/07 + SCR-04/05 + SYS-09/10。Dog `adoptionStatus` 6 状態（DEV-09 §2-5）、写真、`internalNotes`（PRD-04 §4-3）。**公開画像の配信ルート（`/images/[...key]`）もここで追加**（DEV-10 §4-3） | P7 | なし | 進行中 |
-| P9 | `feature/walk-slots` | FG-06。ADM-08/09/10 + SCR-06/07 + SYS-11/12。WalkSlot 8 状態（DEV-09 §2-6）、`walk_slot_dogs`、開催地のジオコーディング | P8 | TBD-14/15（複数名参加の可否が枠の定員設計に影響） | 未着手 |
+| P9 | `feature/walk-slots` | FG-06。ADM-08/09/10 + SCR-06/07 + SYS-11/12。WalkSlot 8 状態（DEV-09 §2-6）、`walk_slot_dogs`、空席計算（GOV-01 D-025）、SCR-06 のエリア・日付フィルタ。**開催地のジオコーディングは未実装**（TBD-40 待ち。P7 と同じ扱い） | P8 | TBD-14/15（複数名参加の可否が枠の定員設計に影響） | 進行中 |
 | P10 | `feature/search` | FG-07 の検索部分。SCR-01/02/03 の実データ化、エリア・日付フィルタ（URL クエリ保持）、**Haversine 距離検索**。絞り込みを先に適用してから距離計算する（DEV-05 §8） | P9 | TBD-40 | 未着手 |
 
 > **P8 の申し送り 3 点**
@@ -169,6 +169,22 @@ flowchart TD
 >    P10 の範囲。
 > 3. **写真は 1 枚だけ**（`dogs.photo_key` が単数カラム。DEV-07 §5-8）。複数枚が要るなら
 >    DEV-07 の変更が先で、`walk_records.photo_keys` と同じ JSON 配列方式になる。
+
+> **P9 の申し送り 4 点**
+>
+> 1. **SYS-11/12 も読み取り専用**（SYS-10 と同じ理由。GOV-02 TBD-58 → P14）。これにより
+>    admin 側で編集シートを持つ画面が 0 になったため、`apps/admin/tests/e2e/edit-forms.spec.ts`
+>    を `describe.skip` にしてある。**P14 で編集シートを戻すときに必ず un-skip する** —
+>    `boolean-field.svelte` の「hidden 0 + checkbox 1」と `select-field.svelte` の hidden input
+>    は、この 3 テストだけが担保している。
+> 2. **system 起点の遷移（受付開始で `open`、受付終了で `closed`、`reserved_count` 到達で
+>    `full`）は未実装**（DEV-09 §2-6-3）。現状はすべて団体スタッフの手動操作。Cron Triggers は
+>    P20 の範囲で、`full ⇄ open` は予約側（P11）から呼ぶ。
+> 3. **中止時の連鎖（予約 → `cancelled_*`、返金判定）は未実装**（DEV-09 §2-6-4）。`transitionWalkSlot()`
+>    に `TODO(P13)` を 1 箇所だけ残した。予約が存在しない今は実害が無い。
+> 4. **F-06-03（予約者一覧）は P11**。ADM-10 には予約一覧のセクションをまだ置いていない。
+>    空席数の計算（D-025 の期限切れ `awaiting_payment` 除外）は P9 で実装・テスト済みで、
+>    P11 はそれを使う。
 
 ### 3-5. Stage 4 — 取引
 

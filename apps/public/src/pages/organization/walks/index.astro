@@ -1,12 +1,12 @@
 ---
 // ADM-08 — PRD-04 §3-2 (guarded)
-// TODO(ADM-08): replace mockWalkSlots with listOwnWalkSlots() — F-06-01.
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
 import DataTable from "$lib/components/organization/data-table.astro";
 import FlashMessage from "$lib/components/organization/flash-message.astro";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
-import { mockWalkSlots } from "$lib/mocks";
+import { listOwnWalkSlots } from "$lib/server/services/walk-slots";
+import { walkSlotStatusLabel } from "$lib/walk-slot-status";
 import type { WalkSlotSummary } from "$lib/view-models/walk-slot";
 import { createDb } from "@app/schema/client";
 
@@ -14,7 +14,7 @@ const db = createDb(env.DB);
 const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
-const walkSlots: WalkSlotSummary[] = mockWalkSlots;
+const walkSlots: WalkSlotSummary[] = await listOwnWalkSlots(db, session.organizationId);
 
 const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
@@ -41,7 +41,7 @@ const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "nu
             {slot.capacity - slot.remainingCapacity} / {slot.capacity}
           </td>
           <td>
-            <span class="badge badge-quiet">{slot.status}</span>
+            <span class="badge badge-quiet">{walkSlotStatusLabel(slot.status)}</span>
           </td>
         </tr>
       ))

@@ -1,14 +1,18 @@
 ---
 // SCR-06 — PRD-04 §3-1
-// TODO(SCR-06): replace mockWalkSlots with searchWalkSlots() — F-07-03, F-07-04.
+// Area and date only. Distance search and the rest of F-07-04 are P10's (DEV-11 §3-4).
+import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
 import EmptyState from "$lib/components/empty-state.astro";
 import PageHeader from "$lib/components/page-header.astro";
-import { mockWalkSlots } from "$lib/mocks";
 import { formatYen } from "$lib/pricing";
+import { searchWalkSlots } from "$lib/server/services/walk-slots";
 import type { WalkSlotSummary } from "$lib/view-models/walk-slot";
+import { createDb } from "@app/schema/client";
 
-const walkSlots: WalkSlotSummary[] = mockWalkSlots;
+const area = Astro.url.searchParams.get("area");
+const date = Astro.url.searchParams.get("date");
+const walkSlots: WalkSlotSummary[] = await searchWalkSlots(createDb(env.DB), { area, date });
 
 const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---
@@ -20,11 +24,11 @@ const dateFormat = new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "nu
     <form action="/walks" method="get" role="search" aria-label="おさんぽの検索" class="card grid gap-3 p-4 sm:grid-cols-[1fr_11rem_auto]">
       <label>
         <span class="sr-only">エリア</span>
-        <input type="search" name="area" autocomplete="off" spellcheck="false" placeholder="エリア（例: 東京都北区）" class="field w-full" />
+        <input type="search" name="area" value={area} autocomplete="off" spellcheck="false" placeholder="エリア（例: 東京都北区）" class="field w-full" />
       </label>
       <label>
         <span class="sr-only">おさんぽの日付</span>
-        <input type="date" name="date" autocomplete="off" class="field w-full" />
+        <input type="date" name="date" value={date} autocomplete="off" class="field w-full" />
       </label>
       <button type="submit" class="btn btn-blossom px-6">さがす</button>
     </form>

@@ -18,6 +18,13 @@ export const E2E_DOG = {
   slug: "dog-e2e-hana",
 };
 
+// SYS-11/12, same reasoning as the dog above. Its start time is fixed and far out, so the list
+// order does not depend on when the suite runs.
+export const E2E_WALK_SLOT = {
+  publicId: "01HZZE2EWALKSLOT000000001",
+  title: "E2E 朝のおさんぽ",
+};
+
 export const E2E_ADMIN = {
   email: "e2e-admin@example.test",
   password: "e2e-only-password",
@@ -50,7 +57,7 @@ export default function globalSetup() {
   const adminScope = `(SELECT id FROM admin_users WHERE email = '${email}')`;
   const applicantScope = `(SELECT id FROM organizations WHERE name = '${E2E_APPLICANT.name}')`;
 
-  run("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`DELETE FROM organization_application_tokens WHERE organization_id IN ${applicantScope};`, `DELETE FROM dogs WHERE organization_id IN ${applicantScope};`, `DELETE FROM activity_log WHERE organization_id IN ${applicantScope};`, `DELETE FROM organizations WHERE name = '${E2E_APPLICANT.name}';`, `UPDATE organizations SET reviewed_by = NULL WHERE reviewed_by IN ${adminScope};`, `UPDATE activity_log SET causer_id = NULL, causer_type = 'system' WHERE causer_type = 'platform' AND causer_id IN ${adminScope};`, `DELETE FROM admin_sessions WHERE admin_user_id IN ${adminScope};`, `DELETE FROM admin_users WHERE email = '${email}';`].join(" ")]);
+  run("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`DELETE FROM organization_application_tokens WHERE organization_id IN ${applicantScope};`, `DELETE FROM walk_slot_dogs WHERE walk_slot_id IN (SELECT id FROM walk_slots WHERE organization_id IN ${applicantScope});`, `DELETE FROM walk_slots WHERE organization_id IN ${applicantScope};`, `DELETE FROM dogs WHERE organization_id IN ${applicantScope};`, `DELETE FROM activity_log WHERE organization_id IN ${applicantScope};`, `DELETE FROM organizations WHERE name = '${E2E_APPLICANT.name}';`, `UPDATE organizations SET reviewed_by = NULL WHERE reviewed_by IN ${adminScope};`, `UPDATE activity_log SET causer_id = NULL, causer_type = 'system' WHERE causer_type = 'platform' AND causer_id IN ${adminScope};`, `DELETE FROM admin_sessions WHERE admin_user_id IN ${adminScope};`, `DELETE FROM admin_users WHERE email = '${email}';`].join(" ")]);
 
   run("pnpm", ["seed", "--", "--table=admin_users", `--email=${E2E_ADMIN.email}`, `--password=${E2E_ADMIN.password}`, `--name=${E2E_ADMIN.name}`]);
 
@@ -59,4 +66,6 @@ export default function globalSetup() {
   run("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`INSERT INTO organizations (public_id, name, slug, representative_name, email, address_visibility, status, created_at, updated_at)`, `VALUES ('${E2E_APPLICANT.publicId}', '${E2E_APPLICANT.name}', '${E2E_APPLICANT.slug}', '代表 太郎', 'e2e-applicant@example.test', 'prefecture_only', 'pending_review', datetime('now'), datetime('now'));`].join(" ")]);
 
   run("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`INSERT INTO dogs (public_id, organization_id, slug, name, breed, size, required_experience, adoption_status, internal_notes, is_published, created_at, updated_at)`, `SELECT '${E2E_DOG.publicId}', id, '${E2E_DOG.slug}', '${E2E_DOG.name}', '柴犬ミックス', 'medium', 'none', 'listed', '投薬中（E2E）。', 1, datetime('now'), datetime('now') FROM organizations WHERE public_id = '${E2E_APPLICANT.publicId}';`].join(" ")]);
+
+  run("npx", ["wrangler", "d1", "execute", "DB", "--local", ...persist, "--command", [`INSERT INTO walk_slots (public_id, organization_id, title, start_at, acceptance_start_at, acceptance_end_at, duration_minutes, meeting_place, area_prefecture, area_city, capacity, reserved_count, required_experience, min_age, status, created_at, updated_at)`, `SELECT '${E2E_WALK_SLOT.publicId}', id, '${E2E_WALK_SLOT.title}', '2027-03-02T00:00:00.000Z', '2027-01-01T00:00:00.000Z', '2027-03-01T00:00:00.000Z', 60, '赤羽岩淵駅 2 番出口', '東京都', '北区', 4, 2, 'none', 18, 'open', datetime('now'), datetime('now') FROM organizations WHERE public_id = '${E2E_APPLICANT.publicId}';`].join(" ")]);
 }

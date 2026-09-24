@@ -365,9 +365,9 @@ Payout は月次 Cron Triggers による集計から確定・Stripe Connect Tran
 | GET | `/api/v1/organization/walk-slots` | お散歩枠一覧（F-06-01） | — |
 | POST | `/api/v1/organization/walk-slots` | お散歩枠登録（日時・場所・定員・参加費・候補犬。F-06-01） | — |
 | GET | `/api/v1/organization/walk-slots/{id}` | お散歩枠詳細 | — |
-| PATCH | `/api/v1/organization/walk-slots/{id}` | 編集・定員変更（F-06-04） | — |
-| POST | `/api/v1/organization/walk-slots/{id}/publish` | 公開（`draft/scheduled → open`。F-06-02） | — |
-| POST | `/api/v1/organization/walk-slots/{id}/cancel` | 開催中止（body: `{ reason: "organization" \| "weather" \| "dog_condition" }`。予約済み Reservation へ連鎖遷移、DEV-09 §2-6-4） | — |
+| POST | `/api/v1/organization/walk-slots/{id}` | 編集・定員変更・候補犬の差し替え（F-06-01・F-06-04）。**PATCH ではない** — §5-16 参照。定員は「すでに埋まっている席数」未満にはできない | — |
+| POST | `/api/v1/organization/walk-slots/{id}/status` | 公開・非公開の切替（body: `{ to }`。F-06-02）。`/publish` から改名 — 現在地から到達できる状態は DEV-09 §2-6-2 が決めるので、遷移先ごとにパスを増やさない | — |
+| POST | `/api/v1/organization/walk-slots/{id}/cancel` | 開催中止（body: `{ reason: "organization" \| "weather" \| "dog_condition" }`。予約済み Reservation へ連鎖遷移、DEV-09 §2-6-4）。中止だけ別パスなのは終端かつ副作用を伴うため | — |
 | GET | `/api/v1/organization/reservations` | 予約者一覧確認（F-06-03） | — |
 | GET | `/api/v1/organization/reservations/{id}` | 予約詳細確認 | — |
 | POST | `/api/v1/organization/reservations/{id}/cancel` | 団体都合キャンセル（`→ cancelled_by_organization`。F-08-04） | — |

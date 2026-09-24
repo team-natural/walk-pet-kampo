@@ -1,11 +1,13 @@
 ---
 // ADM-09 — PRD-04 §3-2 (guarded)
-// TODO(ADM-09): post to createWalkSlot() — F-06-01.
+// Every walk is created as a draft; publishing is a transition on ADM-10 (F-06-02).
 import { env } from "cloudflare:workers";
 import OrganizationLayout from "../../../layouts/OrganizationLayout.astro";
+import FlashMessage from "$lib/components/organization/flash-message.astro";
 import FormSection from "$lib/components/organization/form-section.astro";
+import { isoToJstLocal } from "$lib/datetime";
 import { getOrganizationSession } from "$lib/server/auth/organization-session";
-import { mockDogs } from "$lib/mocks";
+import { listOwnDogs } from "$lib/server/services/dogs";
 import { formatYen, PARTICIPATION_FEE } from "$lib/pricing";
 import type { DogSummary } from "$lib/view-models/dog";
 import { createDb } from "@app/schema/client";
@@ -14,10 +16,16 @@ const db = createDb(env.DB);
 const session = await getOrganizationSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/organization/login", 302);
 
-const dogs: DogSummary[] = mockDogs;
+// Only the dogs the shelter marked as able to walk — the Service refuses the rest anyway, and a
+// checkbox that cannot be submitted is worse than an absent one (F-05-03).
+const dogs: DogSummary[] = (await listOwnDogs(db, session.organizationId)).filter((dog) => dog.walkEligible === 1);
+
+const acceptanceStartDefault = isoToJstLocal(new Date().toISOString());
 ---
 
 <OrganizationLayout title="おさんぽ募集の作成 | 団体ページ" session={session}>
+  <FlashMessage />
+
   <header class="grid gap-2">
     <a href="/organization/walks" class="w-fit rounded text-sm font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">← おさんぽ募集</a>
     <h1 class="text-xl font-bold">おさんぽ募集の作成</h1>
@@ -31,13 +39,18 @@ const dogs: DogSummary[] = mockDogs;
       </label>
 
       <label class="grid gap-1.5">
+        <span class="font-bold">紹介文</span>
+        <textarea name="description" rows="3" class="field w-full rounded-2xl"></textarea>
+      </label>
+
+      <label class="grid gap-1.5">
         <span class="font-bold">開催日時</span>
         <input type="datetime-local" name="startAt" required class="field w-full" />
       </label>
 
       <label class="grid gap-1.5">
         <span class="font-bold">所要時間（分）</span>
-        <input type="number" name="durationMinutes" value="60" min="15" class="field w-full tabular-nums" />
+        <input type="number" name="durationMinutes" value="60" min="15" required class="field w-full tabular-nums" />
       </label>
 
       <label class="grid gap-1.5">
@@ -46,24 +59,90 @@ const dogs: DogSummary[] = mockDogs;
       </label>
 
       <label class="grid gap-1.5">
+        <span class="font-bold">都道府県</span>
+        <input type="text" name="areaPrefecture" required placeholder="東京都" class="field w-full" />
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">市区町村</span>
+        <input type="text" name="areaCity" placeholder="北区" class="field w-full" />
+      </label>
+
+      <label class="grid gap-1.5">
         <span class="font-bold">定員</span>
-        <input type="number" name="capacity" min="1" value="4" class="field w-full tabular-nums" />
+        <input type="number" name="capacity" min="1" value="4" required class="field w-full tabular-nums" />
       </label>
 
       <p class="text-brand-ink-soft">参加費は {formatYen(PARTICIPATION_FEE)} 固定です。</p>
     </FormSection>
 
+    <FormSection legend="受付期間" description="この期間だけ、参加者が予約できます。">
+      <label class="grid gap-1.5">
+        <span class="font-bold">受付開始</span>
+        <input type="datetime-local" name="acceptanceStartAt" value={acceptanceStartDefault} required class="field w-full" />
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">受付終了</span>
+        <input type="datetime-local" name="acceptanceEndAt" required class="field w-full" />
+      </label>
+    </FormSection>
+
     <FormSection legend="参加する保護犬" description="おさんぽに参加できる設定の子だけが選べます。">
-      <div class="grid gap-2">
-        {
-          dogs.map((dog) => (
-            <label class="flex items-center gap-3">
-              <input type="checkbox" name="dogIds" value={dog.id} class="size-5 accent-brand-blossom-deep" />
-              <span>{dog.name}</span>
-            </label>
-          ))
-        }
-      </div>
+      {
+        dogs.length > 0 ? (
+          <div class="grid gap-2">
+            {dogs.map((dog) => (
+              <label class="flex items-center gap-3">
+                <input type="checkbox" name="dogIds" value={dog.id} class="size-5 accent-brand-blossom-deep" />
+                <span>{dog.name}</span>
+              </label>
+            ))}
+          </div>
+        ) : (
+          <p class="text-sm text-brand-ink-soft">
+            おさんぽに参加できる保護犬がまだいません。
+            <a href="/organization/dogs/add" class="rounded font-bold text-brand-blossom-deep underline decoration-2 underline-offset-4 hover:text-brand-ink">
+              保護犬を登録する
+            </a>
+          </p>
+        )
+      }
+    </FormSection>
+
+    <FormSection legend="参加条件">
+      <label class="grid gap-1.5">
+        <span class="font-bold">必要な経験</span>
+        <select name="requiredExperience" class="field w-full">
+          <option value="none">不問</option>
+          <option value="some">多少あると安心</option>
+          <option value="experienced">経験者のみ</option>
+        </select>
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">参加できる年齢（歳以上）</span>
+        <input type="number" name="minAge" min="0" max="100" class="field w-full tabular-nums" />
+      </label>
+
+      {/* Hidden "0" first: an unchecked box sends nothing at all, and the route reads the last value for the name. */}
+      <label class="flex items-center gap-3">
+        <input type="hidden" name="staffAccompanied" value="0" />
+        <input type="checkbox" name="staffAccompanied" value="1" checked class="size-5 accent-brand-blossom-deep" />
+        <span>スタッフが同行する</span>
+      </label>
+
+      <label class="flex items-center gap-3">
+        <input type="hidden" name="beginnerAllowed" value="0" />
+        <input type="checkbox" name="beginnerAllowed" value="1" checked class="size-5 accent-brand-blossom-deep" />
+        <span>はじめての方でも参加できる</span>
+      </label>
+
+      <label class="flex items-center gap-3">
+        <input type="hidden" name="childAllowed" value="0" />
+        <input type="checkbox" name="childAllowed" value="1" class="size-5 accent-brand-blossom-deep" />
+        <span>お子さま同伴で参加できる</span>
+      </label>
     </FormSection>
 
     <FormSection legend="参加者への案内">
@@ -80,6 +159,11 @@ const dogs: DogSummary[] = mockDogs;
       <label class="grid gap-1.5">
         <span class="font-bold">雨天時の対応</span>
         <input type="text" name="weatherPolicy" class="field w-full" />
+      </label>
+
+      <label class="grid gap-1.5">
+        <span class="font-bold">キャンセルについて</span>
+        <textarea name="cancellationPolicy" rows="3" class="field w-full rounded-2xl"></textarea>
       </label>
     </FormSection>
 

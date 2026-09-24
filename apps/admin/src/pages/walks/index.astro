@@ -1,6 +1,5 @@
 ---
 // SYS-11 — PRD-04 §3-3
-// TODO(SYS-11): replace mockWalkSlots with listWalkSlots() — F-15-06.
 import { env } from "cloudflare:workers";
 import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
 import DataTable from "$lib/components/data-table.astro";
@@ -9,16 +8,15 @@ import RowLink from "$lib/components/row-link.svelte";
 import StatusBadge from "$lib/components/status-badge.svelte";
 import * as Table from "$lib/components/ui/table/index.js";
 import { formatDateTime } from "$lib/format";
-import { mockWalkSlots } from "$lib/mocks";
 import { getSession } from "$lib/server/auth/session";
-import type { WalkSlotSummary } from "$lib/view-models/walk-slot";
+import { listWalkSlots } from "$lib/server/services/walk-slots";
 import { createDb } from "@app/schema/client";
 
 const db = createDb(env.DB);
 const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/", 302);
 
-const slots: WalkSlotSummary[] = mockWalkSlots;
+const { items: slots } = await listWalkSlots(db);
 ---
 
 <ConsoleLayout title="お散歩募集" user={session} breadcrumbs={[{ label: "お散歩募集" }]}>

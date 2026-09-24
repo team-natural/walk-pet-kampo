@@ -1,14 +1,25 @@
 ---
 // SCR-07 — PRD-04 §3-1
-// TODO(SCR-07): replace mockWalkSlotDetail with getWalkSlotByPublicId() — F-07-05.
+// Only a published slot of an approved shelter resolves; anything else is a 404 rather than a
+// page that quietly hides half of itself.
+import { env } from "cloudflare:workers";
 import Layout from "../../layouts/Layout.astro";
 import PageHeader from "$lib/components/page-header.astro";
-import { mockWalkSlotDetail } from "$lib/mocks";
 import { formatYen } from "$lib/pricing";
+import { getPublicWalkSlot } from "$lib/server/services/walk-slots";
 import type { WalkSlotDetail } from "$lib/view-models/walk-slot";
+import { createDb } from "@app/schema/client";
+import { NotFoundError } from "@app/server-kit/http";
 
 const { publicId } = Astro.params;
-const slot: WalkSlotDetail = mockWalkSlotDetail;
+
+let slot: WalkSlotDetail;
+try {
+  slot = await getPublicWalkSlot(createDb(env.DB), publicId!);
+} catch (error) {
+  if (error instanceof NotFoundError) return Astro.rewrite("/404");
+  throw error;
+}
 
 const dateFormat = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" });
 ---

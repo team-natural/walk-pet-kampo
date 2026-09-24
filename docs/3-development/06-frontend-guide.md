@@ -234,6 +234,24 @@ const news = defineCollection({
 > 生成するページには `export const prerender = true` を必ず書く — 書き忘れると一覧は出るのに
 > 個別ページだけ 500 になる。
 
+### 1-2. 日時の扱い（保存は UTC、入出力は JST）
+
+D1 には **ISO 8601 の UTC 文字列**で保存する（DEV-07 §1）。画面に出す値と利用者が入力する値は
+**すべて日本時間**で、変換は `apps/public/src/lib/datetime.ts` の 2 関数に閉じる。
+
+| 方向 | 使うもの |
+| --- | --- |
+| 表示（UTC → JST） | `Intl.DateTimeFormat("ja-JP", { …, timeZone: "Asia/Tokyo" })` |
+| 入力（`datetime-local` → UTC） | `jstLocalToIso()` |
+| 再表示（UTC → `datetime-local` の `value`） | `isoToJstLocal()` |
+
+**`new Date("2026-10-03T09:00")` を直接使わない。** `datetime-local` はタイムゾーンを持たない
+文字列を送るため、この式は実行環境のローカル時刻として解釈される — Workers は UTC なので本番では
+9 時間ずれ、開発者の端末では正しく見える。`jstLocalToIso()` は `+09:00` を明示的に付ける。
+
+日付での絞り込み（SCR-06 の日付フィルタ等）も同じ理由で、JST の 1 日を
+`[その日 00:00+09:00, 翌日 00:00+09:00)` の UTC 範囲に変換してから比較する。
+
 ---
 
 ## 2. 状態管理方針

@@ -1,10 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import { E2E_ADMIN } from "./global-setup";
+import { E2E_ADMIN, E2E_WALK_SLOT } from "./global-setup";
 
-// SYS-12 still renders mock data, so any id resolves — the subject here is the form, not the
-// record behind it. SYS-10's sheet is not mounted until its write path exists (GOV-02 TBD-58),
-// so the shared field components are exercised through this one.
-const WALK_SLOT_URL = "/walks/01HZZWALKSLOT000000000001";
+// Skipped from P9 until P14. No admin screen mounts an edit sheet while the write path is
+// undecided (GOV-02 TBD-58), so there is nothing to open — but what these three pin is the
+// behaviour of boolean-field / select-field, which is exactly what a reader would otherwise have
+// to rediscover when the sheets come back. Un-skip with them.
+const WALK_SLOT_URL = `/walks/${E2E_WALK_SLOT.publicId}`;
 
 async function signIn(page: Page) {
   await page.goto("/");
@@ -36,7 +37,7 @@ function serializeForm(page: Page) {
   });
 }
 
-test.describe("SYS-12 edit form", () => {
+test.describe.skip("SYS-12 edit form (restored with the write path — GOV-02 TBD-58)", () => {
   test("submits every field the platform may patch", async ({ page }) => {
     await signIn(page);
     await openEditSheet(page, WALK_SLOT_URL);

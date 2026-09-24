@@ -1,19 +1,16 @@
 ---
 // SYS-12 — PRD-04 §3-3
-// Write side is `updateWalkSlotByPlatform` over the Service Binding (DEV-04 §5-15); the
-// admin-side HTTP wrapper this form posts to is still TBD-58.
-// TODO(SYS-12): replace mockWalkSlotDetail with getWalkSlot() and post updateWalkSlotByPlatform()
-// — F-15-06.
+// Read-only until P14, like SYS-10: the write side is `updateWalkSlotByPlatform` over the Service
+// Binding (DEV-04 §5-15) and the admin-side route that calls it is GOV-02 TBD-58. The edit sheet
+// and the cancel action stay in `walk-slot-edit-sheet.svelte` for it.
 import { env } from "cloudflare:workers";
 import ConsoleLayout from "../../layouts/ConsoleLayout.astro";
-import ConfirmAction from "$lib/components/confirm-action.svelte";
 import DetailCard from "$lib/components/detail-card.astro";
 import PageHeader from "$lib/components/page-header.astro";
 import StatusBadge from "$lib/components/status-badge.svelte";
-import WalkSlotEditSheet from "$lib/components/walk-slot-edit-sheet.svelte";
 import { formatDateTime, formatYen } from "$lib/format";
-import { mockWalkSlotDetail } from "$lib/mocks";
 import { getSession } from "$lib/server/auth/session";
+import { getWalkSlotByPublicId } from "$lib/server/services/walk-slots";
 import { label, yesNo } from "$lib/status";
 import type { WalkSlotDetail } from "$lib/view-models/walk-slot";
 import { createDb } from "@app/schema/client";
@@ -23,9 +20,7 @@ const session = await getSession(Astro.cookies, db);
 if (!session) return Astro.redirect("/", 302);
 
 const { publicId } = Astro.params;
-const slot: WalkSlotDetail = mockWalkSlotDetail;
-const updateAction = `/api/v1/walk-slots/${slot.id}`;
-const cancellable = slot.status !== "cancelled" && slot.status !== "completed";
+const slot: WalkSlotDetail = await getWalkSlotByPublicId(db, publicId!);
 ---
 
 <ConsoleLayout title={slot.title} user={session} breadcrumbs={[{ label: "お散歩募集", href: "/walks" }, { label: slot.title }]}>
@@ -33,10 +28,6 @@ const cancellable = slot.status !== "cancelled" && slot.status !== "completed";
     <PageHeader title={slot.title} description={slot.organizationName}>
       <Fragment slot="meta">
         <p class="pt-1"><StatusBadge domain="walkSlot" value={slot.status} /></p>
-      </Fragment>
-      <Fragment slot="actions">
-        <WalkSlotEditSheet client:load walkSlot={slot} action={updateAction} />
-        {cancellable && <ConfirmAction client:load action={updateAction} name="status" value="cancelled" destructive triggerLabel="開催を中止する" title="この開催を中止しますか？" message={`公開サイトから見えなくなり、予約済みの ${slot.reservedCount} 名には中止の連絡と返金が行われます。`} confirmLabel="中止する" reasonLabel="理由（参加者への連絡に含まれます）" reasonRequired />}
       </Fragment>
     </PageHeader>
 
